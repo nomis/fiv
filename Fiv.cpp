@@ -15,8 +15,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Fiv.h"
-
+#include "Fiv.hpp"
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -32,7 +31,7 @@
 #include <algorithm>
 #include <errno.h>
 
-#include "Image.h"
+#include "Image.hpp"
 
 using namespace std;
 

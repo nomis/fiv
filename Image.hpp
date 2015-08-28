@@ -15,8 +15,8 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IMAGE_H_
-#define IMAGE_H_
+#ifndef IMAGE_HPP_
+#define IMAGE_HPP_
 
 #include <string>
 
@@ -32,4 +32,4 @@ private:
 	int fd;
 };
 
-#endif /* IMAGE_H_ */
+#endif /* IMAGE_HPP_ */

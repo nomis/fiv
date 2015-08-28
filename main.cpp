@@ -15,7 +15,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Fiv.h"
+#include "Fiv.hpp"
 
 int main(int argc, char *argv[]) {
 	return Fiv().main(argc, argv);

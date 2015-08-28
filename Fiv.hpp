@@ -15,8 +15,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FIV_H_
-#define FIV_H_
+#ifndef FIV_HPP_
+#define FIV_HPP_
 
 #include <deque>
 #include <memory>
@@ -40,4 +40,4 @@ private:
 
 
 
-#endif /* FIV_H_ */
+#endif /* FIV_HPP_ */
