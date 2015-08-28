@@ -16,36 +16,74 @@
  */
 
 #include "Fiv.hpp"
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+
 #include <dirent.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#include <algorithm>
+#include <cstdio>
 #include <cstdlib>
-#include <vector>
 #include <deque>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <cstring>
-#include <algorithm>
-#include <errno.h>
+#include <thread>
+#include <condition_variable>
 
 #include "Image.hpp"
 
 using namespace std;
 
-Fiv::Fiv() {
-
-}
-
 int Fiv::main(int argc, char *argv[]) {
-	initImages(argc, argv);
+	shared_ptr<deque<shared_ptr<Image>>> loadImages(make_unique<deque<shared_ptr<Image>>>());
+	int ret;
+
+	ret = initImages(argc, argv, loadImages);
+	if (ret != EXIT_SUCCESS)
+		return ret;
+
+	ret = loadImagesInBackground(loadImages);
+	if (ret != EXIT_SUCCESS)
+		return ret;
+
+	loadImages = nullptr;
 
 	return EXIT_SUCCESS;
 }
 
-int Fiv::initImages(int argc, char *argv[]) {
+int Fiv::loadImagesInBackground(shared_ptr<deque<shared_ptr<Image>>> loadImages) {
+	auto self(shared_from_this());
+	shared_ptr<condition_variable> imageLoaded(make_shared<condition_variable>());
+
+	thread([this, self, loadImages, imageLoaded] {
+		bool opened = false;
+
+		for (auto image : *loadImages) {
+			if (image->openFile()) {
+				unique_lock<mutex> lckImages(mtxImages);
+
+				images.push_back(image);
+				imageLoaded->notify_all();
+				opened = true;
+			}
+		}
+
+		if (!opened) {
+			unique_lock<mutex> lckImages(mtxImages);
+			imageLoaded->notify_all();
+		}
+	}).detach();
+
+	unique_lock<mutex> lckImages(mtxImages);
+	imageLoaded->wait(lckImages);
+
+	for (auto image : images)
+		cout << *image << endl;
+
+	return images.size() ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+int Fiv::initImages(int argc, char *argv[], shared_ptr<deque<shared_ptr<Image>>> loadImages) {
 	deque<string> args;
 
 	while (--argc > 0)
@@ -54,10 +92,10 @@ int Fiv::initImages(int argc, char *argv[]) {
 	if (!args.size())
 		args.emplace_back(".");
 
-	return initImages(args);
+	return initImages(args, loadImages);
 }
 
-int Fiv::initImages(deque<string> filenames) {
+int Fiv::initImages(deque<string> filenames, shared_ptr<deque<shared_ptr<Image>>> loadImages) {
 	for (auto filename : filenames) {
 		struct stat st;
 
@@ -70,28 +108,23 @@ int Fiv::initImages(deque<string> filenames) {
 			continue;
 
 		if (S_ISREG(st.st_mode)) {
-			images.emplace_back(make_shared<Image>(filename));
+			loadImages->emplace_back(make_shared<Image>(filename));
 		} else if (S_ISDIR(st.st_mode)) {
-			initImagesFromDir(filename);
+			initImagesFromDir(filename, loadImages);
 		}
 	}
 
-	for (auto image : images)
-		cout << *image << endl;
-
-	// TODO init images in order in background thread and wait for at least one successful image before returning
-
-	return images.size() ? EXIT_SUCCESS : EXIT_FAILURE;
+	return loadImages->size() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 static bool compareImage(const shared_ptr<Image> &a, const shared_ptr<Image> &b) {
 	return a->filename < b->filename;
 }
 
-void Fiv::initImagesFromDir(const string &dirname) {
+void Fiv::initImagesFromDir(const string &dirname, shared_ptr<deque<shared_ptr<Image>>> loadImages) {
 	DIR *dir = opendir(dirname.c_str());
 	struct dirent *entry;
-	auto pos = images.end();
+	auto pos = loadImages->end();
 
 	if (dir == nullptr) {
 		perror(dirname.c_str());
@@ -117,11 +150,11 @@ void Fiv::initImagesFromDir(const string &dirname) {
 				continue;
 			}
 
-			images.emplace_back(make_shared<Image>(filename));
+			loadImages->emplace_back(make_shared<Image>(filename));
 		}
 	}
 
 	closedir(dir);
 
-	sort(pos, images.end(), compareImage); // sort newly added images only
+	sort(pos, loadImages->end(), compareImage); // sort newly added images only
 }

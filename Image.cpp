@@ -16,6 +16,8 @@
  */
 
 #include "Image.hpp"
+
+#include <fcntl.h>
 #include <unistd.h>
 #include <iostream>
 #include <string>
@@ -32,6 +34,17 @@ Image::~Image() {
 		close(fd);
 		fd = -1;
 	}
+}
+
+bool Image::openFile() {
+	if (fd >= 0)
+		return true;
+
+	fd = open(filename.c_str(), O_RDONLY|O_CLOEXEC);
+	if (fd < 0)
+		return false;
+
+	return true;
 }
 
 ostream& operator<<(ostream &stream, const Image &image) {

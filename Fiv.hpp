@@ -20,21 +20,26 @@
 
 #include <deque>
 #include <memory>
+#include <mutex>
 #include <string>
+
+namespace std {
+class condition_variable;
+} /* namespace std */
 
 class Image;
 
-class Fiv {
+class Fiv : public std::enable_shared_from_this<Fiv> {
 public:
-	Fiv();
-
 	int main(int argc, char *argv[]);
 
 private:
-	int initImages(int argc, char *argv[]);
-	int initImages(std::deque<std::string> filenames);
-	void initImagesFromDir(const std::string &dirname);
+	int initImages(int argc, char *argv[], std::shared_ptr<std::deque<std::shared_ptr<Image>>> loadImages);
+	int initImages(std::deque<std::string> filenames, std::shared_ptr<std::deque<std::shared_ptr<Image>>> loadImages);
+	void initImagesFromDir(const std::string &dirname, std::shared_ptr<std::deque<std::shared_ptr<Image>>> loadImages);
+	int loadImagesInBackground(std::shared_ptr<std::deque<std::shared_ptr<Image>>> loadImages);
 
+	std::mutex mtxImages;
 	std::deque<std::shared_ptr<Image>> images;
 };
 

@@ -18,12 +18,15 @@
 #ifndef IMAGE_HPP_
 #define IMAGE_HPP_
 
+#include <iostream>
+#include <memory>
 #include <string>
 
-class Image {
+class Image : public std::enable_shared_from_this<Image> {
 public:
 	Image(std::string filename);
 	~Image();
+	bool openFile();
 	friend std::ostream& operator<<(std::ostream &stream, const Image &image);
 
 	const std::string filename;
