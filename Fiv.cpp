@@ -35,43 +35,33 @@
 using namespace std;
 
 int Fiv::main(int argc, char *argv[]) {
-	shared_ptr<deque<shared_ptr<Image>>> loadImages(make_unique<deque<shared_ptr<Image>>>());
 	int ret;
 
-	ret = initImages(argc, argv, loadImages);
+	ret = initImages(argc, argv);
 	if (ret != EXIT_SUCCESS)
 		return ret;
-
-	ret = loadImagesInBackground(loadImages);
-	if (ret != EXIT_SUCCESS)
-		return ret;
-
-	loadImages = nullptr;
 
 	return EXIT_SUCCESS;
 }
 
-int Fiv::loadImagesInBackground(shared_ptr<deque<shared_ptr<Image>>> loadImages) {
+int Fiv::initImages(int argc, char *argv[]) {
+	unique_ptr<deque<string>> args(make_unique<deque<string>>());
+
+	while (--argc > 0)
+		args->emplace_back((const char *)(++argv)[0]);
+
+	if (!args->size())
+		args->emplace_back(".");
+
+	return initImagesInBackground(move(args));
+}
+
+int Fiv::initImagesInBackground(unique_ptr<deque<string>> filenames_) {
 	auto self(shared_from_this());
 	shared_ptr<condition_variable> imageLoaded(make_shared<condition_variable>());
 
-	thread([this, self, loadImages, imageLoaded] {
-		bool opened = false;
-
-		for (auto image : *loadImages) {
-			if (image->openFile()) {
-				unique_lock<mutex> lckImages(mtxImages);
-
-				images.push_back(image);
-				imageLoaded->notify_all();
-				opened = true;
-			}
-		}
-
-		if (!opened) {
-			unique_lock<mutex> lckImages(mtxImages);
-			imageLoaded->notify_all();
-		}
+	thread([this, self, filenames = move(filenames_), imageLoaded] () mutable {
+		this->initImagesThread(move(filenames), imageLoaded);
 	}).detach();
 
 	unique_lock<mutex> lckImages(mtxImages);
@@ -83,20 +73,10 @@ int Fiv::loadImagesInBackground(shared_ptr<deque<shared_ptr<Image>>> loadImages)
 	return images.size() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-int Fiv::initImages(int argc, char *argv[], shared_ptr<deque<shared_ptr<Image>>> loadImages) {
-	deque<string> args;
+void Fiv::initImagesThread(unique_ptr<deque<string>> filenames, shared_ptr<condition_variable> imageLoaded) {
+	bool opened = false;
 
-	while (--argc > 0)
-		args.emplace_back((const char *)(++argv)[0]);
-
-	if (!args.size())
-		args.emplace_back(".");
-
-	return initImages(args, loadImages);
-}
-
-int Fiv::initImages(deque<string> filenames, shared_ptr<deque<shared_ptr<Image>>> loadImages) {
-	for (auto filename : filenames) {
+	for (auto filename : *filenames) {
 		struct stat st;
 
 		if (access(filename.c_str(), R_OK)) {
@@ -108,23 +88,45 @@ int Fiv::initImages(deque<string> filenames, shared_ptr<deque<shared_ptr<Image>>
 			continue;
 
 		if (S_ISREG(st.st_mode)) {
-			loadImages->emplace_back(make_shared<Image>(filename));
+			shared_ptr<Image> image(make_shared<Image>(filename));
+
+			if (image->openFile()) {
+				unique_lock<mutex> lckImages(mtxImages);
+
+				images.push_back(image);
+				imageLoaded->notify_all();
+				opened = true;
+			}
 		} else if (S_ISDIR(st.st_mode)) {
-			initImagesFromDir(filename, loadImages);
+			deque<shared_ptr<Image>> dirImages;
+
+			initImagesFromDir(filename, dirImages);
+
+			for (auto image : dirImages) {
+				if (image->openFile()) {
+					unique_lock<mutex> lckImages(mtxImages);
+
+					images.push_back(image);
+					imageLoaded->notify_all();
+					opened = true;
+				}
+			}
 		}
 	}
 
-	return loadImages->size() ? EXIT_SUCCESS : EXIT_FAILURE;
+	if (!opened) {
+		unique_lock<mutex> lckImages(mtxImages);
+		imageLoaded->notify_all();
+	}
 }
 
 static bool compareImage(const shared_ptr<Image> &a, const shared_ptr<Image> &b) {
 	return a->filename < b->filename;
 }
 
-void Fiv::initImagesFromDir(const string &dirname, shared_ptr<deque<shared_ptr<Image>>> loadImages) {
+void Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dirImages) {
 	DIR *dir = opendir(dirname.c_str());
 	struct dirent *entry;
-	auto pos = loadImages->end();
 
 	if (dir == nullptr) {
 		perror(dirname.c_str());
@@ -150,11 +152,11 @@ void Fiv::initImagesFromDir(const string &dirname, shared_ptr<deque<shared_ptr<I
 				continue;
 			}
 
-			loadImages->emplace_back(make_shared<Image>(filename));
+			dirImages.emplace_back(make_shared<Image>(filename));
 		}
 	}
 
 	closedir(dir);
 
-	sort(pos, loadImages->end(), compareImage); // sort newly added images only
+	sort(dirImages.begin(), dirImages.end(), compareImage);
 }

@@ -34,10 +34,10 @@ public:
 	int main(int argc, char *argv[]);
 
 private:
-	int initImages(int argc, char *argv[], std::shared_ptr<std::deque<std::shared_ptr<Image>>> loadImages);
-	int initImages(std::deque<std::string> filenames, std::shared_ptr<std::deque<std::shared_ptr<Image>>> loadImages);
-	void initImagesFromDir(const std::string &dirname, std::shared_ptr<std::deque<std::shared_ptr<Image>>> loadImages);
-	int loadImagesInBackground(std::shared_ptr<std::deque<std::shared_ptr<Image>>> loadImages);
+	int initImages(int argc, char *argv[]);
+	int initImagesInBackground(std::unique_ptr<std::deque<std::string>> filenames);
+	void initImagesThread(std::unique_ptr<std::deque<std::string>> filenames, std::shared_ptr<std::condition_variable>);
+	void initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
 
 	std::mutex mtxImages;
 	std::deque<std::shared_ptr<Image>> images;
