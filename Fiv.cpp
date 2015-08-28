@@ -21,14 +21,15 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <deque>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
-#include <condition_variable>
 
 #include "Image.hpp"
 

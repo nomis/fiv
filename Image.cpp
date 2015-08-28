@@ -21,30 +21,53 @@
 #include <unistd.h>
 #include <iostream>
 #include <string>
+#include <sys/mman.h>
+#include <sys/stat.h>
 
 using namespace std;
 
 Image::Image(string filename_) :
 		filename(filename_) {
-	fd = -1;
+	data = nullptr;
+	length = 0;
 }
 
 Image::~Image() {
-	if (fd >= 0) {
-		close(fd);
-		fd = -1;
+	if (data != nullptr) {
+		munmap(data, length);
+
+		data = nullptr;
+		length = 0;
 	}
 }
 
 bool Image::openFile() {
-	if (fd >= 0)
+	struct stat st;
+	int fd;
+
+	if (data != nullptr)
 		return true;
 
 	fd = open(filename.c_str(), O_RDONLY|O_CLOEXEC);
 	if (fd < 0)
-		return false;
+		goto err;
 
+	if (fstat(fd, &st))
+		goto err;
+
+	data = mmap(nullptr, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	if (data == nullptr)
+		goto err;
+
+	length = st.st_size;
+	close(fd);
 	return true;
+
+err:
+	perror(filename.c_str());
+	if (fd >= 0)
+		close(fd);
+	return false;
 }
 
 ostream& operator<<(ostream &stream, const Image &image) {

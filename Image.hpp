@@ -32,7 +32,8 @@ public:
 	const std::string filename;
 
 private:
-	int fd;
+	void *data;
+	size_t length;
 };
 
 #endif /* IMAGE_HPP_ */
