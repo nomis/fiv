@@ -38,6 +38,8 @@
 							<tool command="${LD}" commandLinePattern="${COMMAND} $(LDFLAGS) ${FLAGS} ${OUTPUT_FLAG} ${OUTPUT_PREFIX}${OUTPUT} ${INPUTS} $(LDLIBS)" errorParsers="org.eclipse.cdt.core.GLDErrorParser" id="cdt.managedbuild.tool.gnu.cpp.linker.base.651281723" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.base">
 								<option id="gnu.cpp.link.option.libs.569783845" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="pthread"/>
+									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="magic"/>
+									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="exif"/>
 								</option>
 								<option id="gnu.cpp.link.option.flags.1053010487" name="Linker flags" superClass="gnu.cpp.link.option.flags" value="" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.553623300" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">

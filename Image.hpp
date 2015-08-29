@@ -18,21 +18,35 @@
 #ifndef IMAGE_HPP_
 #define IMAGE_HPP_
 
+#include <stddef.h>
+#include <cstdint>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 
+#include "Codec.hpp"
+
 class Image : public std::enable_shared_from_this<Image> {
+	friend class Codec;
+
 public:
 	Image(std::string filename);
 	~Image();
-	bool openFile();
+	bool openFile(const std::map<std::string,std::shared_ptr<Codec>> codecs);
+	const uint8_t *begin() const;
+	const uint8_t *end() const;
+	size_t size() const;
 	friend std::ostream& operator<<(std::ostream &stream, const Image &image);
+	void getThumbnail();
 
 	const std::string filename;
 
 private:
-	void *data;
+	bool identifyFile(const std::map<std::string,std::shared_ptr<Codec>> codecs);
+
+	std::unique_ptr<Codec> codec;
+	uint8_t *data;
 	size_t length;
 };
 

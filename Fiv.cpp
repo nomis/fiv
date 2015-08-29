@@ -26,23 +26,32 @@
 #include <cstdlib>
 #include <deque>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 
 #include "Image.hpp"
+#include "JpegCodec.hpp"
+#include "Magic.hpp"
 
 using namespace std;
 
 int Fiv::main(int argc, char *argv[]) {
 	int ret;
 
+	initCodecs();
+
 	ret = initImages(argc, argv);
 	if (ret != EXIT_SUCCESS)
 		return ret;
 
 	return EXIT_SUCCESS;
+}
+
+void Fiv::initCodecs() {
+	codecs[JpegCodec::MIME_TYPE] = make_shared<JpegCodec>();
 }
 
 int Fiv::initImages(int argc, char *argv[]) {
@@ -68,8 +77,10 @@ int Fiv::initImagesInBackground(unique_ptr<deque<string>> filenames_) {
 	if (!initImagesComplete)
 		imageAdded.wait(lckImages);
 
-	for (auto image : images)
+	for (auto image : images) {
 		cout << *image << endl;
+		image->getThumbnail();
+	}
 
 	return images.size() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
@@ -89,7 +100,7 @@ void Fiv::initImagesThread(unique_ptr<deque<string>> filenames) {
 		if (S_ISREG(st.st_mode)) {
 			shared_ptr<Image> image(make_shared<Image>(filename));
 
-			if (image->openFile()) {
+			if (image->openFile(codecs)) {
 				unique_lock<mutex> lckImages(mtxImages);
 
 				images.push_back(image);
@@ -101,7 +112,7 @@ void Fiv::initImagesThread(unique_ptr<deque<string>> filenames) {
 			initImagesFromDir(filename, dirImages);
 
 			for (auto image : dirImages) {
-				if (image->openFile()) {
+				if (image->openFile(codecs)) {
 					unique_lock<mutex> lckImages(mtxImages);
 
 					images.push_back(image);

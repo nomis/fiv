@@ -20,9 +20,12 @@
 
 #include <condition_variable>
 #include <deque>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
+
+#include "Codec.hpp"
 
 class Image;
 
@@ -31,10 +34,13 @@ public:
 	int main(int argc, char *argv[]);
 
 private:
+	void initCodecs();
 	int initImages(int argc, char *argv[]);
 	int initImagesInBackground(std::unique_ptr<std::deque<std::string>> filenames);
 	void initImagesThread(std::unique_ptr<std::deque<std::string>> filenames);
 	void initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
+
+	std::map<std::string,std::shared_ptr<Codec>> codecs;
 
 	std::mutex mtxImages;
 	std::deque<std::shared_ptr<Image>> images;

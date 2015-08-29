@@ -18,11 +18,18 @@
 #include "Image.hpp"
 
 #include <fcntl.h>
-#include <unistd.h>
-#include <iostream>
-#include <string>
+#include <stddef.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <cstdint>
+#include <cstdio>
+#include <iostream>
+#include <map>
+#include <string>
+
+#include "Codec.hpp"
+#include "Magic.hpp"
 
 using namespace std;
 
@@ -41,7 +48,7 @@ Image::~Image() {
 	}
 }
 
-bool Image::openFile() {
+bool Image::openFile(const map<string,shared_ptr<Codec>> codecs) {
 	struct stat st;
 	int fd;
 
@@ -55,13 +62,14 @@ bool Image::openFile() {
 	if (fstat(fd, &st))
 		goto err;
 
-	data = mmap(nullptr, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	data = static_cast<uint8_t*>(mmap(nullptr, st.st_size, PROT_READ, MAP_SHARED, fd, 0));
 	if (data == nullptr)
 		goto err;
 
 	length = st.st_size;
 	close(fd);
-	return true;
+
+	return identifyFile(codecs);
 
 err:
 	perror(filename.c_str());
@@ -70,6 +78,36 @@ err:
 	return false;
 }
 
+bool Image::identifyFile(const map<string,shared_ptr<Codec>> codecs) {
+	string mimeType = Magic::identify(data, length);
+
+	try {
+		codec = codecs.at(mimeType)->getInstance(shared_from_this());
+		return true;
+	} catch (const out_of_range &oor) {
+		return false;
+	}
+}
+
+const uint8_t *Image::begin() const {
+	return data;
+}
+
+const uint8_t *Image::end() const {
+	if (data == nullptr)
+		return nullptr;
+
+	return data + length;
+}
+
+size_t Image::size() const {
+	return length;
+}
+
 ostream& operator<<(ostream &stream, const Image &image) {
 	return stream << "Image(filename=" << image.filename << ")";
+}
+
+void Image::getThumbnail() {
+	codec->getThumbnail();
 }
