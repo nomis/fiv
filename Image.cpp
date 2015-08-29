@@ -48,7 +48,7 @@ bool Image::openFile() {
 	if (data != nullptr)
 		return true;
 
-	fd = open(filename.c_str(), O_RDONLY|O_CLOEXEC);
+	fd = open(filename.c_str(), O_RDONLY|O_NONBLOCK|O_CLOEXEC);
 	if (fd < 0)
 		goto err;
 

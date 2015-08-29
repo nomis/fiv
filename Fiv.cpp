@@ -59,14 +59,14 @@ int Fiv::initImages(int argc, char *argv[]) {
 
 int Fiv::initImagesInBackground(unique_ptr<deque<string>> filenames_) {
 	auto self(shared_from_this());
-	shared_ptr<condition_variable> imageLoaded(make_shared<condition_variable>());
 
-	thread([this, self, filenames = move(filenames_), imageLoaded] () mutable {
-		this->initImagesThread(move(filenames), imageLoaded);
+	thread([this, self, filenames = move(filenames_)] () mutable {
+		this->initImagesThread(move(filenames));
 	}).detach();
 
 	unique_lock<mutex> lckImages(mtxImages);
-	imageLoaded->wait(lckImages);
+	if (!initImagesComplete)
+		imageAdded.wait(lckImages);
 
 	for (auto image : images)
 		cout << *image << endl;
@@ -74,9 +74,7 @@ int Fiv::initImagesInBackground(unique_ptr<deque<string>> filenames_) {
 	return images.size() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-void Fiv::initImagesThread(unique_ptr<deque<string>> filenames, shared_ptr<condition_variable> imageLoaded) {
-	bool opened = false;
-
+void Fiv::initImagesThread(unique_ptr<deque<string>> filenames) {
 	for (auto filename : *filenames) {
 		struct stat st;
 
@@ -95,8 +93,7 @@ void Fiv::initImagesThread(unique_ptr<deque<string>> filenames, shared_ptr<condi
 				unique_lock<mutex> lckImages(mtxImages);
 
 				images.push_back(image);
-				imageLoaded->notify_all();
-				opened = true;
+				imageAdded.notify_all();
 			}
 		} else if (S_ISDIR(st.st_mode)) {
 			deque<shared_ptr<Image>> dirImages;
@@ -108,17 +105,15 @@ void Fiv::initImagesThread(unique_ptr<deque<string>> filenames, shared_ptr<condi
 					unique_lock<mutex> lckImages(mtxImages);
 
 					images.push_back(image);
-					imageLoaded->notify_all();
-					opened = true;
+					imageAdded.notify_all();
 				}
 			}
 		}
 	}
 
-	if (!opened) {
-		unique_lock<mutex> lckImages(mtxImages);
-		imageLoaded->notify_all();
-	}
+	unique_lock<mutex> lckImages(mtxImages);
+	initImagesComplete = true;
+	imageAdded.notify_all();
 }
 
 static bool compareImage(const shared_ptr<Image> &a, const shared_ptr<Image> &b) {

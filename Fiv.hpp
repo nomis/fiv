@@ -18,14 +18,11 @@
 #ifndef FIV_HPP_
 #define FIV_HPP_
 
+#include <condition_variable>
 #include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
-
-namespace std {
-class condition_variable;
-} /* namespace std */
 
 class Image;
 
@@ -36,11 +33,13 @@ public:
 private:
 	int initImages(int argc, char *argv[]);
 	int initImagesInBackground(std::unique_ptr<std::deque<std::string>> filenames);
-	void initImagesThread(std::unique_ptr<std::deque<std::string>> filenames, std::shared_ptr<std::condition_variable>);
+	void initImagesThread(std::unique_ptr<std::deque<std::string>> filenames);
 	void initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
 
 	std::mutex mtxImages;
 	std::deque<std::shared_ptr<Image>> images;
+	std::condition_variable imageAdded;
+	bool initImagesComplete;
 };
 
 
