@@ -66,10 +66,10 @@ shared_ptr<Image> JpegCodec::getThumbnail() {
 	unique_ptr<MemoryDataBuffer> buffer = make_unique<MemoryDataBuffer>(dataTag->dataArea());
 	shared_ptr<Image> thumbnail = make_shared<Image>(image->name + " <Exif_Thumbnail>", move(buffer));
 
-	if (thumbnail->load())
-		return thumbnail;
+	if (!thumbnail->load())
+		return shared_ptr<Image>();
 
-	return shared_ptr<Image>();
+	return thumbnail;
 }
 
 bool JpegCodec::initExiv2() {

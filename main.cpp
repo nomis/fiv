@@ -15,12 +15,30 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <cstdlib>
 #include <memory>
 
 #include "Fiv.hpp"
+#include "MainWindow.hpp"
 
 using namespace std;
 
 int main(int argc, char *argv[]) {
-	return make_shared<Fiv>()->main(argc, argv);
+	int ret;
+
+	shared_ptr<Fiv> fiv(make_shared<Fiv>());
+	ret = fiv->init(argc, argv);
+
+	if (ret != EXIT_SUCCESS)
+		return ret;
+
+	ret = Window::init(argc, argv);
+	if (ret != EXIT_SUCCESS)
+		return ret;
+
+	shared_ptr<Window> win(make_shared<MainWindow>(fiv));
+	win->create();
+
+	Window::mainLoop();
+	return ret;
 }

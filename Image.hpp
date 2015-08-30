@@ -30,7 +30,7 @@ class Codec;
 
 class Image: public std::enable_shared_from_this<Image> {
 public:
-	Image(std::string name, std::unique_ptr<DataBuffer> buffer);
+	Image(const std::string &name, std::unique_ptr<DataBuffer> buffer);
 	bool load();
 	const uint8_t *begin() const;
 	const uint8_t *end() const;

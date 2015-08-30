@@ -35,7 +35,7 @@
 
 using namespace std;
 
-Image::Image(string name_, unique_ptr<DataBuffer> buffer_) :
+Image::Image(const string &name_, unique_ptr<DataBuffer> buffer_) :
 		name(name_), buffer(move(buffer_)) {
 
 }

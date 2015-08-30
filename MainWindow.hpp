@@ -15,23 +15,21 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef fiv__FILEDATABUFFER_HPP_
-#define fiv__FILEDATABUFFER_HPP_
+#ifndef fiv__MAINWINDOW_HPP_
+#define fiv__MAINWINDOW_HPP_
 
 #include <string>
 
-#include "DataBuffer.hpp"
+#include "Window.hpp"
 
-class FileDataBuffer: public DataBuffer {
+class MainWindow: public Window {
 public:
-	FileDataBuffer(const std::string &filename);
-	virtual ~FileDataBuffer();
-	virtual bool load();
-	virtual void unload();
+	MainWindow(std::shared_ptr<Fiv> fiv_);
+	virtual void display();
+	virtual void keyboard(unsigned char key, int x, int y);
 
 private:
-	std::string filename;
-	void *mapping;
+	std::shared_ptr<Fiv> fiv;
 };
 
-#endif /* fiv__FILEDATABUFFER_HPP_ */
+#endif /* fiv__MAINWINDOW_HPP_ */

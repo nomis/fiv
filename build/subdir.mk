@@ -11,7 +11,9 @@ CPP_SRCS += \
 ../Image.cpp \
 ../JpegCodec.cpp \
 ../Magic.cpp \
+../MainWindow.cpp \
 ../MemoryDataBuffer.cpp \
+../Window.cpp \
 ../main.cpp 
 
 OBJS += \
@@ -22,7 +24,9 @@ OBJS += \
 ./Image.o \
 ./JpegCodec.o \
 ./Magic.o \
+./MainWindow.o \
 ./MemoryDataBuffer.o \
+./Window.o \
 ./main.o 
 
 CPP_DEPS += \
@@ -33,7 +37,9 @@ CPP_DEPS += \
 ./Image.d \
 ./JpegCodec.d \
 ./Magic.d \
+./MainWindow.d \
 ./MemoryDataBuffer.d \
+./Window.d \
 ./main.d 
 
 

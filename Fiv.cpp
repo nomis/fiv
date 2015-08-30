@@ -26,6 +26,7 @@
 #include <cstdlib>
 #include <deque>
 #include <iostream>
+#include <list>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -41,7 +42,7 @@ using namespace std;
 
 std::map<std::string,std::shared_ptr<Codec>> Fiv::codecs;
 
-int Fiv::main(int argc, char *argv[]) {
+int Fiv::init(int argc, char *argv[]) {
 	int ret;
 
 	initCodecs();
@@ -66,7 +67,7 @@ void Fiv::initCodecs() {
 }
 
 int Fiv::initImages(int argc, char *argv[]) {
-	unique_ptr<deque<string>> args(make_unique<deque<string>>());
+	unique_ptr<list<string>> args(make_unique<list<string>>());
 
 	while (--argc > 0)
 		args->emplace_back((const char *)(++argv)[0]);
@@ -77,7 +78,7 @@ int Fiv::initImages(int argc, char *argv[]) {
 	return initImagesInBackground(move(args));
 }
 
-int Fiv::initImagesInBackground(unique_ptr<deque<string>> filenames_) {
+int Fiv::initImagesInBackground(unique_ptr<list<string>> filenames_) {
 	auto self(shared_from_this());
 
 	thread([this, self, filenames = move(filenames_)] () mutable {
@@ -96,7 +97,7 @@ int Fiv::initImagesInBackground(unique_ptr<deque<string>> filenames_) {
 	return images.size() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-void Fiv::initImagesThread(unique_ptr<deque<string>> filenames) {
+void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
 	for (auto filename : *filenames) {
 		struct stat st;
 

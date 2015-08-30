@@ -15,23 +15,36 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef fiv__FILEDATABUFFER_HPP_
-#define fiv__FILEDATABUFFER_HPP_
+#ifndef fiv__WINDOW_HPP_
+#define fiv__WINDOW_HPP_
 
+#include <map>
+#include <memory>
 #include <string>
 
-#include "DataBuffer.hpp"
+class Fiv;
 
-class FileDataBuffer: public DataBuffer {
+class Window: public std::enable_shared_from_this<Window> {
 public:
-	FileDataBuffer(const std::string &filename);
-	virtual ~FileDataBuffer();
-	virtual bool load();
-	virtual void unload();
+	Window(const std::string &title);
+	virtual ~Window();
+	void create();
+	void destroy();
+	virtual void display();
+	virtual void keyboard(unsigned char key, int x, int y);
+	virtual void closed();
+	static int init(int argc, char *argv[]);
+	static void mainLoop();
 
 private:
-	std::string filename;
-	void *mapping;
+	static void glutDisplay();
+	static void glutKeyboard(unsigned char key, int x, int y);
+	static void glutClose();
+
+	static std::map<int,std::shared_ptr<Window>> windows;
+
+	std::string title;
+	int id;
 };
 
-#endif /* fiv__FILEDATABUFFER_HPP_ */
+#endif /* fiv__WINDOW_HPP_ */

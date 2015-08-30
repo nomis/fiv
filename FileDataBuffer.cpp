@@ -28,7 +28,7 @@
 
 using namespace std;
 
-FileDataBuffer::FileDataBuffer(string filename_) : filename(filename_) {
+FileDataBuffer::FileDataBuffer(const string &filename_) : filename(filename_) {
 	mapping = nullptr;
 }
 

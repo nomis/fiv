@@ -20,31 +20,32 @@
 
 #include <condition_variable>
 #include <deque>
+#include <list>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 
-#include "Codec.hpp"
+class Codec;
 
 class Image;
 
 class Fiv: public std::enable_shared_from_this<Fiv> {
 public:
-	int main(int argc, char *argv[]);
+	int init(int argc, char *argv[]);
 	static std::unique_ptr<Codec> getCodec(std::shared_ptr<const Image> image, std::string mimeType);
 
 private:
 	void initCodecs();
 	int initImages(int argc, char *argv[]);
-	int initImagesInBackground(std::unique_ptr<std::deque<std::string>> filenames);
-	void initImagesThread(std::unique_ptr<std::deque<std::string>> filenames);
+	int initImagesInBackground(std::unique_ptr<std::list<std::string>> filenames);
+	void initImagesThread(std::unique_ptr<std::list<std::string>> filenames);
 	void initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
 
 	static std::map<std::string,std::shared_ptr<Codec>> codecs;
 
 	std::mutex mtxImages;
-	std::deque<std::shared_ptr<Image>> images;
+	std::list<std::shared_ptr<Image>> images;
 	std::condition_variable imageAdded;
 	bool initImagesComplete;
 };

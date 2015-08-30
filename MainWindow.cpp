@@ -15,23 +15,32 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef fiv__FILEDATABUFFER_HPP_
-#define fiv__FILEDATABUFFER_HPP_
+#include "MainWindow.hpp"
 
-#include <string>
+#include <GL/freeglut_std.h>
+#include <iostream>
+#include <memory>
 
-#include "DataBuffer.hpp"
+#include "Fiv.hpp"
 
-class FileDataBuffer: public DataBuffer {
-public:
-	FileDataBuffer(const std::string &filename);
-	virtual ~FileDataBuffer();
-	virtual bool load();
-	virtual void unload();
+using namespace std;
 
-private:
-	std::string filename;
-	void *mapping;
-};
+MainWindow::MainWindow(shared_ptr<Fiv> fiv_) : Window("fiv") {
+	fiv = fiv_;
+}
 
-#endif /* fiv__FILEDATABUFFER_HPP_ */
+void MainWindow::display() {
+	glClear(GL_COLOR_BUFFER_BIT);
+	glutSwapBuffers();
+}
+
+void MainWindow::keyboard(unsigned char key, int x __attribute__((unused)), int y __attribute__((unused))) {
+	switch (key) {
+	case 'q':
+	case 'Q':
+	case 17:
+		destroy();
+		break;
+	}
+
+}
