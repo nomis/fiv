@@ -27,7 +27,7 @@ public:
 	Codec();
 	virtual ~Codec();
 	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
-	virtual void getThumbnail();
+	virtual std::shared_ptr<Image> getThumbnail();
 
 protected:
 	Codec(std::shared_ptr<const Image> image);

@@ -32,7 +32,6 @@ using namespace std;
 
 const string JpegCodec::MIME_TYPE = "image/jpeg";
 const Exiv2::ExifKey JpegCodec::Exif_Thumbnail_JPEGInterchangeFormat("Exif.Thumbnail.JPEGInterchangeFormat");
-const Exiv2::ExifKey JpegCodec::Exif_Thumbnail_JPEGInterchangeFormatLength("Exif.Thumbnail.JPEGInterchangeFormatLength");
 
 JpegCodec::JpegCodec() : Codec() {
 	image = nullptr;
@@ -51,17 +50,24 @@ unique_ptr<Codec> JpegCodec::getInstance(shared_ptr<const Image> image_) const {
 	return make_unique<JpegCodec>(image_);
 }
 
-void JpegCodec::getThumbnail() {
+shared_ptr<Image> JpegCodec::getThumbnail() {
 	if (!initExiv2())
-		return;
+		return shared_ptr<Image>();
 
-	Exiv2::ExifData exif = exiv2->exifData();
+	auto dataTag = exif.findKey(Exif_Thumbnail_JPEGInterchangeFormat);
 
-	auto data = exif.findKey(Exif_Thumbnail_JPEGInterchangeFormat);
-	auto length = exif.findKey(Exif_Thumbnail_JPEGInterchangeFormatLength);
+	if (dataTag == exif.end())
+		return shared_ptr<Image>();
 
-	if (data != exif.end() && length != exif.end())
-		cout << &data->value() << "," << length->value() << endl;
+	pair<Exiv2::byte*,long> dataArea = dataTag->dataArea().release();
+	unique_ptr<const uint8_t[]> data = unique_ptr<const uint8_t[]>(dataArea.first);
+	size_t length = dataArea.second;
+	shared_ptr<Image> thumbnail = make_shared<Image>(image->name + " <Exif_Thumbnail>", move(data), length);
+
+	if (thumbnail->openMemory())
+		return thumbnail;
+
+	return shared_ptr<Image>();
 }
 
 bool JpegCodec::initExiv2() {
@@ -75,10 +81,11 @@ bool JpegCodec::initExiv2() {
 		unique_ptr<Exiv2::Image> tmp = Exiv2::ImageFactory::open(image->begin(), image->size());
 		if (tmp && tmp->good()) {
 			tmp->readMetadata();
+			exif = tmp->exifData();
 			exiv2 = move(tmp);
 		}
 	} catch (const Exiv2::Error& e) {
-		cerr << image->filename << ": Exiv2: " << e.what() << endl;
+		cerr << image->name << ": Exiv2: " << e.what() << endl;
 		exiv2Error = true;
 	}
 

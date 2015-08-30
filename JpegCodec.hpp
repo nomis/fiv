@@ -34,17 +34,19 @@ public:
 	JpegCodec(std::shared_ptr<const Image> image);
 	virtual ~JpegCodec();
 	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
-	virtual void getThumbnail();
+	virtual std::shared_ptr<Image> getThumbnail();
 
 	static const std::string MIME_TYPE;
 
 private:
 	bool initExiv2();
+	bool initExif();
 
 	static const Exiv2::ExifKey Exif_Thumbnail_JPEGInterchangeFormat;
 	static const Exiv2::ExifKey Exif_Thumbnail_JPEGInterchangeFormatLength;
 
 	std::unique_ptr<Exiv2::Image> exiv2;
+	Exiv2::ExifData exif;
 	bool exiv2Error;
 };
 

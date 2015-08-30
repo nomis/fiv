@@ -32,20 +32,27 @@ class Image : public std::enable_shared_from_this<Image> {
 
 public:
 	Image(std::string filename);
+	Image(std::string name, std::unique_ptr<const uint8_t[]> data, size_t length);
 	~Image();
 	bool openFile();
+	bool openMemory();
 	const uint8_t *begin() const;
 	const uint8_t *end() const;
 	size_t size() const;
 	friend std::ostream& operator<<(std::ostream &stream, const Image &image);
-	void getThumbnail();
+	std::shared_ptr<Image> getThumbnail();
 
-	const std::string filename;
+	const bool file;
+	const std::string name;
 
 private:
 	std::string mimeType;
 	std::unique_ptr<Codec> codec;
-	uint8_t *data;
+	std::shared_ptr<Image> thumbnail;
+
+	void *fileData;
+	std::unique_ptr<const uint8_t[]> memoryData;
+	const uint8_t *data;
 	size_t length;
 };
 

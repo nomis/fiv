@@ -35,9 +35,9 @@ Codec::Codec(shared_ptr<const Image> image_) : image(image_) {
 }
 
 unique_ptr<Codec> Codec::getInstance(shared_ptr<const Image> image_ __attribute__((unused))) const {
-	return make_unique<Codec>();
+	return unique_ptr<Codec>();
 }
 
-void Codec::getThumbnail() {
-
+shared_ptr<Image> Codec::getThumbnail() {
+	return shared_ptr<Image>();
 }

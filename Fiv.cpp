@@ -57,7 +57,7 @@ unique_ptr<Codec> Fiv::getCodec(shared_ptr<const Image> image, string mimeType) 
 	try {
 		return codecs.at(mimeType)->getInstance(image);
 	} catch (const out_of_range &oor) {
-		return unique_ptr<Codec>(nullptr);
+		return unique_ptr<Codec>();
 	}
 }
 
@@ -90,7 +90,7 @@ int Fiv::initImagesInBackground(unique_ptr<deque<string>> filenames_) {
 
 	for (auto image : images) {
 		cout << *image << endl;
-		image->getThumbnail();
+		cout << *image->getThumbnail() << endl;
 	}
 
 	return images.size() ? EXIT_SUCCESS : EXIT_FAILURE;
@@ -139,7 +139,7 @@ void Fiv::initImagesThread(unique_ptr<deque<string>> filenames) {
 }
 
 static bool compareImage(const shared_ptr<Image> &a, const shared_ptr<Image> &b) {
-	return a->filename < b->filename;
+	return a->name < b->name;
 }
 
 void Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dirImages) {
