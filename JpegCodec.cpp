@@ -24,15 +24,19 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <exiv2/image.hpp>
 
 #include "Image.hpp"
 
 using namespace std;
 
 const string JpegCodec::MIME_TYPE = "image/jpeg";
+const Exiv2::ExifKey JpegCodec::Exif_Thumbnail_JPEGInterchangeFormat("Exif.Thumbnail.JPEGInterchangeFormat");
+const Exiv2::ExifKey JpegCodec::Exif_Thumbnail_JPEGInterchangeFormatLength("Exif.Thumbnail.JPEGInterchangeFormatLength");
 
-JpegCodec::JpegCodec() {
+JpegCodec::JpegCodec() : Codec() {
 	image = nullptr;
+	exiv2Error = false;
 }
 
 JpegCodec::~JpegCodec() {
@@ -40,7 +44,7 @@ JpegCodec::~JpegCodec() {
 }
 
 JpegCodec::JpegCodec(shared_ptr<const Image> image_) : Codec(image_) {
-
+	exiv2Error = false;
 }
 
 unique_ptr<Codec> JpegCodec::getInstance(shared_ptr<const Image> image_) const {
@@ -48,41 +52,35 @@ unique_ptr<Codec> JpegCodec::getInstance(shared_ptr<const Image> image_) const {
 }
 
 void JpegCodec::getThumbnail() {
-	Exif(image).getThumbnail();
-}
-
-JpegCodec::Exif::Exif(shared_ptr<const Image> image_) : JpegCodec::Exif::Exif(const_cast<uint8_t*>(image_->begin()), image_->size()) {
-
-}
-
-JpegCodec::Exif::Exif(uint8_t *data, size_t size) {
-	exifLoader = exif_loader_new();
-	exifData = nullptr;
-
-	if (exifLoader == nullptr)
+	if (!initExiv2())
 		return;
 
-	if (exif_loader_write(exifLoader, data, size))
-		return;
+	Exiv2::ExifData exif = exiv2->exifData();
 
-	exifData = exif_loader_get_data(exifLoader);
+	auto data = exif.findKey(Exif_Thumbnail_JPEGInterchangeFormat);
+	auto length = exif.findKey(Exif_Thumbnail_JPEGInterchangeFormatLength);
+
+	if (data != exif.end() && length != exif.end())
+		cout << &data->value() << "," << length->value() << endl;
 }
 
-JpegCodec::Exif::~Exif() {
-	if (exifData != nullptr) {
-		exif_data_unref(exifData);
-		exifData = nullptr;
+bool JpegCodec::initExiv2() {
+	if (exiv2Error)
+		return false;
+
+	if (exiv2)
+		return true;
+
+	try {
+		unique_ptr<Exiv2::Image> tmp = Exiv2::ImageFactory::open(image->begin(), image->size());
+		if (tmp && tmp->good()) {
+			tmp->readMetadata();
+			exiv2 = move(tmp);
+		}
+	} catch (const Exiv2::Error& e) {
+		cerr << image->filename << ": Exiv2: " << e.what() << endl;
+		exiv2Error = true;
 	}
 
-	if (exifLoader != nullptr) {
-		exif_loader_unref(exifLoader);
-		exifLoader = nullptr;
-	}
-}
-
-void JpegCodec::Exif::getThumbnail() {
-	if (exifData == nullptr)
-		return;
-
-	cout << &exifData->data << "," << exifData->size << endl;
+	return (bool)exiv2;
 }

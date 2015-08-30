@@ -39,7 +39,7 @@
 								<option id="gnu.cpp.link.option.libs.569783845" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="pthread"/>
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="magic"/>
-									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="exif"/>
+									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="exiv2"/>
 								</option>
 								<option id="gnu.cpp.link.option.flags.1053010487" name="Linker flags" superClass="gnu.cpp.link.option.flags" value="" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.553623300" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">

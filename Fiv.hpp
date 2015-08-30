@@ -15,8 +15,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FIV_HPP_
-#define FIV_HPP_
+#ifndef fiv__FIV_HPP_
+#define fiv__FIV_HPP_
 
 #include <condition_variable>
 #include <deque>
@@ -51,4 +51,4 @@ private:
 
 
 
-#endif /* FIV_HPP_ */
+#endif /* fiv__FIV_HPP_ */

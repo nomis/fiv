@@ -15,8 +15,8 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CODEC_HPP_
-#define CODEC_HPP_
+#ifndef fiv__CODEC_HPP_
+#define fiv__CODEC_HPP_
 
 #include <memory>
 
@@ -35,4 +35,4 @@ protected:
 	std::shared_ptr<const Image> image;
 };
 
-#endif /* CODEC_HPP_ */
+#endif /* fiv__CODEC_HPP_ */

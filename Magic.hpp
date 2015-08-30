@@ -15,8 +15,8 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MAGIC_HPP_
-#define MAGIC_HPP_
+#ifndef fiv__MAGIC_HPP_
+#define fiv__MAGIC_HPP_
 
 #include <magic.h>
 #include <cstdint>
@@ -36,4 +36,4 @@ private:
 	magic_t cookie;
 };
 
-#endif /* MAGIC_HPP_ */
+#endif /* fiv__MAGIC_HPP_ */

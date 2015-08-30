@@ -15,8 +15,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IMAGE_HPP_
-#define IMAGE_HPP_
+#ifndef fiv__IMAGE_HPP_
+#define fiv__IMAGE_HPP_
 
 #include <stddef.h>
 #include <cstdint>
@@ -49,4 +49,4 @@ private:
 	size_t length;
 };
 
-#endif /* IMAGE_HPP_ */
+#endif /* fiv__IMAGE_HPP_ */

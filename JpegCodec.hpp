@@ -15,11 +15,13 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef JPEGCODEC_HPP_
-#define JPEGCODEC_HPP_
+#ifndef fiv__JPEGCODEC_HPP_
+#define fiv__JPEGCODEC_HPP_
 
+#include <exiv2/image.hpp>
 #include <libexif/exif-data.h>
 #include <libexif/exif-loader.h>
+#include <stddef.h>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -37,17 +39,13 @@ public:
 	static const std::string MIME_TYPE;
 
 private:
-	class Exif {
-	public:
-		Exif(std::shared_ptr<const Image> image);
-		Exif(uint8_t *data, size_t size);
-		~Exif();
-		void getThumbnail();
+	bool initExiv2();
 
-	private:
-		ExifLoader *exifLoader;
-		ExifData *exifData;
-	};
+	static const Exiv2::ExifKey Exif_Thumbnail_JPEGInterchangeFormat;
+	static const Exiv2::ExifKey Exif_Thumbnail_JPEGInterchangeFormatLength;
+
+	std::unique_ptr<Exiv2::Image> exiv2;
+	bool exiv2Error;
 };
 
-#endif /* JPEGCODEC_HPP_ */
+#endif /* fiv__JPEGCODEC_HPP_ */
