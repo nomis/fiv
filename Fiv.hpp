@@ -32,6 +32,7 @@ class Image;
 class Fiv : public std::enable_shared_from_this<Fiv> {
 public:
 	int main(int argc, char *argv[]);
+	static std::unique_ptr<Codec> getCodec(std::shared_ptr<const Image> image, std::string mimeType);
 
 private:
 	void initCodecs();
@@ -40,7 +41,7 @@ private:
 	void initImagesThread(std::unique_ptr<std::deque<std::string>> filenames);
 	void initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
 
-	std::map<std::string,std::shared_ptr<Codec>> codecs;
+	static std::map<std::string,std::shared_ptr<Codec>> codecs;
 
 	std::mutex mtxImages;
 	std::deque<std::shared_ptr<Image>> images;

@@ -29,6 +29,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -37,6 +38,8 @@
 #include "Magic.hpp"
 
 using namespace std;
+
+std::map<std::string,std::shared_ptr<Codec>> Fiv::codecs;
 
 int Fiv::main(int argc, char *argv[]) {
 	int ret;
@@ -48,6 +51,14 @@ int Fiv::main(int argc, char *argv[]) {
 		return ret;
 
 	return EXIT_SUCCESS;
+}
+
+unique_ptr<Codec> Fiv::getCodec(shared_ptr<const Image> image, string mimeType) {
+	try {
+		return codecs.at(mimeType)->getInstance(image);
+	} catch (const out_of_range &oor) {
+		return unique_ptr<Codec>(nullptr);
+	}
 }
 
 void Fiv::initCodecs() {
@@ -100,7 +111,7 @@ void Fiv::initImagesThread(unique_ptr<deque<string>> filenames) {
 		if (S_ISREG(st.st_mode)) {
 			shared_ptr<Image> image(make_shared<Image>(filename));
 
-			if (image->openFile(codecs)) {
+			if (image->openFile()) {
 				unique_lock<mutex> lckImages(mtxImages);
 
 				images.push_back(image);
@@ -112,7 +123,7 @@ void Fiv::initImagesThread(unique_ptr<deque<string>> filenames) {
 			initImagesFromDir(filename, dirImages);
 
 			for (auto image : dirImages) {
-				if (image->openFile(codecs)) {
+				if (image->openFile()) {
 					unique_lock<mutex> lckImages(mtxImages);
 
 					images.push_back(image);

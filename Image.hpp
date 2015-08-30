@@ -33,7 +33,7 @@ class Image : public std::enable_shared_from_this<Image> {
 public:
 	Image(std::string filename);
 	~Image();
-	bool openFile(const std::map<std::string,std::shared_ptr<Codec>> codecs);
+	bool openFile();
 	const uint8_t *begin() const;
 	const uint8_t *end() const;
 	size_t size() const;
@@ -43,8 +43,7 @@ public:
 	const std::string filename;
 
 private:
-	bool identifyFile(const std::map<std::string,std::shared_ptr<Codec>> codecs);
-
+	std::string mimeType;
 	std::unique_ptr<Codec> codec;
 	uint8_t *data;
 	size_t length;

@@ -26,9 +26,12 @@
 #include <cstdio>
 #include <iostream>
 #include <map>
+#include <memory>
+#include <stdexcept>
 #include <string>
 
 #include "Codec.hpp"
+#include "Fiv.hpp"
 #include "Magic.hpp"
 
 using namespace std;
@@ -48,7 +51,7 @@ Image::~Image() {
 	}
 }
 
-bool Image::openFile(const map<string,shared_ptr<Codec>> codecs) {
+bool Image::openFile() {
 	struct stat st;
 	int fd;
 
@@ -69,24 +72,15 @@ bool Image::openFile(const map<string,shared_ptr<Codec>> codecs) {
 	length = st.st_size;
 	close(fd);
 
-	return identifyFile(codecs);
+	mimeType = Magic::identify(data, length);
+	codec = Fiv::getCodec(shared_from_this(), mimeType);
+	return (bool)codec;
 
 err:
 	perror(filename.c_str());
 	if (fd >= 0)
 		close(fd);
 	return false;
-}
-
-bool Image::identifyFile(const map<string,shared_ptr<Codec>> codecs) {
-	string mimeType = Magic::identify(data, length);
-
-	try {
-		codec = codecs.at(mimeType)->getInstance(shared_from_this());
-		return true;
-	} catch (const out_of_range &oor) {
-		return false;
-	}
 }
 
 const uint8_t *Image::begin() const {
