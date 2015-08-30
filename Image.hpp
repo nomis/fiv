@@ -28,8 +28,6 @@
 #include "Codec.hpp"
 
 class Image : public std::enable_shared_from_this<Image> {
-	friend class Codec;
-
 public:
 	Image(std::string filename);
 	Image(std::string name, std::unique_ptr<const uint8_t[]> data, size_t length);

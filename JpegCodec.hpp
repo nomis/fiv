@@ -19,8 +19,6 @@
 #define fiv__JPEGCODEC_HPP_
 
 #include <exiv2/image.hpp>
-#include <libexif/exif-data.h>
-#include <libexif/exif-loader.h>
 #include <stddef.h>
 #include <cstdint>
 #include <memory>

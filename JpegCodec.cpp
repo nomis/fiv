@@ -17,8 +17,6 @@
 
 #include "JpegCodec.hpp"
 
-#include <libexif/exif-data.h>
-#include <libexif/exif-loader.h>
 #include <stddef.h>
 #include <cstdint>
 #include <iostream>
