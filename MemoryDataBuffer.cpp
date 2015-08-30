@@ -15,34 +15,22 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef fiv__JPEGCODEC_HPP_
-#define fiv__JPEGCODEC_HPP_
+#include "MemoryDataBuffer.hpp"
 
-#include <exiv2/image.hpp>
 #include <stddef.h>
 #include <cstdint>
-#include <memory>
-#include <string>
 
-#include "Codec.hpp"
+using namespace std;
 
-class JpegCodec: public Codec {
-public:
-	JpegCodec();
-	JpegCodec(std::shared_ptr<const Image> image);
-	virtual ~JpegCodec();
-	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
-	virtual std::shared_ptr<Image> getThumbnail();
+MemoryDataBuffer::MemoryDataBuffer(unique_ptr<const uint8_t[]> buffer_, size_t length_) : buffer(move(buffer_)) {
+	data = buffer.get();
+	length = length_;
+}
 
-	static const std::string MIME_TYPE;
+MemoryDataBuffer::MemoryDataBuffer(const Exiv2::DataBufRef &dataBuf) : MemoryDataBuffer(unique_ptr<const uint8_t[]>(dataBuf.p.first), dataBuf.p.second) {
 
-private:
-	bool initExiv2();
-	bool initExif();
+}
 
-	std::unique_ptr<Exiv2::Image> exiv2;
-	Exiv2::ExifData exif;
-	bool exiv2Error;
-};
-
-#endif /* fiv__JPEGCODEC_HPP_ */
+void MemoryDataBuffer::unload() {
+	// Do nothing
+}

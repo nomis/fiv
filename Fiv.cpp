@@ -33,9 +33,9 @@
 #include <string>
 #include <thread>
 
+#include "FileDataBuffer.hpp"
 #include "Image.hpp"
 #include "JpegCodec.hpp"
-#include "Magic.hpp"
 
 using namespace std;
 
@@ -109,9 +109,10 @@ void Fiv::initImagesThread(unique_ptr<deque<string>> filenames) {
 			continue;
 
 		if (S_ISREG(st.st_mode)) {
-			shared_ptr<Image> image(make_shared<Image>(filename));
+			unique_ptr<DataBuffer> buffer(make_unique<FileDataBuffer>(filename));
+			shared_ptr<Image> image(make_shared<Image>(filename, move(buffer)));
 
-			if (image->openFile()) {
+			if (image->load()) {
 				unique_lock<mutex> lckImages(mtxImages);
 
 				images.push_back(image);
@@ -123,7 +124,7 @@ void Fiv::initImagesThread(unique_ptr<deque<string>> filenames) {
 			initImagesFromDir(filename, dirImages);
 
 			for (auto image : dirImages) {
-				if (image->openFile()) {
+				if (image->load()) {
 					unique_lock<mutex> lckImages(mtxImages);
 
 					images.push_back(image);
@@ -170,7 +171,8 @@ void Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dir
 				continue;
 			}
 
-			dirImages.emplace_back(make_shared<Image>(filename));
+			unique_ptr<DataBuffer> buffer(make_unique<FileDataBuffer>(filename));
+			dirImages.emplace_back(make_shared<Image>(filename, move(buffer)));
 		}
 	}
 

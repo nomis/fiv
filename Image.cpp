@@ -25,115 +25,49 @@
 #include <cstdint>
 #include <cstdio>
 #include <iostream>
-#include <map>
 #include <memory>
-#include <stdexcept>
 #include <string>
 
 #include "Codec.hpp"
+#include "DataBuffer.hpp"
 #include "Fiv.hpp"
 #include "Magic.hpp"
 
 using namespace std;
 
-Image::Image(string filename) :
-		file(true), name(filename) {
-	fileData = nullptr;
-	data = nullptr;
-	length = 0;
+Image::Image(string name_, unique_ptr<DataBuffer> buffer_) :
+		name(name_), buffer(move(buffer_)) {
+
 }
 
-Image::Image(string name_, unique_ptr<const uint8_t[]> data_, size_t length_) :
-		file(false), name(name_) {
-	fileData = nullptr;
-	memoryData = move(data_);
-	data = memoryData.get();
-	length = length_;
-}
-
-Image::~Image() {
-	if (fileData != nullptr) {
-		munmap(fileData, length);
-
-		fileData = nullptr;
-		length = 0;
-	}
-}
-
-bool Image::openFile() {
-	struct stat st;
-	int fd = -1;
-
-	if (!file)
+bool Image::load() {
+	if (!buffer->load())
 		return false;
 
-	if (data == nullptr) {
-		fd = open(name.c_str(), O_RDONLY|O_NONBLOCK|O_CLOEXEC);
-		if (fd < 0)
-			goto perr;
-
-		if (fstat(fd, &st))
-			goto perr;
-
-		fileData = mmap(nullptr, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
-		if (fileData == nullptr)
-			goto perr;
-
-		data = static_cast<uint8_t*>(fileData);
-		length = st.st_size;
-		close(fd);
-	}
-
 	if (!mimeType.length())
-		mimeType = Magic::identify(data, length);
+		mimeType = Magic::identify(buffer->begin(), buffer->size());
 
 	if (!codec)
 		codec = Fiv::getCodec(shared_from_this(), mimeType);
 
 	if (!codec) {
 		cerr << name << ": Unsupported type " << mimeType << endl;
-		goto err;
-	}
-	return true;
-
-perr:
-	perror(name.c_str());
-err:
-	if (fd >= 0)
-		close(fd);
-	return false;
-}
-
-bool Image::openMemory() {
-	if (file)
 		return false;
-
-	if (!mimeType.length())
-		mimeType = Magic::identify(data, length);
-
-	if (!codec)
-		codec = Fiv::getCodec(shared_from_this(), mimeType);
-
-	if (!codec) {
-		cerr << name << ": Unsupported type " << mimeType << endl;
-		return false;;
 	}
+
 	return true;
 }
 
 const uint8_t *Image::begin() const {
-	return data;
+	return buffer->begin();
 }
 
 const uint8_t *Image::end() const {
-	if (data == nullptr)
-		return nullptr;
-
-	return data + length;
+	return buffer->end();
 }
 
 size_t Image::size() const {
-	return length;
+	return buffer->size();
 }
 
 ostream& operator<<(ostream &stream, const Image &image) {

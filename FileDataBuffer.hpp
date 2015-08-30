@@ -15,34 +15,23 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef fiv__JPEGCODEC_HPP_
-#define fiv__JPEGCODEC_HPP_
+#ifndef fiv__FILEDATABUFFER_HPP_
+#define fiv__FILEDATABUFFER_HPP_
 
-#include <exiv2/image.hpp>
-#include <stddef.h>
-#include <cstdint>
-#include <memory>
 #include <string>
 
-#include "Codec.hpp"
+#include "DataBuffer.hpp"
 
-class JpegCodec: public Codec {
+class FileDataBuffer: public DataBuffer {
 public:
-	JpegCodec();
-	JpegCodec(std::shared_ptr<const Image> image);
-	virtual ~JpegCodec();
-	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
-	virtual std::shared_ptr<Image> getThumbnail();
-
-	static const std::string MIME_TYPE;
+	FileDataBuffer(std::string filename);
+	virtual ~FileDataBuffer();
+	virtual bool load();
+	virtual void unload();
 
 private:
-	bool initExiv2();
-	bool initExif();
-
-	std::unique_ptr<Exiv2::Image> exiv2;
-	Exiv2::ExifData exif;
-	bool exiv2Error;
+	std::string filename;
+	void *mapping;
 };
 
-#endif /* fiv__JPEGCODEC_HPP_ */
+#endif /* fiv__FILEDATABUFFER_HPP_ */

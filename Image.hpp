@@ -21,37 +21,30 @@
 #include <stddef.h>
 #include <cstdint>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <string>
 
-#include "Codec.hpp"
+#include "DataBuffer.hpp"
 
-class Image : public std::enable_shared_from_this<Image> {
+class Codec;
+
+class Image: public std::enable_shared_from_this<Image> {
 public:
-	Image(std::string filename);
-	Image(std::string name, std::unique_ptr<const uint8_t[]> data, size_t length);
-	~Image();
-	bool openFile();
-	bool openMemory();
+	Image(std::string name, std::unique_ptr<DataBuffer> buffer);
+	bool load();
 	const uint8_t *begin() const;
 	const uint8_t *end() const;
 	size_t size() const;
 	friend std::ostream& operator<<(std::ostream &stream, const Image &image);
 	std::shared_ptr<Image> getThumbnail();
 
-	const bool file;
 	const std::string name;
 
 private:
+	std::unique_ptr<DataBuffer> buffer;
 	std::string mimeType;
 	std::unique_ptr<Codec> codec;
 	std::shared_ptr<Image> thumbnail;
-
-	void *fileData;
-	std::unique_ptr<const uint8_t[]> memoryData;
-	const uint8_t *data;
-	size_t length;
 };
 
 #endif /* fiv__IMAGE_HPP_ */

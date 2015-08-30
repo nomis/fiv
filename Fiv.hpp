@@ -29,7 +29,7 @@
 
 class Image;
 
-class Fiv : public std::enable_shared_from_this<Fiv> {
+class Fiv: public std::enable_shared_from_this<Fiv> {
 public:
 	int main(int argc, char *argv[]);
 	static std::unique_ptr<Codec> getCodec(std::shared_ptr<const Image> image, std::string mimeType);

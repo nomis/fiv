@@ -15,34 +15,43 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef fiv__JPEGCODEC_HPP_
-#define fiv__JPEGCODEC_HPP_
+#include "DataBuffer.hpp"
 
-#include <exiv2/image.hpp>
 #include <stddef.h>
 #include <cstdint>
-#include <memory>
-#include <string>
+#include <iostream>
 
-#include "Codec.hpp"
+using namespace std;
 
-class JpegCodec: public Codec {
-public:
-	JpegCodec();
-	JpegCodec(std::shared_ptr<const Image> image);
-	virtual ~JpegCodec();
-	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
-	virtual std::shared_ptr<Image> getThumbnail();
+DataBuffer::DataBuffer() {
+	data = nullptr;
+	length = 0;
+}
 
-	static const std::string MIME_TYPE;
+DataBuffer::~DataBuffer() {
 
-private:
-	bool initExiv2();
-	bool initExif();
+}
 
-	std::unique_ptr<Exiv2::Image> exiv2;
-	Exiv2::ExifData exif;
-	bool exiv2Error;
-};
+bool DataBuffer::load() {
+	return data != nullptr;
+}
 
-#endif /* fiv__JPEGCODEC_HPP_ */
+void DataBuffer::unload() {
+	data = nullptr;
+	length = 0;
+}
+
+const uint8_t *DataBuffer::begin() const {
+	return data;
+}
+
+const uint8_t *DataBuffer::end() const {
+	if (data == nullptr)
+		return nullptr;
+
+	return data + length;
+}
+
+size_t DataBuffer::size() const {
+	return length;
+}

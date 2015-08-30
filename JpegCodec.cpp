@@ -17,19 +17,25 @@
 
 #include "JpegCodec.hpp"
 
-#include <stddef.h>
-#include <cstdint>
+#include <exiv2/error.hpp>
+#include <exiv2/exif.hpp>
+#include <exiv2/image.hpp>
+#include <exiv2/tags.hpp>
+#include <exiv2/types.hpp>
+#include <algorithm>
 #include <iostream>
+#include <list>
 #include <memory>
 #include <string>
-#include <exiv2/image.hpp>
 
 #include "Image.hpp"
+#include "MemoryDataBuffer.hpp"
 
 using namespace std;
 
+const Exiv2::ExifKey Exif_Thumbnail_JPEGInterchangeFormat("Exif.Thumbnail.JPEGInterchangeFormat");
+
 const string JpegCodec::MIME_TYPE = "image/jpeg";
-const Exiv2::ExifKey JpegCodec::Exif_Thumbnail_JPEGInterchangeFormat("Exif.Thumbnail.JPEGInterchangeFormat");
 
 JpegCodec::JpegCodec() : Codec() {
 	image = nullptr;
@@ -57,12 +63,10 @@ shared_ptr<Image> JpegCodec::getThumbnail() {
 	if (dataTag == exif.end())
 		return shared_ptr<Image>();
 
-	pair<Exiv2::byte*,long> dataArea = dataTag->dataArea().release();
-	unique_ptr<const uint8_t[]> data = unique_ptr<const uint8_t[]>(dataArea.first);
-	size_t length = dataArea.second;
-	shared_ptr<Image> thumbnail = make_shared<Image>(image->name + " <Exif_Thumbnail>", move(data), length);
+	unique_ptr<MemoryDataBuffer> buffer = make_unique<MemoryDataBuffer>(dataTag->dataArea());
+	shared_ptr<Image> thumbnail = make_shared<Image>(image->name + " <Exif_Thumbnail>", move(buffer));
 
-	if (thumbnail->openMemory())
+	if (thumbnail->load())
 		return thumbnail;
 
 	return shared_ptr<Image>();
