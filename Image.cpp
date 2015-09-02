@@ -17,6 +17,7 @@
 
 #include "Image.hpp"
 
+#include <cairomm/cairomm.h>
 #include <stddef.h>
 #include <algorithm>
 #include <cstdint>
@@ -25,9 +26,9 @@
 #include <string>
 
 #include "Codec.hpp"
+#include "DataBuffer.hpp"
 #include "Fiv.hpp"
 #include "Magic.hpp"
-#include "TextureDataBuffer.hpp"
 
 using namespace std;
 
@@ -94,7 +95,7 @@ bool Image::loadPrimary() {
 	return false;
 }
 
-unique_ptr<TextureDataBuffer> Image::getPrimary() {
+Cairo::RefPtr<const Cairo::Surface> Image::getPrimary() {
 	return move(primary);
 }
 

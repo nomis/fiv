@@ -33,7 +33,7 @@ public:
 	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
 	virtual int getWidth();
 	virtual int getHeight();
-	virtual std::unique_ptr<TextureDataBuffer> getPrimary();
+	virtual Cairo::RefPtr<const Cairo::Surface> getPrimary();
 	virtual std::shared_ptr<Image> getThumbnail();
 
 	static const std::string MIME_TYPE;

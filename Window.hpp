@@ -33,19 +33,15 @@ public:
 	virtual void display();
 	virtual void keyboard(unsigned char key, int x, int y);
 	virtual void closed();
-	static bool init(int argc, char *argv[]);
+	static bool init();
 	static void mainLoop();
 
 private:
 	Window(const Window&) = delete;
-	static void glutDisplay();
-	static void glutKeyboard(unsigned char key, int x, int y);
-	static void glutClose();
 
 	static std::map<int,std::shared_ptr<Window>> windows;
 
 	std::string title;
-	int id;
 };
 
 #endif /* fiv__WINDOW_HPP_ */

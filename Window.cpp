@@ -32,68 +32,30 @@ map<int,shared_ptr<Window>> Window::windows;
 
 Window::Window(const string &title_) {
 	title = title_;
-	id = 0;
 }
 
 Window::~Window() {
-	if (id)
-		glutDestroyWindow(id);
+
 }
 
-bool Window::init(int argc, char *argv[]) {
-	glutInit(&argc, argv);
-	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glEnable(GL_TEXTURE_2D);
+bool Window::init() {
 	return true;
 }
 
-void Window::glutDisplay() {
-	int id = glutGetWindow();
-
-	if (id)
-		windows.at(id)->display();
-}
-
-void Window::glutKeyboard(unsigned char key, int x, int y) {
-	int id = glutGetWindow();
-
-	if (id)
-		windows.at(id)->keyboard(key, x, y);
-}
-
-void Window::glutClose() {
-	int id = glutGetWindow();
-
-	if (id)
-		windows.at(id)->closed();
-}
-
 void Window::mainLoop() {
-	glutMainLoop();
+
 }
 
 void Window::create() {
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
-	glutInitWindowSize(1536, 1024);
-	// TODO maximise window
-	id = glutCreateWindow(title.c_str());
-	windows[id]=shared_from_this();
-	glutDisplayFunc(&Window::glutDisplay);
-	glutKeyboardFunc(&Window::glutKeyboard);
-	glutCloseFunc(&Window::glutClose);
+
 }
 
 void Window::destroy() {
-	if (id) {
-		glutDestroyWindow(id);
-		id = 0;
-	}
+
 }
 
 void Window::display() {
-	glClear(GL_COLOR_BUFFER_BIT);
-	glutSwapBuffers();
+
 }
 
 void Window::keyboard(unsigned char key __attribute__((unused)), int x __attribute__((unused)), int y __attribute__((unused))) {
@@ -101,8 +63,5 @@ void Window::keyboard(unsigned char key __attribute__((unused)), int x __attribu
 }
 
 void Window::closed() {
-	if (id) {
-		windows.erase(id);
-		id = 0;
-	}
+
 }

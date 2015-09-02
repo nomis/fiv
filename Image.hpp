@@ -18,13 +18,12 @@
 #ifndef fiv__IMAGE_HPP_
 #define fiv__IMAGE_HPP_
 
+#include <cairomm/cairomm.h>
 #include <stddef.h>
 #include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
-
-#include "TextureDataBuffer.hpp"
 
 class DataBuffer;
 class TextureDataBuffer;
@@ -44,7 +43,7 @@ public:
 	int height() const;
 
 	bool loadPrimary();
-	std::unique_ptr<TextureDataBuffer> getPrimary();
+	Cairo::RefPtr<const Cairo::Surface> getPrimary();
 
 	bool loadThumbnail();
 	std::shared_ptr<Image> getThumbnail() const;
@@ -55,7 +54,7 @@ private:
 	std::unique_ptr<DataBuffer> buffer;
 	std::string mimeType;
 	std::unique_ptr<Codec> codec;
-	std::unique_ptr<TextureDataBuffer> primary;
+	Cairo::RefPtr<const Cairo::Surface> primary;
 	bool primaryFailed;
 	std::shared_ptr<Image> thumbnail;
 	bool thumbnailFailed;

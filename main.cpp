@@ -19,7 +19,7 @@
 #include <memory>
 
 #include "Fiv.hpp"
-#include "MainWindow.hpp"
+#include "Image.hpp"
 
 using namespace std;
 
@@ -28,12 +28,24 @@ int main(int argc, char *argv[]) {
 	if (!fiv->init(argc, argv))
 		return EXIT_FAILURE;
 
-	if (!Window::init(argc, argv))
+	shared_ptr<Fiv::Images> images(make_shared<Fiv::Images>(fiv));
+	shared_ptr<Image> image = images->current();
+	cout << image << endl;
+	cout << image->loadPrimary() << endl;
+	if (image->loadThumbnail()) {
+		image = image->getThumbnail();
+		cout << image << endl;
+		cout << image->loadPrimary() << endl;
+	}
+
+#if 0
+	if (!Window::init())
 		return EXIT_FAILURE;
 
 	shared_ptr<Window> win(make_shared<MainWindow>(fiv));
 	win->create();
 
 	Window::mainLoop();
+#endif
 	return EXIT_SUCCESS;
 }

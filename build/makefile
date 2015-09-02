@@ -43,7 +43,7 @@ all: fiv
 fiv: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	${LD} $(LDFLAGS)  -o "fiv" $(OBJS) $(USER_OBJS) $(LIBS) $(LDLIBS)
+	${LD} $(LDFLAGS)  -o "fiv" $(OBJS) $(USER_OBJS) $(LIBS) $(shell pkg-config --libs cairomm-1.0) $(shell pkg-config --libs exiv2) $(LDLIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

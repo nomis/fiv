@@ -20,7 +20,6 @@
 #include <memory>
 
 #include "Image.hpp"
-#include "TextureDataBuffer.hpp"
 
 using namespace std;
 
@@ -48,8 +47,8 @@ int Codec::getHeight() {
 	return 0;
 }
 
-unique_ptr<TextureDataBuffer> Codec::getPrimary() {
-	return unique_ptr<TextureDataBuffer>();
+Cairo::RefPtr<const Cairo::Surface> Codec::getPrimary() {
+	return Cairo::RefPtr<const Cairo::Surface>();
 }
 
 shared_ptr<Image> Codec::getThumbnail() {

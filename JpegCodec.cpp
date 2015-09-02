@@ -33,7 +33,6 @@
 
 #include "Image.hpp"
 #include "MemoryDataBuffer.hpp"
-#include "TextureDataBuffer.hpp"
 
 using namespace std;
 
@@ -71,26 +70,33 @@ int JpegCodec::getHeight() {
 	return height;
 }
 
-unique_ptr<TextureDataBuffer> JpegCodec::getPrimary() {
+Cairo::RefPtr<const Cairo::Surface> JpegCodec::getPrimary() {
+	Cairo::RefPtr<Cairo::ImageSurface> surface;
+	tjhandle tj;
+
 	if (!initHeader())
-		return unique_ptr<TextureDataBuffer>();
+		goto err;
 
-	tjhandle tj = tjInitDecompress();
-
+	tj = tjInitDecompress();
 	if (!tj)
-		return unique_ptr<TextureDataBuffer>();
+		goto err_tj;
 
-	const int format = TJPF_BGRA;
-	const int pitch = width * tjPixelSize[format];
-	const int size = pitch * height;
-	unique_ptr<uint8_t[]> data = unique_ptr<uint8_t[]>(new uint8_t[size]);
-	unique_ptr<TextureDataBuffer> buffer;
+	surface = Cairo::ImageSurface::create(Cairo::Format::FORMAT_ARGB32, width, height);
+	if (!surface)
+		goto err_tj;
 
-	if (!tjDecompress2(tj, const_cast<uint8_t*>(image->begin()), image->size(), data.get(), width, pitch, height, format, TJFLAG_BOTTOMUP|TJFLAG_NOREALLOC))
-		buffer = make_unique<TextureDataBuffer>(move(data), size, GL_BGRA, GL_UNSIGNED_BYTE);
+	surface->flush();
+	if (!tjDecompress2(tj, const_cast<uint8_t*>(image->begin()), image->size(), surface->get_data(),
+			width, surface->get_stride(), height, TJPF_ARGB, TJFLAG_BOTTOMUP|TJFLAG_NOREALLOC)) {
+		surface->mark_dirty();
+	} else {
+		surface = Cairo::RefPtr<Cairo::ImageSurface>();
+	}
 
+err_tj:
 	tjDestroy(tj);
-	return buffer;
+err:
+	return surface;
 }
 
 shared_ptr<Image> JpegCodec::getThumbnail() {

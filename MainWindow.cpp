@@ -17,13 +17,10 @@
 
 #include "MainWindow.hpp"
 
-#include <GL/freeglut_std.h>
-#include <GL/glext.h>
 #include <memory>
 
 #include "Fiv.hpp"
 #include "Image.hpp"
-#include "Texture.hpp"
 
 using namespace std;
 
@@ -37,20 +34,14 @@ void MainWindow::create() {
 }
 
 void MainWindow::display() {
-	Texture texture;
-
-	glClear(GL_COLOR_BUFFER_BIT);
 
 	shared_ptr<Image> image = images->current();
 	if (image->loadThumbnail()) {
 		image = image->getThumbnail();
 		if (image->loadPrimary()) {
-			texture = Texture(image);
-			texture.render(0, 0, 640, 480);
+
 		}
 	}
-
-	glutSwapBuffers();
 }
 
 void MainWindow::keyboard(unsigned char key, int x __attribute__((unused)), int y __attribute__((unused))) {
