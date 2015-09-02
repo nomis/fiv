@@ -18,18 +18,21 @@
 #ifndef fiv__MAINWINDOW_HPP_
 #define fiv__MAINWINDOW_HPP_
 
-#include <string>
+#include <memory>
 
+#include "Fiv.hpp"
 #include "Window.hpp"
 
 class MainWindow: public Window {
 public:
 	MainWindow(std::shared_ptr<Fiv> fiv_);
+	virtual void create();
 	virtual void display();
 	virtual void keyboard(unsigned char key, int x, int y);
 
 private:
 	std::shared_ptr<Fiv> fiv;
+	std::shared_ptr<Fiv::Images> images;
 };
 
 #endif /* fiv__MAINWINDOW_HPP_ */

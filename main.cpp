@@ -24,21 +24,16 @@
 using namespace std;
 
 int main(int argc, char *argv[]) {
-	int ret;
-
 	shared_ptr<Fiv> fiv(make_shared<Fiv>());
-	ret = fiv->init(argc, argv);
+	if (!fiv->init(argc, argv))
+		return EXIT_FAILURE;
 
-	if (ret != EXIT_SUCCESS)
-		return ret;
-
-	ret = Window::init(argc, argv);
-	if (ret != EXIT_SUCCESS)
-		return ret;
+	if (!Window::init(argc, argv))
+		return EXIT_FAILURE;
 
 	shared_ptr<Window> win(make_shared<MainWindow>(fiv));
 	win->create();
 
 	Window::mainLoop();
-	return ret;
+	return EXIT_SUCCESS;
 }

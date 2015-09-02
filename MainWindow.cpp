@@ -18,19 +18,38 @@
 #include "MainWindow.hpp"
 
 #include <GL/freeglut_std.h>
-#include <iostream>
+#include <GL/glext.h>
 #include <memory>
 
 #include "Fiv.hpp"
+#include "Image.hpp"
+#include "Texture.hpp"
 
 using namespace std;
 
 MainWindow::MainWindow(shared_ptr<Fiv> fiv_) : Window("fiv") {
 	fiv = fiv_;
+	images = fiv->getImages();
+}
+
+void MainWindow::create() {
+	Window::create();
 }
 
 void MainWindow::display() {
+	Texture texture;
+
 	glClear(GL_COLOR_BUFFER_BIT);
+
+	shared_ptr<Image> image = images->current();
+	if (image->loadThumbnail()) {
+		image = image->getThumbnail();
+		if (image->loadPrimary()) {
+			texture = Texture(image);
+			texture.render(0, 0, 640, 480);
+		}
+	}
+
 	glutSwapBuffers();
 }
 

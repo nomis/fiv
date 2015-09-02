@@ -15,43 +15,24 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Codec.hpp"
+#ifndef fiv__TEXTUREDATABUFFER_HPP_
+#define fiv__TEXTUREDATABUFFER_HPP_
 
+#include <GL/freeglut_std.h>
+#include <GL/glext.h>
+#include <stddef.h>
+#include <cstdint>
 #include <memory>
 
-#include "Image.hpp"
-#include "TextureDataBuffer.hpp"
+#include "MemoryDataBuffer.hpp"
 
-using namespace std;
+class TextureDataBuffer: public MemoryDataBuffer {
+public:
+	TextureDataBuffer(std::unique_ptr<const uint8_t[]> buffer, size_t length, GLenum format, GLenum type);
+	virtual ~TextureDataBuffer();
 
-Codec::Codec() {
+	const GLenum format;
+	const GLenum type;
+};
 
-}
-
-Codec::~Codec() {
-
-}
-
-Codec::Codec(shared_ptr<const Image> image_) : image(image_) {
-
-}
-
-unique_ptr<Codec> Codec::getInstance(shared_ptr<const Image> image_ __attribute__((unused))) const {
-	return unique_ptr<Codec>();
-}
-
-int Codec::getWidth() {
-	return 0;
-}
-
-int Codec::getHeight() {
-	return 0;
-}
-
-unique_ptr<TextureDataBuffer> Codec::getPrimary() {
-	return unique_ptr<TextureDataBuffer>();
-}
-
-shared_ptr<Image> Codec::getThumbnail() {
-	return shared_ptr<Image>();
-}
+#endif /* fiv__TEXTUREDATABUFFER_HPP_ */

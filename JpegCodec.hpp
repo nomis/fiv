@@ -18,9 +18,8 @@
 #ifndef fiv__JPEGCODEC_HPP_
 #define fiv__JPEGCODEC_HPP_
 
+#include <exiv2/exif.hpp>
 #include <exiv2/image.hpp>
-#include <stddef.h>
-#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -32,13 +31,21 @@ public:
 	JpegCodec(std::shared_ptr<const Image> image);
 	virtual ~JpegCodec();
 	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
+	virtual int getWidth();
+	virtual int getHeight();
+	virtual std::unique_ptr<TextureDataBuffer> getPrimary();
 	virtual std::shared_ptr<Image> getThumbnail();
 
 	static const std::string MIME_TYPE;
 
 private:
+	bool initHeader();
 	bool initExiv2();
-	bool initExif();
+
+	int width;
+	int height;
+	bool headerInit;
+	bool headerError;
 
 	std::unique_ptr<Exiv2::Image> exiv2;
 	Exiv2::ExifData exif;

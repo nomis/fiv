@@ -17,27 +17,28 @@
 
 #include "Image.hpp"
 
-#include <fcntl.h>
 #include <stddef.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include <algorithm>
 #include <cstdint>
-#include <cstdio>
 #include <iostream>
 #include <memory>
 #include <string>
 
 #include "Codec.hpp"
-#include "DataBuffer.hpp"
 #include "Fiv.hpp"
 #include "Magic.hpp"
+#include "TextureDataBuffer.hpp"
 
 using namespace std;
 
 Image::Image(const string &name_, unique_ptr<DataBuffer> buffer_) :
 		name(name_), buffer(move(buffer_)) {
+	primaryFailed = false;
+	thumbnailFailed = false;
+}
 
+ostream& operator<<(ostream &stream, const Image &image) {
+	return stream << "Image(name=" << image.name << ",type=" << image.mimeType << ")";
 }
 
 bool Image::load() {
@@ -70,13 +71,51 @@ size_t Image::size() const {
 	return buffer->size();
 }
 
-ostream& operator<<(ostream &stream, const Image &image) {
-	return stream << "Image(name=" << image.name << ",type=" << image.mimeType << ")";
+int Image::width() const {
+	return codec->getWidth();
 }
 
-shared_ptr<Image> Image::getThumbnail() {
+int Image::height() const {
+	return codec->getHeight();
+}
+
+bool Image::loadPrimary() {
+	if (primary)
+		return true;
+
+	if (primaryFailed)
+		return false;
+
+	primary = codec->getPrimary();
+	if (primary)
+		return true;
+
+	primaryFailed = true;
+	return false;
+}
+
+unique_ptr<TextureDataBuffer> Image::getPrimary() {
+	return move(primary);
+}
+
+bool Image::loadThumbnail() {
+	if (thumbnail)
+		return true;
+
+	if (thumbnailFailed)
+		return false;
+
+	thumbnail = codec->getThumbnail();
+	if (thumbnail)
+		return true;
+
+	thumbnailFailed = true;
+	return false;
+}
+
+shared_ptr<Image> Image::getThumbnail() const {
 	if (thumbnail)
 		return thumbnail;
 
-	return thumbnail = codec->getThumbnail();
+	return shared_ptr<Image>();
 }

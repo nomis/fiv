@@ -23,7 +23,6 @@
 #include <algorithm>
 #include <condition_variable>
 #include <cstdio>
-#include <cstdlib>
 #include <deque>
 #include <iostream>
 #include <list>
@@ -42,16 +41,13 @@ using namespace std;
 
 std::map<std::string,std::shared_ptr<Codec>> Fiv::codecs;
 
-int Fiv::init(int argc, char *argv[]) {
-	int ret;
-
+bool Fiv::init(int argc, char *argv[]) {
 	initCodecs();
+	return initImages(argc, argv);
+}
 
-	ret = initImages(argc, argv);
-	if (ret != EXIT_SUCCESS)
-		return ret;
-
-	return EXIT_SUCCESS;
+void Fiv::initCodecs() {
+	codecs[JpegCodec::MIME_TYPE] = make_shared<JpegCodec>();
 }
 
 unique_ptr<Codec> Fiv::getCodec(shared_ptr<const Image> image, string mimeType) {
@@ -62,11 +58,7 @@ unique_ptr<Codec> Fiv::getCodec(shared_ptr<const Image> image, string mimeType) 
 	}
 }
 
-void Fiv::initCodecs() {
-	codecs[JpegCodec::MIME_TYPE] = make_shared<JpegCodec>();
-}
-
-int Fiv::initImages(int argc, char *argv[]) {
+bool Fiv::initImages(int argc, char *argv[]) {
 	unique_ptr<list<string>> args(make_unique<list<string>>());
 
 	while (--argc > 0)
@@ -78,12 +70,10 @@ int Fiv::initImages(int argc, char *argv[]) {
 	return initImagesInBackground(move(args));
 }
 
-int Fiv::initImagesInBackground(unique_ptr<list<string>> filenames_) {
-	auto self(shared_from_this());
+bool Fiv::initImagesInBackground(unique_ptr<list<string>> filenames_) {
+	using namespace std::placeholders;
 
-	thread([this, self, filenames = move(filenames_)] () mutable {
-		this->initImagesThread(move(filenames));
-	}).detach();
+	thread(bind(&Fiv::initImagesThread, shared_from_this(), _1), move(filenames_)).detach();
 
 	unique_lock<mutex> lckImages(mtxImages);
 	if (!initImagesComplete)
@@ -91,10 +81,11 @@ int Fiv::initImagesInBackground(unique_ptr<list<string>> filenames_) {
 
 	for (auto image : images) {
 		cout << *image << endl;
-		cout << *image->getThumbnail() << endl;
+		if (image->loadThumbnail())
+			cout << *image->getThumbnail() << endl;
 	}
 
-	return images.size() ? EXIT_SUCCESS : EXIT_FAILURE;
+	return images.size();
 }
 
 void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
@@ -173,11 +164,15 @@ void Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dir
 			}
 
 			unique_ptr<DataBuffer> buffer(make_unique<FileDataBuffer>(filename));
-			dirImages.emplace_back(make_shared<Image>(filename, move(buffer)));
+			dirImages.push_back(make_shared<Image>(filename, move(buffer)));
 		}
 	}
 
 	closedir(dir);
 
 	sort(dirImages.begin(), dirImages.end(), compareImage);
+}
+
+std::shared_ptr<Fiv::Images> Fiv::getImages() {
+	return make_shared<Fiv::Images>(shared_from_this());
 }

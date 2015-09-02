@@ -15,43 +15,21 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Codec.hpp"
-
-#include <memory>
-
-#include "Image.hpp"
 #include "TextureDataBuffer.hpp"
+
+#include <GL/freeglut_std.h>
+#include <GL/glext.h>
+#include <stddef.h>
+#include <cstdint>
 
 using namespace std;
 
-Codec::Codec() {
+TextureDataBuffer::TextureDataBuffer(unique_ptr<const uint8_t[]> buffer, size_t length, GLenum format_, GLenum type_) :
+		MemoryDataBuffer(move(buffer), length), format(format_), type(type_) {
 
 }
 
-Codec::~Codec() {
+TextureDataBuffer::~TextureDataBuffer() {
 
 }
 
-Codec::Codec(shared_ptr<const Image> image_) : image(image_) {
-
-}
-
-unique_ptr<Codec> Codec::getInstance(shared_ptr<const Image> image_ __attribute__((unused))) const {
-	return unique_ptr<Codec>();
-}
-
-int Codec::getWidth() {
-	return 0;
-}
-
-int Codec::getHeight() {
-	return 0;
-}
-
-unique_ptr<TextureDataBuffer> Codec::getPrimary() {
-	return unique_ptr<TextureDataBuffer>();
-}
-
-shared_ptr<Image> Codec::getThumbnail() {
-	return shared_ptr<Image>();
-}

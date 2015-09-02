@@ -22,7 +22,7 @@
 #include <cstdint>
 #include <memory>
 
-class DataBuffer : public std::enable_shared_from_this<DataBuffer> {
+class DataBuffer {
 public:
 	virtual ~DataBuffer();
 	virtual bool load();

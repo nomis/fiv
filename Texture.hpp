@@ -15,43 +15,26 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Codec.hpp"
+#ifndef fiv__TEXTURE_HPP_
+#define fiv__TEXTURE_HPP_
 
+#include <GL/freeglut_std.h>
+#include <GL/glext.h>
 #include <memory>
 
-#include "Image.hpp"
-#include "TextureDataBuffer.hpp"
+class Image;
 
-using namespace std;
+class Texture {
+public:
+	Texture();
+	Texture(std::shared_ptr<Image> image);
+	virtual ~Texture();
+	void render(int x, int y, int width, int height);
 
-Codec::Codec() {
+private:
+	Texture(const Texture&) = delete;
 
-}
+	GLuint id;
+};
 
-Codec::~Codec() {
-
-}
-
-Codec::Codec(shared_ptr<const Image> image_) : image(image_) {
-
-}
-
-unique_ptr<Codec> Codec::getInstance(shared_ptr<const Image> image_ __attribute__((unused))) const {
-	return unique_ptr<Codec>();
-}
-
-int Codec::getWidth() {
-	return 0;
-}
-
-int Codec::getHeight() {
-	return 0;
-}
-
-unique_ptr<TextureDataBuffer> Codec::getPrimary() {
-	return unique_ptr<TextureDataBuffer>();
-}
-
-shared_ptr<Image> Codec::getThumbnail() {
-	return shared_ptr<Image>();
-}
+#endif /* fiv__TEXTURE_HPP_ */

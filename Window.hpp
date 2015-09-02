@@ -28,15 +28,16 @@ class Window: public std::enable_shared_from_this<Window> {
 public:
 	Window(const std::string &title);
 	virtual ~Window();
-	void create();
+	virtual void create();
 	void destroy();
 	virtual void display();
 	virtual void keyboard(unsigned char key, int x, int y);
 	virtual void closed();
-	static int init(int argc, char *argv[]);
+	static bool init(int argc, char *argv[]);
 	static void mainLoop();
 
 private:
+	Window(const Window&) = delete;
 	static void glutDisplay();
 	static void glutKeyboard(unsigned char key, int x, int y);
 	static void glutClose();

@@ -32,13 +32,26 @@ class Image;
 
 class Fiv: public std::enable_shared_from_this<Fiv> {
 public:
-	int init(int argc, char *argv[]);
+	class Images: public std::enable_shared_from_this<Images> {
+	public:
+		Images(std::shared_ptr<Fiv> fiv);
+		std::shared_ptr<Image> current();
+		bool prev();
+		bool next();
+
+	private:
+		std::shared_ptr<Fiv> fiv;
+		std::list<std::shared_ptr<Image>>::const_iterator it;
+	};
+
+	bool init(int argc, char *argv[]);
+	std::shared_ptr<Fiv::Images> getImages();
 	static std::unique_ptr<Codec> getCodec(std::shared_ptr<const Image> image, std::string mimeType);
 
 private:
 	void initCodecs();
-	int initImages(int argc, char *argv[]);
-	int initImagesInBackground(std::unique_ptr<std::list<std::string>> filenames);
+	bool initImages(int argc, char *argv[]);
+	bool initImagesInBackground(std::unique_ptr<std::list<std::string>> filenames);
 	void initImagesThread(std::unique_ptr<std::list<std::string>> filenames);
 	void initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
 
@@ -49,7 +62,5 @@ private:
 	std::condition_variable imageAdded;
 	bool initImagesComplete;
 };
-
-
 
 #endif /* fiv__FIV_HPP_ */

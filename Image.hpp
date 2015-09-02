@@ -24,19 +24,30 @@
 #include <memory>
 #include <string>
 
-#include "DataBuffer.hpp"
+#include "TextureDataBuffer.hpp"
+
+class DataBuffer;
+class TextureDataBuffer;
 
 class Codec;
 
 class Image: public std::enable_shared_from_this<Image> {
 public:
 	Image(const std::string &name, std::unique_ptr<DataBuffer> buffer);
+	friend std::ostream& operator<<(std::ostream &stream, const Image &image);
+
 	bool load();
 	const uint8_t *begin() const;
 	const uint8_t *end() const;
 	size_t size() const;
-	friend std::ostream& operator<<(std::ostream &stream, const Image &image);
-	std::shared_ptr<Image> getThumbnail();
+	int width() const;
+	int height() const;
+
+	bool loadPrimary();
+	std::unique_ptr<TextureDataBuffer> getPrimary();
+
+	bool loadThumbnail();
+	std::shared_ptr<Image> getThumbnail() const;
 
 	const std::string name;
 
@@ -44,7 +55,10 @@ private:
 	std::unique_ptr<DataBuffer> buffer;
 	std::string mimeType;
 	std::unique_ptr<Codec> codec;
+	std::unique_ptr<TextureDataBuffer> primary;
+	bool primaryFailed;
 	std::shared_ptr<Image> thumbnail;
+	bool thumbnailFailed;
 };
 
 #endif /* fiv__IMAGE_HPP_ */

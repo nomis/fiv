@@ -40,11 +40,12 @@ Window::~Window() {
 		glutDestroyWindow(id);
 }
 
-int Window::init(int argc, char *argv[]) {
+bool Window::init(int argc, char *argv[]) {
 	glutInit(&argc, argv);
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	return EXIT_SUCCESS;
+	glEnable(GL_TEXTURE_2D);
+	return true;
 }
 
 void Window::glutDisplay() {

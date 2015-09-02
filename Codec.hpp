@@ -20,6 +20,10 @@
 
 #include <memory>
 
+class TextureDataBuffer;
+
+class DataBuffer;
+
 class Image;
 
 class Codec {
@@ -27,12 +31,16 @@ public:
 	Codec();
 	virtual ~Codec();
 	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
+	virtual int getWidth();
+	virtual int getHeight();
+	virtual std::unique_ptr<TextureDataBuffer> getPrimary();
 	virtual std::shared_ptr<Image> getThumbnail();
 
 protected:
 	Codec(std::shared_ptr<const Image> image);
 
 	std::shared_ptr<const Image> image;
+	std::shared_ptr<const Image> thumbnail;
 };
 
 #endif /* fiv__CODEC_HPP_ */

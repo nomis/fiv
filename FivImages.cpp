@@ -15,43 +15,42 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Codec.hpp"
-
+#include <cassert>
+#include <list>
 #include <memory>
+#include <mutex>
 
+#include "Fiv.hpp"
 #include "Image.hpp"
-#include "TextureDataBuffer.hpp"
 
 using namespace std;
 
-Codec::Codec() {
-
+Fiv::Images::Images(shared_ptr<Fiv> fiv_) : fiv(fiv_) {
+	unique_lock<mutex> lckImages(fiv->mtxImages);
+	assert(fiv->images.size());
+	it = fiv->images.cbegin();
 }
 
-Codec::~Codec() {
-
+shared_ptr<Image> Fiv::Images::current() {
+	return *it;
 }
 
-Codec::Codec(shared_ptr<const Image> image_) : image(image_) {
-
+bool Fiv::Images::prev() {
+	unique_lock<mutex> lckImages(fiv->mtxImages);
+	if (it != fiv->images.cbegin()) {
+		it--;
+		return true;
+	}
+	return false;
 }
 
-unique_ptr<Codec> Codec::getInstance(shared_ptr<const Image> image_ __attribute__((unused))) const {
-	return unique_ptr<Codec>();
-}
-
-int Codec::getWidth() {
-	return 0;
-}
-
-int Codec::getHeight() {
-	return 0;
-}
-
-unique_ptr<TextureDataBuffer> Codec::getPrimary() {
-	return unique_ptr<TextureDataBuffer>();
-}
-
-shared_ptr<Image> Codec::getThumbnail() {
-	return shared_ptr<Image>();
+bool Fiv::Images::next() {
+	unique_lock<mutex> lckImages(fiv->mtxImages);
+	auto tmp = it;
+	tmp++;
+	if (tmp != fiv->images.cend()) {
+		it++;
+		return true;
+	}
+	return false;
 }
