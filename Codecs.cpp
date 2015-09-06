@@ -15,33 +15,30 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef fiv__WINDOW_HPP_
-#define fiv__WINDOW_HPP_
+#include "Codecs.hpp"
 
 #include <map>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
-class Fiv;
+#include "Image.hpp"
+#include "JpegCodec.hpp"
 
-class Window: public std::enable_shared_from_this<Window> {
-public:
-	Window(const std::string &title);
-	virtual ~Window();
-	virtual void create();
-	void destroy();
-	virtual void display();
-	virtual void keyboard(unsigned char key, int x, int y);
-	virtual void closed();
-	static bool init();
-	static void mainLoop();
+using namespace std;
 
-private:
-	Window(const Window&) = delete;
+Codecs::Codecs() {
+	codecs[JpegCodec::MIME_TYPE] = make_shared<JpegCodec>();
+}
 
-	static std::map<int,std::shared_ptr<Window>> windows;
+unique_ptr<Codec> Codecs::create(shared_ptr<const Image> image, string mimeType) {
+	static Codecs instance;
+	shared_ptr<Codec> codec;
+	try {
+		codec = instance.codecs.at(mimeType);
+	} catch (const out_of_range &oor) {
+		return unique_ptr<Codec>();
+	}
+	return codec->getInstance(image);
+}
 
-	std::string title;
-};
-
-#endif /* fiv__WINDOW_HPP_ */

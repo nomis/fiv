@@ -41,7 +41,6 @@ protected:
 	Codec(std::shared_ptr<const Image> image);
 
 	std::shared_ptr<const Image> image;
-	std::shared_ptr<const Image> thumbnail;
 };
 
 #endif /* fiv__CODEC_HPP_ */

@@ -21,9 +21,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
+#include <cassert>
 #include <condition_variable>
 #include <cstdio>
 #include <deque>
+#include <functional>
 #include <iostream>
 #include <list>
 #include <map>
@@ -32,6 +34,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <utility>
 
 #include "FileDataBuffer.hpp"
 #include "Image.hpp"
@@ -39,26 +42,15 @@
 
 using namespace std;
 
-std::map<std::string,std::shared_ptr<Codec>> Fiv::codecs;
+const string Fiv::appName = "fiv";
+const string Fiv::appId = "uk.uuid.fiv";
+
+Fiv::Fiv() {
+	initImagesComplete = false;
+	initStop = false;
+}
 
 bool Fiv::init(int argc, char *argv[]) {
-	initCodecs();
-	return initImages(argc, argv);
-}
-
-void Fiv::initCodecs() {
-	codecs[JpegCodec::MIME_TYPE] = make_shared<JpegCodec>();
-}
-
-unique_ptr<Codec> Fiv::getCodec(shared_ptr<const Image> image, string mimeType) {
-	try {
-		return codecs.at(mimeType)->getInstance(image);
-	} catch (const out_of_range &oor) {
-		return unique_ptr<Codec>();
-	}
-}
-
-bool Fiv::initImages(int argc, char *argv[]) {
 	unique_ptr<list<string>> args(make_unique<list<string>>());
 
 	while (--argc > 0)
@@ -68,6 +60,13 @@ bool Fiv::initImages(int argc, char *argv[]) {
 		args->emplace_back(".");
 
 	return initImagesInBackground(move(args));
+}
+
+void Fiv::exit() {
+	unique_lock<mutex> lckImages(mtxImages);
+	initStop = true;
+	while (!initImagesComplete)
+		imageAdded.wait(lckImages);
 }
 
 bool Fiv::initImagesInBackground(unique_ptr<list<string>> filenames_) {
@@ -104,28 +103,20 @@ void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
 			unique_ptr<DataBuffer> buffer(make_unique<FileDataBuffer>(filename));
 			shared_ptr<Image> image(make_shared<Image>(filename, move(buffer)));
 
-			if (image->load()) {
-				unique_lock<mutex> lckImages(mtxImages);
-
-				images.push_back(image);
-				imageAdded.notify_all();
-			}
+			if (!addImage(image))
+				goto stop;
 		} else if (S_ISDIR(st.st_mode)) {
 			deque<shared_ptr<Image>> dirImages;
 
 			initImagesFromDir(filename, dirImages);
 
-			for (auto image : dirImages) {
-				if (image->load()) {
-					unique_lock<mutex> lckImages(mtxImages);
-
-					images.push_back(image);
-					imageAdded.notify_all();
-				}
-			}
+			for (auto image : dirImages)
+				if (!addImage(image))
+					goto stop;
 		}
 	}
 
+stop:
 	unique_lock<mutex> lckImages(mtxImages);
 	initImagesComplete = true;
 	imageAdded.notify_all();
@@ -171,6 +162,24 @@ void Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dir
 	closedir(dir);
 
 	sort(dirImages.begin(), dirImages.end(), compareImage);
+}
+
+bool Fiv::addImage(shared_ptr<Image> image) {
+	if (image->load()) {
+		unique_lock<mutex> lckImages(mtxImages);
+
+		if (initStop)
+			return false;
+
+		images.push_back(image);
+		imageAdded.notify_all();
+	} else {
+		unique_lock<mutex> lckImages(mtxImages);
+
+		if (initStop)
+			return false;
+	}
+	return true;
 }
 
 std::shared_ptr<Fiv::Images> Fiv::getImages() {

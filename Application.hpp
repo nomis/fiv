@@ -15,53 +15,28 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Window.hpp"
+#ifndef fiv__APPLICATION_HPP_
+#define fiv__APPLICATION_HPP_
 
-#include <GL/freeglut_std.h>
-#include <GL/freeglut_ext.h>
-#include <GL/gl.h>
-#include <cstdlib>
-#include <map>
+#include <giomm-2.4/giomm/applicationcommandline.h>
+#include <glibmm-2.4/glibmm/refptr.h>
+#include <gtkmm-3.0/gtkmm/application.h>
 #include <memory>
-#include <string>
 
-using namespace std;
-using std::remove;
+class MainWindow;
 
-map<int,shared_ptr<Window>> Window::windows;
+class Fiv;
 
-Window::Window(const string &title_) {
-	title = title_;
-}
+class Application: public Gtk::Application, public std::enable_shared_from_this<Application> {
+public:
+	Application();
 
-Window::~Window() {
+protected:
+	virtual int on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &command_line);
+	virtual void on_activate();
 
-}
+	std::shared_ptr<Fiv> fiv;
+	std::shared_ptr<MainWindow> win;
+};
 
-bool Window::init() {
-	return true;
-}
-
-void Window::mainLoop() {
-
-}
-
-void Window::create() {
-
-}
-
-void Window::destroy() {
-
-}
-
-void Window::display() {
-
-}
-
-void Window::keyboard(unsigned char key __attribute__((unused)), int x __attribute__((unused)), int y __attribute__((unused))) {
-
-}
-
-void Window::closed() {
-
-}
+#endif /* fiv__APPLICATION_HPP_ */

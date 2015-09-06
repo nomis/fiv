@@ -44,23 +44,25 @@ public:
 		std::list<std::shared_ptr<Image>>::const_iterator it;
 	};
 
+	Fiv();
 	bool init(int argc, char *argv[]);
+	void exit();
 	std::shared_ptr<Fiv::Images> getImages();
-	static std::unique_ptr<Codec> getCodec(std::shared_ptr<const Image> image, std::string mimeType);
+
+	static const std::string appName;
+	static const std::string appId;
 
 private:
-	void initCodecs();
-	bool initImages(int argc, char *argv[]);
 	bool initImagesInBackground(std::unique_ptr<std::list<std::string>> filenames);
 	void initImagesThread(std::unique_ptr<std::list<std::string>> filenames);
 	void initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
-
-	static std::map<std::string,std::shared_ptr<Codec>> codecs;
+	bool addImage(std::shared_ptr<Image> image);
 
 	std::mutex mtxImages;
 	std::list<std::shared_ptr<Image>> images;
 	std::condition_variable imageAdded;
 	bool initImagesComplete;
+	bool initStop;
 };
 
 #endif /* fiv__FIV_HPP_ */

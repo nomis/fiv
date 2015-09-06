@@ -15,20 +15,25 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "MainWindow.hpp"
+#ifndef fiv__CODECS_HPP_
+#define fiv__CODECS_HPP_
 
+#include <map>
 #include <memory>
-#include <gtkmm.h>
+#include <string>
 
-#include "Fiv.hpp"
-#include "Image.hpp"
+class Image;
 
-using namespace std;
+class Codec;
 
-MainWindow::MainWindow(shared_ptr<Fiv> fiv_) : Gtk::ApplicationWindow(), title(Fiv::appName) {
-	fiv = fiv_;
-	images = fiv->getImages();
+class Codecs {
+public:
+	static std::unique_ptr<Codec> create(std::shared_ptr<const Image> image, std::string mimeType);
 
-	set_title(title);
-	set_default_size(1920/2, 1080/2);
-}
+private:
+	Codecs();
+
+	std::map<std::string,std::shared_ptr<Codec>> codecs;
+};
+
+#endif /* fiv__CODECS_HPP_ */

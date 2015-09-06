@@ -47,6 +47,7 @@ public:
 
 	bool loadThumbnail();
 	std::shared_ptr<Image> getThumbnail() const;
+	void unloadThumbnail();
 
 	const std::string name;
 

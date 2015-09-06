@@ -15,37 +15,16 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cstdlib>
+#include <glibmm/miscutils.h>
 #include <memory>
 
+#include "Application.hpp"
 #include "Fiv.hpp"
-#include "Image.hpp"
 
 using namespace std;
 
 int main(int argc, char *argv[]) {
-	shared_ptr<Fiv> fiv(make_shared<Fiv>());
-	if (!fiv->init(argc, argv))
-		return EXIT_FAILURE;
-
-	shared_ptr<Fiv::Images> images(make_shared<Fiv::Images>(fiv));
-	shared_ptr<Image> image = images->current();
-	cout << image << endl;
-	cout << image->loadPrimary() << endl;
-	if (image->loadThumbnail()) {
-		image = image->getThumbnail();
-		cout << image << endl;
-		cout << image->loadPrimary() << endl;
-	}
-
-#if 0
-	if (!Window::init())
-		return EXIT_FAILURE;
-
-	shared_ptr<Window> win(make_shared<MainWindow>(fiv));
-	win->create();
-
-	Window::mainLoop();
-#endif
-	return EXIT_SUCCESS;
+	Glib::set_application_name(Fiv::appName);
+	auto app = make_shared<Application>();
+	return app->run(argc, argv);
 }

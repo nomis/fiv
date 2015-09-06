@@ -27,8 +27,9 @@ MemoryDataBuffer::MemoryDataBuffer(unique_ptr<const uint8_t[]> buffer_, size_t l
 	length = length_;
 }
 
-MemoryDataBuffer::MemoryDataBuffer(const Exiv2::DataBufRef &dataBuf) : MemoryDataBuffer(unique_ptr<const uint8_t[]>(dataBuf.p.first), dataBuf.p.second) {
-
+MemoryDataBuffer::MemoryDataBuffer(const Exiv2::DataBufRef &dataBuf) {
+	data = dataBuf.p.first;
+	length = dataBuf.p.second;
 }
 
 void MemoryDataBuffer::unload() {

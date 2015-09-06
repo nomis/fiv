@@ -17,7 +17,9 @@
 
 #include "Image.hpp"
 
-#include <cairomm/cairomm.h>
+//#include <cairomm/cairomm.h>
+#include <cairomm/refptr.h>
+#include <cairomm/surface.h>
 #include <stddef.h>
 #include <algorithm>
 #include <cstdint>
@@ -26,8 +28,9 @@
 #include <string>
 
 #include "Codec.hpp"
+#include "Codecs.hpp"
 #include "DataBuffer.hpp"
-#include "Fiv.hpp"
+//#include "Fiv.hpp"
 #include "Magic.hpp"
 
 using namespace std;
@@ -50,7 +53,7 @@ bool Image::load() {
 		mimeType = Magic::identify(buffer->begin(), buffer->size());
 
 	if (!codec)
-		codec = Fiv::getCodec(shared_from_this(), mimeType);
+		codec = Codecs::create(shared_from_this(), mimeType);
 
 	if (!codec) {
 		cerr << name << ": Unsupported type " << mimeType << endl;
@@ -119,4 +122,8 @@ shared_ptr<Image> Image::getThumbnail() const {
 		return thumbnail;
 
 	return shared_ptr<Image>();
+}
+
+void Image::unloadThumbnail() {
+	thumbnail = nullptr;
 }

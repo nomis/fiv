@@ -19,18 +19,16 @@
 #define fiv__MAINWINDOW_HPP_
 
 #include <memory>
+#include <gtkmm.h>
 
 #include "Fiv.hpp"
-#include "Window.hpp"
 
-class MainWindow: public Window {
+class MainWindow: public Gtk::ApplicationWindow {
 public:
 	MainWindow(std::shared_ptr<Fiv> fiv_);
-	virtual void create();
-	virtual void display();
-	virtual void keyboard(unsigned char key, int x, int y);
 
 private:
+	const std::string title;
 	std::shared_ptr<Fiv> fiv;
 	std::shared_ptr<Fiv::Images> images;
 };
