@@ -19,10 +19,17 @@
 
 #include <giomm/application.h>
 #include <giomm/applicationcommandline.h>
+#include <giomm/menu.h>
+#include <giomm/simpleaction.h>
 #include <glibmm/optioncontext.h>
 #include <glibmm/optiongroup.h>
 #include <glibmm/refptr.h>
+#include <glibmm/signalproxy.h>
+#include <glibmm/ustring.h>
+#include <glibmm/varianttype.h>
 #include <gtk/gtkmain.h>
+#include <sigc++/connection.h>
+#include <sigc++/functors/mem_fun.h>
 #include <cstdlib>
 #include <memory>
 
@@ -33,6 +40,28 @@ using namespace std;
 
 Application::Application() : Gtk::Application(Fiv::appId, Gio::APPLICATION_HANDLES_COMMAND_LINE) {
 
+}
+
+void Application::on_startup() {
+	Gtk::Application::on_startup();
+
+	auto menubar = Gio::Menu::create();
+	{
+		auto mnuFile = Gio::Menu::create();
+		{
+			auto mnuFileExit = Gio::SimpleAction::create("file.exit", Glib::VARIANT_TYPE_STRING);
+			{
+				mnuFile->append("E_xit", mnuFileExit->get_name());
+				set_accel_for_action(mnuFileExit->get_name(), "<Primary>q");
+
+				mnuFileExit->signal_activate().connect(sigc::mem_fun(this, &Application::menu_file_exit));
+				add_action(mnuFileExit);
+			}
+		}
+		menubar->append_submenu("_File", mnuFile);
+	}
+
+	set_menubar(menubar);
 }
 
 int Application::on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &cmd) {
@@ -66,4 +95,8 @@ void Application::on_activate() {
 void Application::on_shutdown() {
 	if (fiv)
 		fiv->exit();
+}
+
+void Application::menu_file_exit(const Glib::VariantBase &parameter __attribute__((unused))) {
+	quit();
 }
