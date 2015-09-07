@@ -16,6 +16,7 @@
  */
 
 #include <glibmm/miscutils.h>
+#include <glibmmconfig.h>
 #include <memory>
 
 #include "Application.hpp"
@@ -26,5 +27,9 @@ using namespace std;
 int main(int argc, char *argv[]) {
 	Glib::set_application_name(Fiv::appName);
 	auto app = make_shared<Application>();
-	return app->run(argc, argv);
+	int ret = app->run(argc, argv);
+#if GLIBMM_MAJOR_VERSION < 2 || (GLIBMM_MAJOR_VERSION == 2 && GLIBMM_MINOR_VERSION < 46)
+	app->on_shutdown();
+#endif
+	return ret;
 }

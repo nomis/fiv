@@ -30,10 +30,16 @@ class Fiv;
 class Application: public Gtk::Application, public std::enable_shared_from_this<Application> {
 public:
 	Application();
+#if GLIBMM_MAJOR_VERSION < 2 || (GLIBMM_MAJOR_VERSION == 2 && GLIBMM_MINOR_VERSION < 46)
+	virtual void on_shutdown();
+#endif
 
 protected:
 	virtual int on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &command_line);
 	virtual void on_activate();
+#if GLIBMM_MAJOR_VERSION > 2 || (GLIBMM_MAJOR_VERSION == 2 && GLIBMM_MINOR_VERSION >= 46)
+	virtual void on_shutdown();
+#endif
 
 	std::shared_ptr<Fiv> fiv;
 	std::shared_ptr<MainWindow> win;

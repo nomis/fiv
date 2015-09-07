@@ -54,7 +54,6 @@ int Application::on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine>
 		return EXIT_FAILURE;
 
 	activate();
-	fiv->exit();
 	return EXIT_SUCCESS;
 }
 
@@ -62,4 +61,9 @@ void Application::on_activate() {
 	win = make_shared<MainWindow>(fiv);
 	add_window(*win);
 	win->show();
+}
+
+void Application::on_shutdown() {
+	if (fiv)
+		fiv->exit();
 }
