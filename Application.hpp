@@ -21,6 +21,7 @@
 #include <giomm-2.4/giomm/applicationcommandline.h>
 #include <glibmm-2.4/glibmm/refptr.h>
 #include <gtkmm-3.0/gtkmm/application.h>
+#include <glibmmconfig.h>
 #include <memory>
 
 class MainWindow;
@@ -42,7 +43,7 @@ protected:
 	virtual void on_shutdown();
 #endif
 
-	void menu_file_exit(const Glib::VariantBase &parameter);
+	void action_quit();
 
 	std::shared_ptr<Fiv> fiv;
 	std::shared_ptr<MainWindow> win;

@@ -17,11 +17,11 @@
 
 #include "MainWindow.hpp"
 
+#include <sigc++/functors/mem_fun.h>
 #include <memory>
-#include <gtkmm.h>
+#include <string>
 
 #include "Fiv.hpp"
-#include "Image.hpp"
 
 using namespace std;
 

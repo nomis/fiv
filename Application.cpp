@@ -20,15 +20,10 @@
 #include <giomm/application.h>
 #include <giomm/applicationcommandline.h>
 #include <giomm/menu.h>
-#include <giomm/simpleaction.h>
 #include <glibmm/optioncontext.h>
 #include <glibmm/optiongroup.h>
 #include <glibmm/refptr.h>
-#include <glibmm/signalproxy.h>
-#include <glibmm/ustring.h>
-#include <glibmm/varianttype.h>
 #include <gtk/gtkmain.h>
-#include <sigc++/connection.h>
 #include <sigc++/functors/mem_fun.h>
 #include <cstdlib>
 #include <memory>
@@ -49,14 +44,9 @@ void Application::on_startup() {
 	{
 		auto mnuFile = Gio::Menu::create();
 		{
-			auto mnuFileExit = Gio::SimpleAction::create("file.exit", Glib::VARIANT_TYPE_STRING);
-			{
-				mnuFile->append("E_xit", mnuFileExit->get_name());
-				set_accel_for_action(mnuFileExit->get_name(), "<Primary>q");
-
-				mnuFileExit->signal_activate().connect(sigc::mem_fun(this, &Application::menu_file_exit));
-				add_action(mnuFileExit);
-			}
+			mnuFile->append("_Quit", "app.quit");
+			set_accels_for_action("app.quit", {"<Primary>q", "<Alt>F4"});
+			add_action("quit", sigc::mem_fun(this, &Application::action_quit));
 		}
 		menubar->append_submenu("_File", mnuFile);
 	}
@@ -97,6 +87,7 @@ void Application::on_shutdown() {
 		fiv->exit();
 }
 
-void Application::menu_file_exit(const Glib::VariantBase &parameter __attribute__((unused))) {
-	quit();
+void Application::action_quit() {
+	for (auto window : get_windows())
+		window->hide();
 }
