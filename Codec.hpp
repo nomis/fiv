@@ -18,8 +18,11 @@
 #ifndef fiv__CODEC_HPP_
 #define fiv__CODEC_HPP_
 
-#include <cairomm/cairomm.h>
+#include <cairomm/refptr.h>
+#include <cairomm/surface.h>
 #include <memory>
+
+#include "Image.hpp"
 
 class TextureDataBuffer;
 
@@ -34,7 +37,8 @@ public:
 	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
 	virtual int getWidth();
 	virtual int getHeight();
-	virtual Cairo::RefPtr<const Cairo::Surface> getPrimary();
+	virtual Image::Orientation getOrientation();
+	virtual Cairo::RefPtr<Cairo::Surface> getPrimary();
 	virtual std::shared_ptr<Image> getThumbnail();
 
 protected:

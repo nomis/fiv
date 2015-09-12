@@ -47,8 +47,12 @@ int Codec::getHeight() {
 	return 0;
 }
 
-Cairo::RefPtr<const Cairo::Surface> Codec::getPrimary() {
-	return Cairo::RefPtr<const Cairo::Surface>();
+Image::Orientation Codec::getOrientation() {
+	return Image::Orientation::NORMAL;
+}
+
+Cairo::RefPtr<Cairo::Surface> Codec::getPrimary() {
+	return Cairo::RefPtr<Cairo::Surface>();
 }
 
 shared_ptr<Image> Codec::getThumbnail() {

@@ -12,6 +12,7 @@ CPP_SRCS += \
 ../Fiv.cpp \
 ../FivImages.cpp \
 ../Image.cpp \
+../ImageDrawable.cpp \
 ../JpegCodec.cpp \
 ../Magic.cpp \
 ../MainWindow.cpp \
@@ -27,6 +28,7 @@ OBJS += \
 ./Fiv.o \
 ./FivImages.o \
 ./Image.o \
+./ImageDrawable.o \
 ./JpegCodec.o \
 ./Magic.o \
 ./MainWindow.o \
@@ -42,6 +44,7 @@ CPP_DEPS += \
 ./Fiv.d \
 ./FivImages.d \
 ./Image.d \
+./ImageDrawable.d \
 ./JpegCodec.d \
 ./Magic.d \
 ./MainWindow.d \

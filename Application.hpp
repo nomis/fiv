@@ -18,9 +18,9 @@
 #ifndef fiv__APPLICATION_HPP_
 #define fiv__APPLICATION_HPP_
 
-#include <giomm-2.4/giomm/applicationcommandline.h>
-#include <glibmm-2.4/glibmm/refptr.h>
-#include <gtkmm-3.0/gtkmm/application.h>
+#include <giomm/applicationcommandline.h>
+#include <glibmm/refptr.h>
+#include <gtkmm/application.h>
 #include <glibmmconfig.h>
 #include <memory>
 

@@ -31,4 +31,8 @@ MainWindow::MainWindow(shared_ptr<Fiv> fiv_) : Gtk::ApplicationWindow(), title(F
 
 	set_title(title);
 	set_default_size(1920/2, 1080/2);
+
+	drawImage.setImages(images);
+	add(drawImage);
+	drawImage.show();
 }

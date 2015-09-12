@@ -17,11 +17,11 @@
 
 #include "Image.hpp"
 
-//#include <cairomm/cairomm.h>
 #include <cairomm/refptr.h>
 #include <cairomm/surface.h>
 #include <stddef.h>
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -30,13 +30,13 @@
 #include "Codec.hpp"
 #include "Codecs.hpp"
 #include "DataBuffer.hpp"
-//#include "Fiv.hpp"
 #include "Magic.hpp"
 
 using namespace std;
 
-Image::Image(const string &name_, unique_ptr<DataBuffer> buffer_) :
+Image::Image(const string &name_, unique_ptr<DataBuffer> buffer_, Orientation orientation_) :
 		name(name_), buffer(move(buffer_)) {
+	orientation = orientation_;
 	primaryFailed = false;
 	thumbnailFailed = false;
 }
@@ -75,11 +75,11 @@ size_t Image::size() const {
 	return buffer->size();
 }
 
-int Image::width() const {
+int Image::width() {
 	return codec->getWidth();
 }
 
-int Image::height() const {
+int Image::height() {
 	return codec->getHeight();
 }
 
@@ -90,7 +90,10 @@ bool Image::loadPrimary() {
 	if (primaryFailed)
 		return false;
 
+	auto start = chrono::steady_clock::now();
 	primary = codec->getPrimary();
+	auto stop = chrono::steady_clock::now();
+	cout << "load " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
 	if (primary)
 		return true;
 
@@ -98,8 +101,77 @@ bool Image::loadPrimary() {
 	return false;
 }
 
-Cairo::RefPtr<const Cairo::Surface> Image::getPrimary() {
-	return move(primary);
+Cairo::RefPtr<Cairo::Surface> Image::getPrimary() {
+	return primary;
+}
+
+Image::Orientation Image::getOrientation() {
+	if (orientation == Image::Orientation::AUTO)
+		return codec->getOrientation();
+
+	return orientation;
+}
+
+Image::Orientation Image::rotateLeft(Image::Orientation orientation) {
+	switch (orientation) {
+	case Image::Orientation::NORMAL:
+		return Image::Orientation::ROTATE_270;
+
+	case Image::Orientation::ROTATE_270:
+		return Image::Orientation::ROTATE_180;
+
+	case Image::Orientation::ROTATE_180:
+		return Image::Orientation::ROTATE_90;
+
+	case Image::Orientation::ROTATE_90:
+		return Image::Orientation::NORMAL;
+
+	case Image::Orientation::MIRROR_HORIZONTAL:
+		return Image::Orientation::MIRROR_HORIZONTAL_ROTATE_270;
+
+	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_270:
+		return Image::Orientation::MIRROR_VERTICAL;
+
+	case Image::Orientation::MIRROR_VERTICAL:
+		return Image::Orientation::MIRROR_HORIZONTAL_ROTATE_90;
+
+	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_90:
+		return Image::Orientation::MIRROR_HORIZONTAL;
+
+	default:
+		return orientation;
+	}
+}
+
+Image::Orientation Image::rotateRight(Image::Orientation orientation) {
+	switch (orientation) {
+	case Image::Orientation::NORMAL:
+		return Image::Orientation::ROTATE_90;
+
+	case Image::Orientation::ROTATE_90:
+		return Image::Orientation::ROTATE_180;
+
+	case Image::Orientation::ROTATE_180:
+		return Image::Orientation::ROTATE_270;
+
+	case Image::Orientation::ROTATE_270:
+		return Image::Orientation::NORMAL;
+
+	case Image::Orientation::MIRROR_HORIZONTAL:
+		return Image::Orientation::MIRROR_HORIZONTAL_ROTATE_90;
+
+	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_90:
+		return Image::Orientation::MIRROR_VERTICAL;
+
+	case Image::Orientation::MIRROR_VERTICAL:
+		return Image::Orientation::MIRROR_HORIZONTAL_ROTATE_270;
+
+	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_270:
+		return Image::Orientation::MIRROR_HORIZONTAL;
+
+	default:
+		return orientation;
+	}
 }
 
 bool Image::loadThumbnail() {

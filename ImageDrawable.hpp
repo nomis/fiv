@@ -15,25 +15,26 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef fiv__MAINWINDOW_HPP_
-#define fiv__MAINWINDOW_HPP_
+#ifndef fiv__IMAGEDRAWABLE_H_
+#define fiv__IMAGEDRAWABLE_H_
 
-#include <gtkmm/applicationwindow.h>
+#include <cairomm/context.h>
+#include <cairomm/refptr.h>
+#include <gtkmm/drawingarea.h>
 #include <memory>
-#include <string>
 
 #include "Fiv.hpp"
-#include "ImageDrawable.hpp"
 
-class MainWindow: public Gtk::ApplicationWindow {
+class ImageDrawable: public Gtk::DrawingArea {
 public:
-	MainWindow(std::shared_ptr<Fiv> fiv_);
+	ImageDrawable();
+	void setImages(std::shared_ptr<Fiv::Images> images);
 
 private:
-	const std::string title;
-	std::shared_ptr<Fiv> fiv;
+	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);
+	void drawImage(const Cairo::RefPtr<Cairo::ImageSurface> &surface);
+
 	std::shared_ptr<Fiv::Images> images;
-	ImageDrawable drawImage;
 };
 
-#endif /* fiv__MAINWINDOW_HPP_ */
+#endif /* fiv__IMAGEDRAWABLE_H_ */

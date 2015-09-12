@@ -17,15 +17,19 @@
 
 #include "JpegCodec.hpp"
 
+#include <cairomm/enums.h>
+#include <cairomm/refptr.h>
+#include <cairomm/surface.h>
 #include <exiv2/error.hpp>
 #include <exiv2/exif.hpp>
 #include <exiv2/image.hpp>
 #include <exiv2/tags.hpp>
 #include <exiv2/types.hpp>
-#include <GL/freeglut_std.h>
-#include <GL/glext.h>
+#include <exiv2/xmp.hpp>
 #include <turbojpeg.h>
 #include <algorithm>
+#include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <list>
 #include <memory>
@@ -37,6 +41,7 @@
 using namespace std;
 
 const Exiv2::ExifKey Exif_Thumbnail_JPEGInterchangeFormat("Exif.Thumbnail.JPEGInterchangeFormat");
+const Exiv2::ExifKey Exif_Image_Orientation("Exif.Image.Orientation");
 
 const string JpegCodec::MIME_TYPE = "image/jpeg";
 
@@ -51,6 +56,7 @@ JpegCodec::~JpegCodec() {
 JpegCodec::JpegCodec(shared_ptr<const Image> image_) : Codec(image_) {
 	width = 0;
 	height = 0;
+	orientation = Image::Orientation::NORMAL;
 	headerInit = false;
 	headerError = false;
 	exiv2Error = false;
@@ -70,7 +76,14 @@ int JpegCodec::getHeight() {
 	return height;
 }
 
-Cairo::RefPtr<const Cairo::Surface> JpegCodec::getPrimary() {
+Image::Orientation JpegCodec::getOrientation() {
+	if (!initExiv2())
+		return Image::Orientation::NORMAL;
+
+	return orientation;
+}
+
+Cairo::RefPtr<Cairo::Surface> JpegCodec::getPrimary() {
 	Cairo::RefPtr<Cairo::ImageSurface> surface;
 	tjhandle tj;
 
@@ -79,15 +92,15 @@ Cairo::RefPtr<const Cairo::Surface> JpegCodec::getPrimary() {
 
 	tj = tjInitDecompress();
 	if (!tj)
-		goto err_tj;
+		goto err;
 
-	surface = Cairo::ImageSurface::create(Cairo::Format::FORMAT_ARGB32, width, height);
+	surface = Cairo::ImageSurface::create(Cairo::Format::FORMAT_RGB24, width, height);
 	if (!surface)
 		goto err_tj;
 
 	surface->flush();
 	if (!tjDecompress2(tj, const_cast<uint8_t*>(image->begin()), image->size(), surface->get_data(),
-			width, surface->get_stride(), height, TJPF_ARGB, TJFLAG_BOTTOMUP|TJFLAG_NOREALLOC)) {
+			width, surface->get_stride(), height, TJPF_BGRX, TJFLAG_NOREALLOC)) {
 		surface->mark_dirty();
 	} else {
 		surface = Cairo::RefPtr<Cairo::ImageSurface>();
@@ -109,7 +122,7 @@ shared_ptr<Image> JpegCodec::getThumbnail() {
 		return shared_ptr<Image>();
 
 	unique_ptr<MemoryDataBuffer> buffer = make_unique<MemoryDataBuffer>(dataTag->dataArea());
-	shared_ptr<Image> thumbnail = make_shared<Image>(image->name + " <Exif_Thumbnail>", move(buffer));
+	shared_ptr<Image> thumbnail = make_shared<Image>(image->name + " <Exif_Thumbnail>", move(buffer), orientation);
 
 	if (!thumbnail->load())
 		return shared_ptr<Image>();
@@ -155,6 +168,10 @@ bool JpegCodec::initExiv2() {
 			tmp->readMetadata();
 			exif = tmp->exifData();
 			exiv2 = move(tmp);
+
+			auto orientationTag = exif.findKey(Exif_Image_Orientation);
+			if (orientationTag != exif.end() && orientationTag->toLong() >= 1 && orientationTag->toLong() <= 8)
+				orientation = static_cast<Image::Orientation>(orientationTag->toLong());
 		}
 	} catch (const Exiv2::Error& e) {
 		cerr << image->name << ": Exiv2: " << e.what() << endl;

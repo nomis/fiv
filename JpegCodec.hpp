@@ -18,12 +18,18 @@
 #ifndef fiv__JPEGCODEC_HPP_
 #define fiv__JPEGCODEC_HPP_
 
+#include <cairomm/refptr.h>
+#include <cairomm/surface.h>
 #include <exiv2/exif.hpp>
-#include <exiv2/image.hpp>
 #include <memory>
 #include <string>
 
 #include "Codec.hpp"
+#include "Image.hpp"
+
+namespace Exiv2 {
+class Image;
+} /* namespace Exiv2 */
 
 class JpegCodec: public Codec {
 public:
@@ -33,7 +39,8 @@ public:
 	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
 	virtual int getWidth();
 	virtual int getHeight();
-	virtual Cairo::RefPtr<const Cairo::Surface> getPrimary();
+	virtual Image::Orientation getOrientation();
+	virtual Cairo::RefPtr<Cairo::Surface> getPrimary();
 	virtual std::shared_ptr<Image> getThumbnail();
 
 	static const std::string MIME_TYPE;
@@ -44,6 +51,7 @@ private:
 
 	int width;
 	int height;
+	Image::Orientation orientation;
 	bool headerInit;
 	bool headerError;
 

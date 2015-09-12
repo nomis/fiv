@@ -45,7 +45,7 @@ void Application::on_startup() {
 		auto mnuFile = Gio::Menu::create();
 		{
 			mnuFile->append("_Quit", "app.quit");
-			set_accels_for_action("app.quit", {"<Primary>q", "<Alt>F4"});
+			set_accels_for_action("app.quit", {"<Primary>q", "q", "<Alt>F4"});
 			add_action("quit", sigc::mem_fun(this, &Application::action_quit));
 		}
 		menubar->append_submenu("_File", mnuFile);
