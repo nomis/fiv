@@ -155,7 +155,7 @@ void Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dir
 			}
 
 			unique_ptr<DataBuffer> buffer(make_unique<FileDataBuffer>(filename));
-			dirImages.push_back(make_shared<Image>(filename, move(buffer)));
+			dirImages.push_back(make_shared<Image>(dirname == "." ? entry->d_name : filename, move(buffer)));
 		}
 	}
 
