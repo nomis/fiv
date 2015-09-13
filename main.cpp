@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
 	Glib::set_application_name(Fiv::appName);
 	auto app = make_shared<Application>();
 	int ret = app->run(argc, argv);
-#if GLIBMM_MAJOR_VERSION < 2 || (GLIBMM_MAJOR_VERSION == 2 && GLIBMM_MINOR_VERSION < 46)
+#if !GLIBMM_CHECK_VERSION(2, 46, 0)
 	app->on_shutdown();
 #endif
 	return ret;

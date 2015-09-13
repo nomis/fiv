@@ -28,10 +28,18 @@ class MainWindow;
 
 class Fiv;
 
+#ifndef GLIBMM_CHECK_VERSION
+#define GLIBMM_CHECK_VERSION(major,minor,micro) \
+	(GLIBMM_MAJOR_VERSION > (major) || \
+	(GLIBMM_MAJOR_VERSION == (major) && GLIBMM_MINOR_VERSION > (minor)) || \
+	(GLIBMM_MAJOR_VERSION == (major) && GLIBMM_MINOR_VERSION == (minor) && \
+	 GLIBMM_MICRO_VERSION >= (micro)))
+#endif
+
 class Application: public Gtk::Application, public std::enable_shared_from_this<Application> {
 public:
 	Application();
-#if GLIBMM_MAJOR_VERSION < 2 || (GLIBMM_MAJOR_VERSION == 2 && GLIBMM_MINOR_VERSION < 46)
+#if !GLIBMM_CHECK_VERSION(2, 46, 0)
 	virtual void on_shutdown();
 #endif
 
@@ -39,7 +47,7 @@ protected:
 	virtual void on_startup();
 	virtual int on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &command_line);
 	virtual void on_activate();
-#if GLIBMM_MAJOR_VERSION > 2 || (GLIBMM_MAJOR_VERSION == 2 && GLIBMM_MINOR_VERSION >= 46)
+#if GLIBMM_CHECK_VERSION(2, 46, 0)
 	virtual void on_shutdown();
 #endif
 
