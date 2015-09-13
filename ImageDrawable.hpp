@@ -32,7 +32,7 @@ public:
 
 private:
 	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);
-	void drawImage(const Cairo::RefPtr<Cairo::ImageSurface> &surface);
+	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int width, const int height);
 
 	std::shared_ptr<Fiv::Images> images;
 };

@@ -19,19 +19,13 @@
 
 #include <cairomm/context.h>
 #include <cairomm/enums.h>
-#include <cairomm/matrix.h>
 #include <cairomm/pattern.h>
 #include <cairomm/refptr.h>
+#include <cairomm/surface.h>
+#include <cairomm/types.h>
 #include <gtkmm/widget.h>
 #include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <functional>
-#include <iostream>
 #include <memory>
-#include <sstream>
-#include <string>
-#include <thread>
 #include <vector>
 
 #include "Fiv.hpp"
@@ -47,6 +41,26 @@ void ImageDrawable::setImages(shared_ptr<Fiv::Images> images_) {
 	images = images_;
 }
 
+static void copyCairoClip(const Cairo::RefPtr<Cairo::Context> &src, const Cairo::RefPtr<Cairo::Context> &dst) {
+	try {
+		vector<Cairo::Rectangle> rects;
+		src->copy_clip_rectangle_list(rects);
+		for (auto& rect : rects) {
+			//cout << "clip " << rect.x << "x" << rect.y << "+" << rect.width << "+" << rect.height << endl;
+			dst->rectangle(rect.x, rect.y, rect.width, rect.height);
+		}
+		dst->clip();
+	} catch (...) {
+		Cairo::Rectangle rect;
+		src->get_clip_extents(rect.x, rect.y, rect.width, rect.height);
+		rect.width -= rect.x;
+		rect.height -= rect.y;
+		//cout << "clip " << rect.x << "x" << rect.y << "+" << rect.width << "+" << rect.height << endl;
+		dst->rectangle(rect.x, rect.y, rect.width, rect.height);
+		dst->clip();
+	}
+}
+
 bool ImageDrawable::on_draw(const Cairo::RefPtr<Cairo::Context> &cr) {
 	Gtk::Allocation allocation = get_allocation();
 	const int awidth = allocation.get_width();
@@ -55,7 +69,9 @@ bool ImageDrawable::on_draw(const Cairo::RefPtr<Cairo::Context> &cr) {
 	//cout << "draw " << awidth << "x" << aheight << endl;
 
 	auto surface = Cairo::ImageSurface::create(Cairo::Format::FORMAT_RGB24, awidth, aheight);
-	drawImage(surface);
+	auto cr2 = Cairo::Context::create(surface);
+	copyCairoClip(cr, cr2);
+	drawImage(cr2, awidth, aheight);
 
 	//auto start = chrono::steady_clock::now();
 	cr->set_source(surface, 0, 0);
@@ -66,12 +82,7 @@ bool ImageDrawable::on_draw(const Cairo::RefPtr<Cairo::Context> &cr) {
 	return true;
 }
 
-void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::ImageSurface> &surface) {
-	auto cr = Cairo::Context::create(surface);
-
-	const int awidth = surface->get_width();
-	const int aheight = surface->get_height();
-
+void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int awidth, const int aheight) {
 	auto current = images->current();
 	current->loadPrimary();
 	auto image = current->getPrimary();
