@@ -98,20 +98,31 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int
 	auto iorientation = current->getOrientation();
 	const int iwidth = current->width();
 	const int iheight = current->height();
+	int rwidth, rheight;
 	double scale = 1;
 
-	//cout << "image " << iwidth << "x" << iheight << " " << orientation << endl;
+	//cout << "image " << iwidth << "x" << iheight << " " << iorientation.first << "," << iorientation.second << endl;
 
 	switch (iorientation.first) {
 	case Image::Rotate::ROTATE_NONE:
 	case Image::Rotate::ROTATE_180:
-		scale = min((double)awidth/iwidth, (double)aheight/iheight);
+		rwidth = iwidth;
+		rheight = iheight;
 		break;
 
 	case Image::Rotate::ROTATE_90:
 	case Image::Rotate::ROTATE_270:
-		scale = min((double)awidth/iheight, (double)aheight/iwidth);
+		rwidth = iheight;
+		rheight = iwidth;
 		break;
+	}
+
+	scale = min((double)awidth/rwidth, (double)aheight/rheight);
+
+	if ((double)awidth/rwidth >= (double)aheight/rheight) {
+		cr->translate(((double)awidth - scale*rwidth) / 2, 0);
+	} else {
+		cr->translate(0, ((double)aheight - scale*rheight) / 2);
 	}
 
 	cr->scale(scale, scale);
