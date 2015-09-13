@@ -21,10 +21,11 @@
 #include <condition_variable>
 #include <deque>
 #include <list>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
+
+#include "Image.hpp"
 
 class Codec;
 
@@ -36,8 +37,11 @@ public:
 	public:
 		Images(std::shared_ptr<Fiv> fiv);
 		std::shared_ptr<Image> current();
-		bool prev();
+		void orientation(Image::Orientation modify);
+		bool first();
+		bool previous();
 		bool next();
+		bool last();
 
 	private:
 		std::shared_ptr<Fiv> fiv;

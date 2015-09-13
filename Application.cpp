@@ -41,17 +41,48 @@ void Application::on_startup() {
 	Gtk::Application::on_startup();
 
 	auto menubar = Gio::Menu::create();
+
 	{
-		auto mnuFile = Gio::Menu::create();
-		{
-			mnuFile->append("_Quit", "app.quit");
-			set_accels_for_action("app.quit", {"<Primary>q", "q", "<Alt>F4"});
-			add_action("quit", sigc::mem_fun(this, &Application::action_quit));
-		}
-		menubar->append_submenu("_File", mnuFile);
+		auto mnuImage = Gio::Menu::create();
+		mnuImage->append("_Quit", "app.quit");
+		set_accels_for_action("app.quit", {"<Primary>q", "q", "<Alt>F4"});
+		menubar->append_submenu("_Image", mnuImage);
+	}
+
+	{
+		auto mnuEdit = Gio::Menu::create();
+		mnuEdit->append("Rotate _Left", "win.edit.rotateLeft");
+		set_accels_for_action("win.edit.rotateLeft", {"l"});
+
+		mnuEdit->append("Rotate _Right", "win.edit.rotateRight");
+		set_accels_for_action("win.edit.rotateRight", {"r"});
+
+		mnuEdit->append("Flip _Horizontal", "win.edit.flipHorizontal");
+		set_accels_for_action("win.edit.flipHorizontal", {"h"});
+
+		mnuEdit->append("Flip _Vertical", "win.edit.flipVertical");
+		set_accels_for_action("win.edit.flipVertical", {"v"});
+		menubar->append_submenu("_Edit", mnuEdit);
+	}
+
+	{
+		auto mnuView = Gio::Menu::create();
+		mnuView->append("_Previous", "win.view.previous");
+		set_accels_for_action("win.view.previous", {"Left"});
+
+		mnuView->append("_Next", "win.view.next");
+		set_accels_for_action("win.view.next", {"Right"});
+
+		mnuView->append("_First", "win.view.first");
+		set_accels_for_action("win.view.first", {"Home"});
+
+		mnuView->append("_Last", "win.view.last");
+		set_accels_for_action("win.view.last", {"End"});
+		menubar->append_submenu("_View", mnuView);
 	}
 
 	set_menubar(menubar);
+	add_action("quit", sigc::mem_fun(this, &Application::action_quit));
 }
 
 int Application::on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &cmd) {

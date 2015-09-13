@@ -26,6 +26,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "Codec.hpp"
 #include "Codecs.hpp"
@@ -34,9 +35,14 @@
 
 using namespace std;
 
+Image::Image(const string &name_, unique_ptr<DataBuffer> buffer_) :
+		name(name_), buffer(move(buffer_)), autoOrientation(true), orientation(Image::Rotate::ROTATE_NONE, false) {
+	primaryFailed = false;
+	thumbnailFailed = false;
+}
+
 Image::Image(const string &name_, unique_ptr<DataBuffer> buffer_, Orientation orientation_) :
-		name(name_), buffer(move(buffer_)) {
-	orientation = orientation_;
+		name(name_), buffer(move(buffer_)), autoOrientation(true), orientation(orientation_) {
 	primaryFailed = false;
 	thumbnailFailed = false;
 }
@@ -106,72 +112,26 @@ Cairo::RefPtr<Cairo::Surface> Image::getPrimary() {
 }
 
 Image::Orientation Image::getOrientation() {
-	if (orientation == Image::Orientation::AUTO)
-		return codec->getOrientation();
+	if (autoOrientation) {
+		orientation = codec->getOrientation();
+		autoOrientation = false;
+	}
 
 	return orientation;
 }
 
-Image::Orientation Image::rotateLeft(Image::Orientation orientation) {
-	switch (orientation) {
-	case Image::Orientation::NORMAL:
-		return Image::Orientation::ROTATE_270;
+void Image::setOrientation(Image::Orientation modify) {
+	static const Image::Rotate ROTATE_MAP[4][4] = {
+			                 /*                ROTATE_NONE                 ROTATE_90                   ROTATE_180                  ROTATE_270  */
+			/* ROTATE_NONE */ { Image::Rotate::ROTATE_NONE, Image::Rotate::ROTATE_90,   Image::Rotate::ROTATE_180,  Image::Rotate::ROTATE_270  },
+			/* ROTATE_90   */ { Image::Rotate::ROTATE_90,   Image::Rotate::ROTATE_180,  Image::Rotate::ROTATE_270,  Image::Rotate::ROTATE_NONE },
+			/* ROTATE_180  */ { Image::Rotate::ROTATE_180,  Image::Rotate::ROTATE_270,  Image::Rotate::ROTATE_NONE, Image::Rotate::ROTATE_90   },
+			/* ROTATE_270  */ { Image::Rotate::ROTATE_270,  Image::Rotate::ROTATE_NONE, Image::Rotate::ROTATE_90,   Image::Rotate::ROTATE_180  }
+	};
 
-	case Image::Orientation::ROTATE_270:
-		return Image::Orientation::ROTATE_180;
-
-	case Image::Orientation::ROTATE_180:
-		return Image::Orientation::ROTATE_90;
-
-	case Image::Orientation::ROTATE_90:
-		return Image::Orientation::NORMAL;
-
-	case Image::Orientation::MIRROR_HORIZONTAL:
-		return Image::Orientation::MIRROR_HORIZONTAL_ROTATE_270;
-
-	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_270:
-		return Image::Orientation::MIRROR_VERTICAL;
-
-	case Image::Orientation::MIRROR_VERTICAL:
-		return Image::Orientation::MIRROR_HORIZONTAL_ROTATE_90;
-
-	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_90:
-		return Image::Orientation::MIRROR_HORIZONTAL;
-
-	default:
-		return orientation;
-	}
-}
-
-Image::Orientation Image::rotateRight(Image::Orientation orientation) {
-	switch (orientation) {
-	case Image::Orientation::NORMAL:
-		return Image::Orientation::ROTATE_90;
-
-	case Image::Orientation::ROTATE_90:
-		return Image::Orientation::ROTATE_180;
-
-	case Image::Orientation::ROTATE_180:
-		return Image::Orientation::ROTATE_270;
-
-	case Image::Orientation::ROTATE_270:
-		return Image::Orientation::NORMAL;
-
-	case Image::Orientation::MIRROR_HORIZONTAL:
-		return Image::Orientation::MIRROR_HORIZONTAL_ROTATE_90;
-
-	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_90:
-		return Image::Orientation::MIRROR_VERTICAL;
-
-	case Image::Orientation::MIRROR_VERTICAL:
-		return Image::Orientation::MIRROR_HORIZONTAL_ROTATE_270;
-
-	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_270:
-		return Image::Orientation::MIRROR_HORIZONTAL;
-
-	default:
-		return orientation;
-	}
+	getOrientation();
+	orientation.first = ROTATE_MAP[orientation.first][modify.first];
+	orientation.second = orientation.second ^ modify.second;
 }
 
 bool Image::loadThumbnail() {

@@ -34,6 +34,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "Image.hpp"
 #include "MemoryDataBuffer.hpp"
@@ -56,7 +57,7 @@ JpegCodec::~JpegCodec() {
 JpegCodec::JpegCodec(shared_ptr<const Image> image_) : Codec(image_) {
 	width = 0;
 	height = 0;
-	orientation = Image::Orientation::NORMAL;
+	orientation = Image::Orientation(Image::Rotate::ROTATE_NONE, false);
 	headerInit = false;
 	headerError = false;
 	exiv2Error = false;
@@ -78,7 +79,7 @@ int JpegCodec::getHeight() {
 
 Image::Orientation JpegCodec::getOrientation() {
 	if (!initExiv2())
-		return Image::Orientation::NORMAL;
+		return Image::Orientation(Image::Rotate::ROTATE_NONE, false);
 
 	return orientation;
 }
@@ -170,8 +171,35 @@ bool JpegCodec::initExiv2() {
 			exiv2 = move(tmp);
 
 			auto orientationTag = exif.findKey(Exif_Image_Orientation);
-			if (orientationTag != exif.end() && orientationTag->toLong() >= 1 && orientationTag->toLong() <= 8)
-				orientation = static_cast<Image::Orientation>(orientationTag->toLong());
+			if (orientationTag != exif.end() && orientationTag->toLong() >= 1 && orientationTag->toLong() <= 8) {
+				static const Image::Orientation ORIENTATION_MAP[8] = {
+						/* Horizontal (normal) */
+						Image::Orientation(Image::Rotate::ROTATE_NONE, false),
+
+						/* Mirror horizontal */
+						Image::Orientation(Image::Rotate::ROTATE_NONE, true),
+
+						/* Rotate 180 */
+						Image::Orientation(Image::Rotate::ROTATE_180, false),
+
+						/* Mirror vertical */
+						Image::Orientation(Image::Rotate::ROTATE_180, true),
+
+						/* Mirror horizontal and rotate 270 CW */
+						Image::Orientation(Image::Rotate::ROTATE_270, true),
+
+						/* Rotate 90 CW */
+						Image::Orientation(Image::Rotate::ROTATE_90, false),
+
+						/* Mirror horizontal and rotate 90 CW */
+						Image::Orientation(Image::Rotate::ROTATE_90, true),
+
+						/* Rotate 270 CW */
+						Image::Orientation(Image::Rotate::ROTATE_270, false)
+				};
+
+				orientation = ORIENTATION_MAP[orientationTag->toLong() - 1];
+			}
 		}
 	} catch (const Exiv2::Error& e) {
 		cerr << image->name << ": Exiv2: " << e.what() << endl;

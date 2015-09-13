@@ -24,11 +24,13 @@
 #include <memory>
 
 #include "Fiv.hpp"
+#include "Image.hpp"
 
 class ImageDrawable: public Gtk::DrawingArea {
 public:
 	ImageDrawable();
 	void setImages(std::shared_ptr<Fiv::Images> images);
+	void update();
 
 private:
 	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);

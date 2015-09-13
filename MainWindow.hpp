@@ -30,6 +30,16 @@ public:
 	MainWindow(std::shared_ptr<Fiv> fiv_);
 
 private:
+	void action_view_previous();
+	void action_view_next();
+	void action_view_first();
+	void action_view_last();
+	void action_edit_rotateLeft();
+	void action_edit_rotateRight();
+	void action_edit_flipHorizontal();
+	void action_edit_flipVertical();
+	void update();
+
 	const std::string title;
 	std::shared_ptr<Fiv> fiv;
 	std::shared_ptr<Fiv::Images> images;

@@ -48,7 +48,7 @@ int Codec::getHeight() {
 }
 
 Image::Orientation Codec::getOrientation() {
-	return Image::Orientation::NORMAL;
+	return Image::Orientation(Image::Rotate::ROTATE_NONE, false);
 }
 
 Cairo::RefPtr<Cairo::Surface> Codec::getPrimary() {

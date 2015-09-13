@@ -32,10 +32,28 @@ Fiv::Images::Images(shared_ptr<Fiv> fiv_) : fiv(fiv_) {
 }
 
 shared_ptr<Image> Fiv::Images::current() {
+	unique_lock<mutex> lckImages(fiv->mtxImages);
 	return *it;
 }
 
-bool Fiv::Images::prev() {
+void Fiv::Images::orientation(Image::Orientation modify) {
+	unique_lock<mutex> lckImages(fiv->mtxImages);
+	auto image = *it;
+	image->setOrientation(modify);
+	if (image->loadThumbnail())
+		image->getThumbnail()->setOrientation(modify);
+}
+
+bool Fiv::Images::first() {
+	unique_lock<mutex> lckImages(fiv->mtxImages);
+	if (it != fiv->images.cbegin()) {
+		it = fiv->images.cbegin();
+		return true;
+	}
+	return false;
+}
+
+bool Fiv::Images::previous() {
 	unique_lock<mutex> lckImages(fiv->mtxImages);
 	if (it != fiv->images.cbegin()) {
 		it--;
@@ -50,6 +68,15 @@ bool Fiv::Images::next() {
 	tmp++;
 	if (tmp != fiv->images.cend()) {
 		it++;
+		return true;
+	}
+	return false;
+}
+
+bool Fiv::Images::last() {
+	unique_lock<mutex> lckImages(fiv->mtxImages);
+	if (it != fiv->images.cend()) {
+		it = fiv->images.cend();
 		return true;
 	}
 	return false;

@@ -41,6 +41,15 @@ void ImageDrawable::setImages(shared_ptr<Fiv::Images> images_) {
 	images = images_;
 }
 
+void ImageDrawable::update() {
+	auto win = get_window();
+	if (win) {
+		auto allocation = get_allocation();
+		Gdk::Rectangle rect(0, 0, allocation.get_width(), allocation.get_height());
+		win->invalidate_rect(rect, false);
+	}
+}
+
 static void copyCairoClip(const Cairo::RefPtr<Cairo::Context> &src, const Cairo::RefPtr<Cairo::Context> &dst) {
 	try {
 		vector<Cairo::Rectangle> rects;
@@ -86,75 +95,50 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int
 	auto current = images->current();
 	current->loadPrimary();
 	auto image = current->getPrimary();
-	auto orientation = current->getOrientation();
+	auto iorientation = current->getOrientation();
 	const int iwidth = current->width();
 	const int iheight = current->height();
 	double scale = 1;
 
 	//cout << "image " << iwidth << "x" << iheight << " " << orientation << endl;
 
-	switch (orientation) {
-	case Image::Orientation::NORMAL:
-	case Image::Orientation::MIRROR_HORIZONTAL:
-	case Image::Orientation::ROTATE_180:
-	case Image::Orientation::MIRROR_VERTICAL:
-	default:
+	switch (iorientation.first) {
+	case Image::Rotate::ROTATE_NONE:
+	case Image::Rotate::ROTATE_180:
 		scale = min((double)awidth/iwidth, (double)aheight/iheight);
 		break;
 
-	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_270:
-	case Image::Orientation::ROTATE_90:
-	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_90:
-	case Image::Orientation::ROTATE_270:
+	case Image::Rotate::ROTATE_90:
+	case Image::Rotate::ROTATE_270:
 		scale = min((double)awidth/iheight, (double)aheight/iwidth);
 		break;
 	}
 
 	cr->scale(scale, scale);
 
-	switch (orientation) {
-	case Image::Orientation::NORMAL:
-	default:
+	switch (iorientation.first) {
+	case Image::Rotate::ROTATE_NONE:
 		break;
 
-	case Image::Orientation::MIRROR_HORIZONTAL:
-		cr->translate(iwidth, 0);
-		cr->scale(-1, 1);
+	case Image::Rotate::ROTATE_90:
+		cr->translate(iheight, 0);
+		cr->rotate_degrees(90);
 		break;
 
-	case Image::Orientation::ROTATE_180:
+	case Image::Rotate::ROTATE_180:
 		cr->translate(iwidth, iheight);
 		cr->rotate_degrees(180);
 		break;
 
-	case Image::Orientation::MIRROR_VERTICAL:
-		cr->translate(0, iheight);
-		cr->scale(1, -1);
-		break;
-
-	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_270:
-		cr->translate(0, iwidth);
-		cr->rotate_degrees(270);
-		cr->translate(iwidth, 0);
-		cr->scale(-1, 1);
-		break;
-
-	case Image::Orientation::ROTATE_90:
-		cr->translate(iheight, 0);
-		cr->rotate_degrees(90);
-		break;
-
-	case Image::Orientation::MIRROR_HORIZONTAL_ROTATE_90:
-		cr->translate(iheight, 0);
-		cr->rotate_degrees(90);
-		cr->translate(iwidth, 0);
-		cr->scale(-1, 1);
-		break;
-
-	case Image::Orientation::ROTATE_270:
+	case Image::Rotate::ROTATE_270:
 		cr->translate(0, iwidth);
 		cr->rotate_degrees(270);
 		break;
+	}
+
+	if (iorientation.second) {
+		cr->translate(iwidth, 0);
+		cr->scale(-1, 1);
 	}
 
 	auto pattern = Cairo::SurfacePattern::create(image);

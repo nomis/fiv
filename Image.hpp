@@ -18,12 +18,14 @@
 #ifndef fiv__IMAGE_HPP_
 #define fiv__IMAGE_HPP_
 
-#include <cairomm/cairomm.h>
+#include <cairomm/refptr.h>
+#include <cairomm/surface.h>
 #include <stddef.h>
 #include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 
 class DataBuffer;
 class TextureDataBuffer;
@@ -34,38 +36,20 @@ class Image: public std::enable_shared_from_this<Image> {
 	friend class Codec;
 
 public:
-	enum Orientation {
-		AUTO,
-
-		/* Horizontal (normal) */
-		NORMAL,
-
-		/* Mirror horizontal */
-		MIRROR_HORIZONTAL,
-
-		/* Rotate 180 */
-		ROTATE_180,
-
-		/* Mirror vertical */
-		MIRROR_VERTICAL,
-
-		/* Mirror horizontal and rotate 270 CW */
-		MIRROR_HORIZONTAL_ROTATE_270,
-
-		/* Rotate 90 CW */
+	enum Rotate {
+		ROTATE_NONE,
 		ROTATE_90,
-
-		/* Mirror horizontal and rotate 90 CW */
-		MIRROR_HORIZONTAL_ROTATE_90,
-
-		/* Rotate 270 CW */
+		ROTATE_180,
 		ROTATE_270
 	};
 
-	Image(const std::string &name, std::unique_ptr<DataBuffer> buffer, Orientation orientation = AUTO);
+	typedef bool HFlip;
+
+	typedef std::pair<Rotate,HFlip> Orientation;
+
+	Image(const std::string &name, std::unique_ptr<DataBuffer> buffer);
+	Image(const std::string &name, std::unique_ptr<DataBuffer> buffer, Orientation orientation);
 	friend std::ostream& operator<<(std::ostream &stream, const Image &image);
-	static Image::Orientation rotateLeft(Image::Orientation orientation);
-	static Image::Orientation rotateRight(Image::Orientation orientation);
 
 	bool load();
 	const uint8_t *begin() const;
@@ -77,6 +61,7 @@ public:
 	bool loadPrimary();
 	Cairo::RefPtr<Cairo::Surface> getPrimary();
 	Image::Orientation getOrientation();
+	void setOrientation(Image::Orientation modify);
 
 	bool loadThumbnail();
 	std::shared_ptr<Image> getThumbnail() const;
@@ -87,6 +72,7 @@ public:
 private:
 	std::unique_ptr<DataBuffer> buffer;
 	std::string mimeType;
+	bool autoOrientation;
 	Orientation orientation;
 	std::unique_ptr<Codec> codec;
 	Cairo::RefPtr<Cairo::Surface> primary;
