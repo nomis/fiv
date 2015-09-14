@@ -37,12 +37,14 @@ using namespace std;
 
 Image::Image(const string &name_, unique_ptr<DataBuffer> buffer_) :
 		name(name_), buffer(move(buffer_)), autoOrientation(true), orientation(Image::Rotate::ROTATE_NONE, false) {
+	primaryUnload = false;
 	primaryFailed = false;
 	thumbnailFailed = false;
 }
 
 Image::Image(const string &name_, unique_ptr<DataBuffer> buffer_, Orientation orientation_) :
 		name(name_), buffer(move(buffer_)), autoOrientation(true), orientation(orientation_) {
+	primaryUnload = false;
 	primaryFailed = false;
 	thumbnailFailed = false;
 }
@@ -90,24 +92,74 @@ int Image::height() {
 }
 
 bool Image::loadPrimary() {
+	unique_lock<mutex> lckPrimary(mtxPrimary);
+
 	if (primary)
 		return true;
 
 	if (primaryFailed)
 		return false;
 
-	auto start = chrono::steady_clock::now();
-	primary = codec->getPrimary();
-	auto stop = chrono::steady_clock::now();
-	cout << "load " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
+	unique_lock<mutex> lckPrimaryLoad(mtxPrimaryLoad, defer_lock);
+	if (lckPrimaryLoad.try_lock()) {
+		Cairo::RefPtr<Cairo::Surface> loadedPrimary;
+
+		primaryUnload = false;
+
+		try {
+			lckPrimary.unlock();
+
+			auto start = chrono::steady_clock::now();
+			loadedPrimary = codec->getPrimary();
+			auto stop = chrono::steady_clock::now();
+			cout << "load " << name << " in " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
+
+			if (!loadedPrimary)
+				primaryFailed = true;
+		} catch (...) {
+			lckPrimary.lock();
+			lckPrimaryLoad.unlock();
+			primaryFailed = true;
+			throw;
+		}
+
+		lckPrimary.lock();
+		lckPrimaryLoad.unlock();
+		if (!primaryUnload)
+			primary = loadedPrimary;
+		primaryUnload = false;
+	}
+
 	if (primary)
 		return true;
 
-	primaryFailed = true;
 	return false;
 }
 
+bool Image::isPrimaryLoaded() {
+	lock_guard<mutex> lckPrimary(mtxPrimary);
+
+	if (primary)
+		return true;
+
+	if (primaryFailed)
+		return true;
+
+	return false;
+}
+
+void Image::unloadPrimary() {
+	lock_guard<mutex> lckPrimary(mtxPrimary);
+
+	if (!primary)
+		return;
+
+	primary = Cairo::RefPtr<Cairo::Surface>();
+	primaryUnload = true;
+}
+
 Cairo::RefPtr<Cairo::Surface> Image::getPrimary() {
+	lock_guard<mutex> lckPrimary(mtxPrimary);
 	return primary;
 }
 

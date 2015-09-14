@@ -23,9 +23,14 @@
 #include <cairomm/refptr.h>
 #include <cairomm/surface.h>
 #include <cairomm/types.h>
+#include <gdkmm/rectangle.h>
+#include <gdkmm/window.h>
+#include <glibmm/refptr.h>
 #include <gtkmm/widget.h>
 #include <algorithm>
+#include <deque>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "Fiv.hpp"
@@ -93,13 +98,15 @@ bool ImageDrawable::on_draw(const Cairo::RefPtr<Cairo::Context> &cr) {
 
 void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int awidth, const int aheight) {
 	auto current = images->current();
-	current->loadPrimary();
 	auto image = current->getPrimary();
 	auto iorientation = current->getOrientation();
 	const int iwidth = current->width();
 	const int iheight = current->height();
 	int rwidth, rheight;
 	double scale = 1;
+
+	if (!image)
+		return;
 
 	//cout << "image " << iwidth << "x" << iheight << " " << iorientation.first << "," << iorientation.second << endl;
 

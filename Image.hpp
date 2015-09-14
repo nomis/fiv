@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 
@@ -59,7 +60,9 @@ public:
 	int height();
 
 	bool loadPrimary();
+	bool isPrimaryLoaded();
 	Cairo::RefPtr<Cairo::Surface> getPrimary();
+	void unloadPrimary();
 	Image::Orientation getOrientation();
 	void setOrientation(Image::Orientation modify);
 
@@ -75,7 +78,10 @@ private:
 	bool autoOrientation;
 	Orientation orientation;
 	std::unique_ptr<Codec> codec;
+	std::mutex mtxPrimary;
+	std::mutex mtxPrimaryLoad;
 	Cairo::RefPtr<Cairo::Surface> primary;
+	bool primaryUnload;
 	bool primaryFailed;
 	std::shared_ptr<Image> thumbnail;
 	bool thumbnailFailed;

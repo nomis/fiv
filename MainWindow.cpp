@@ -20,8 +20,10 @@
 #include <sigc++/functors/mem_fun.h>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "Fiv.hpp"
+#include "Image.hpp"
 #include "ImageDrawable.hpp"
 
 using namespace std;

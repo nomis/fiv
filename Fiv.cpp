@@ -48,6 +48,7 @@ const string Fiv::appId = "uk.uuid.fiv";
 Fiv::Fiv() {
 	initImagesComplete = false;
 	initStop = false;
+	maxPreload = 100;
 }
 
 bool Fiv::init(int argc, char *argv[]) {
@@ -77,12 +78,6 @@ bool Fiv::initImagesInBackground(unique_ptr<list<string>> filenames_) {
 	unique_lock<mutex> lckImages(mtxImages);
 	if (!initImagesComplete)
 		imageAdded.wait(lckImages);
-
-	for (auto image : images) {
-		cout << *image << endl;
-		if (image->loadThumbnail())
-			cout << *image->getThumbnail() << endl;
-	}
 
 	return images.size();
 }
@@ -183,5 +178,11 @@ bool Fiv::addImage(shared_ptr<Image> image) {
 }
 
 std::shared_ptr<Fiv::Images> Fiv::getImages() {
-	return make_shared<Fiv::Images>(shared_from_this());
+	auto fivImages = make_shared<Fiv::Images>(shared_from_this());
+	fivImages->start();
+	return fivImages;
+}
+
+unsigned int Fiv::getMaxPreload() {
+	return maxPreload;
 }
