@@ -53,6 +53,8 @@ bool FileDataBuffer::load() {
 		if (mapping == nullptr)
 			goto err;
 
+		madvise(mapping, st.st_size, MADV_DONTDUMP);
+
 		data = static_cast<uint8_t*>(mapping);
 		length = st.st_size;
 		close(fd);

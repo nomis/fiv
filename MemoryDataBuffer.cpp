@@ -17,8 +17,12 @@
 
 #include "MemoryDataBuffer.hpp"
 
+#include <exiv2/types.hpp>
 #include <stddef.h>
+#include <algorithm>
 #include <cstdint>
+#include <memory>
+#include <utility>
 
 using namespace std;
 
