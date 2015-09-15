@@ -55,6 +55,7 @@
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="pthread"/>
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="magic"/>
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="turbojpeg"/>
+									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="m"/>
 								</option>
 								<option id="gnu.cpp.link.option.flags.1053010487" name="Linker flags" superClass="gnu.cpp.link.option.flags" value="" valueType="string"/>
 								<option id="gnu.cpp.link.option.paths.1187663003" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths"/>

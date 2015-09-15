@@ -122,6 +122,9 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int
 		rwidth = iheight;
 		rheight = iwidth;
 		break;
+
+	default:
+		return;
 	}
 
 	scale = min((double)awidth/rwidth, (double)aheight/rheight);

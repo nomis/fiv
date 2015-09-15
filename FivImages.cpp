@@ -158,15 +158,16 @@ void Fiv::Images::preload() {
 	}
 
 	// Unload images that will not be preloaded
-	if (itForward != fiv->images.cend())
-		while (++itForward != fiv->images.cend())
-			if (loaded.erase(*itForward) != 0)
-				(*itForward)->unloadPrimary();
-
-	if (itBackward != fiv->images.crend())
-		while (++itBackward != fiv->images.crend())
-			if (loaded.erase(*itBackward) != 0)
-				(*itBackward)->unloadPrimary();
+	unordered_set<shared_ptr<Image>> keep(backgroundLoad.cbegin(), backgroundLoad.cend());
+	auto itLoaded = loaded.cbegin();
+	while (itLoaded != loaded.cend()) {
+		if (keep.find(*itLoaded) == loaded.end()) {
+			(*itLoaded)->unloadPrimary();
+			itLoaded = loaded.erase(itLoaded);
+		} else {
+			itLoaded++;
+		}
+	}
 
 	// Start background loading for images that are not loaded
 	auto itQueue = backgroundLoad.cbegin();

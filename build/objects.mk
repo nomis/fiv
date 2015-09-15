@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS := -lpthread -lmagic -lturbojpeg
+LIBS := -lpthread -lmagic -lturbojpeg -lm
 
