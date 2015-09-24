@@ -15,31 +15,16 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef fiv__IMAGEDRAWABLE_H_
-#define fiv__IMAGEDRAWABLE_H_
+#include "Events.hpp"
 
-#include <cairomm/context.h>
-#include <cairomm/refptr.h>
-#include <gtkmm/drawingarea.h>
-#include <atomic>
-#include <memory>
+Events::Events() {
 
-#include "Fiv.hpp"
-#include "Image.hpp"
+}
 
-class ImageDrawable: public Gtk::DrawingArea {
-public:
-	ImageDrawable();
-	void setImages(std::shared_ptr<Fiv> images);
-	void update();
-	void loaded();
+Events::~Events() {
 
-private:
-	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);
-	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int width, const int height);
+}
 
-	std::shared_ptr<Fiv> images;
-	std::atomic<bool> waiting;
-};
+void Events::loadedCurrent() {
 
-#endif /* fiv__IMAGEDRAWABLE_H_ */
+}

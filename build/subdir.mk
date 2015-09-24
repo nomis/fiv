@@ -8,6 +8,7 @@ CPP_SRCS += \
 ../Codec.cpp \
 ../Codecs.cpp \
 ../DataBuffer.cpp \
+../Events.cpp \
 ../FileDataBuffer.cpp \
 ../Fiv.cpp \
 ../Image.cpp \
@@ -23,6 +24,7 @@ OBJS += \
 ./Codec.o \
 ./Codecs.o \
 ./DataBuffer.o \
+./Events.o \
 ./FileDataBuffer.o \
 ./Fiv.o \
 ./Image.o \
@@ -38,6 +40,7 @@ CPP_DEPS += \
 ./Codec.d \
 ./Codecs.d \
 ./DataBuffer.d \
+./Events.d \
 ./FileDataBuffer.d \
 ./Fiv.d \
 ./Image.d \

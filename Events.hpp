@@ -15,36 +15,16 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef fiv__MAINWINDOW_HPP_
-#define fiv__MAINWINDOW_HPP_
+#ifndef fiv__EVENTS_HPP_
+#define fiv__EVENTS_HPP_
 
-#include <gtkmm/applicationwindow.h>
 #include <memory>
-#include <string>
 
-#include "Events.hpp"
-#include "Fiv.hpp"
-#include "ImageDrawable.hpp"
-
-class MainWindow: public Gtk::ApplicationWindow, public Events {
+class Events:  public std::enable_shared_from_this<Events> {
 public:
-	MainWindow(std::shared_ptr<Fiv> fiv_);
+	Events();
+	virtual ~Events();
 	virtual void loadedCurrent();
-
-private:
-	void action_view_previous();
-	void action_view_next();
-	void action_view_first();
-	void action_view_last();
-	void action_edit_rotateLeft();
-	void action_edit_rotateRight();
-	void action_edit_flipHorizontal();
-	void action_edit_flipVertical();
-	void update();
-
-	const std::string title;
-	std::shared_ptr<Fiv> images;
-	ImageDrawable drawImage;
 };
 
-#endif /* fiv__MAINWINDOW_HPP_ */
+#endif /* fiv__EVENTS_HPP_ */

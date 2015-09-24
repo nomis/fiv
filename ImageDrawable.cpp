@@ -55,6 +55,11 @@ void ImageDrawable::update() {
 	}
 }
 
+void ImageDrawable::loaded() {
+	if (waiting)
+		update();
+}
+
 static void copyCairoClip(const Cairo::RefPtr<Cairo::Context> &src, const Cairo::RefPtr<Cairo::Context> &dst) {
 	try {
 		vector<Cairo::Rectangle> rects;
@@ -105,8 +110,15 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int
 	int rwidth, rheight;
 	double scale = 1;
 
-	if (!image)
+	if (!image) {
+		waiting = true;
+		// TODO display fancy loading animation
+		cr->set_source_rgb(0, 0, 0);
+		cr->paint();
 		return;
+	} else {
+		waiting = false;
+	}
 
 	//cout << "image " << iwidth << "x" << iheight << " " << iorientation.first << "," << iorientation.second << endl;
 

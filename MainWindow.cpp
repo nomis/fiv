@@ -17,8 +17,8 @@
 
 #include "MainWindow.hpp"
 
-#include <sigc++/functors/mem_fun.h>
-#include <memory>
+//#include <sigc++/functors/mem_fun.h>
+//#include <memory>
 #include <string>
 #include <utility>
 
@@ -53,9 +53,8 @@ void MainWindow::action_view_previous() {
 }
 
 void MainWindow::action_view_next() {
-	if (images->next()) {
+	if (images->next())
 		update();
-	}
 }
 
 void MainWindow::action_view_first() {
@@ -95,4 +94,8 @@ void MainWindow::update() {
 		drawImage.show();
 	}
 	set_title(title + ": " + images->current()->name);
+}
+
+void MainWindow::loadedCurrent() {
+	drawImage.loaded();
 }

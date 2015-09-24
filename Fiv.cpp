@@ -38,6 +38,7 @@
 #include <utility>
 
 #include "Codec.hpp"
+#include "Events.hpp"
 #include "FileDataBuffer.hpp"
 #include "Image.hpp"
 
@@ -50,9 +51,11 @@ Fiv::Fiv() {
 	initImagesComplete = false;
 	initStop = false;
 	maxPreload = 100;
+	itCurrent = images.cend();
 
 	mtxLoad = make_shared<mutex>();
 	loadingRequired = make_shared<condition_variable>();
+	preloadStarved = false;
 }
 
 Fiv::~Fiv() {
@@ -76,11 +79,9 @@ bool Fiv::init(int argc, char *argv[]) {
 	itCurrent = images.cbegin();
 	preload();
 
-	for (unsigned int i = 0; i < thread::hardware_concurrency(); i++) {
-		weak_ptr<Fiv> wSelf = shared_from_this();
-
+	weak_ptr<Fiv> wSelf = shared_from_this();
+	for (unsigned int i = 0; i < thread::hardware_concurrency(); i++)
 		thread([wSelf]{ runLoader(wSelf); }).detach();
-	}
 
 	return true;
 }
@@ -189,6 +190,7 @@ bool Fiv::addImage(shared_ptr<Image> image) {
 			return false;
 
 		images.push_back(image);
+		preload(true);
 		imageAdded.notify_all();
 	} else {
 		unique_lock<mutex> lckImages(mtxImages);
@@ -256,6 +258,29 @@ bool Fiv::last() {
 	return false;
 }
 
+void Fiv::addListener(weak_ptr<Events> listener) {
+	listeners.push_back(listener);
+}
+
+vector<shared_ptr<Events>> Fiv::getListeners() {
+	vector<shared_ptr<Events>> activeListeners;
+
+	auto itListener = listeners.cbegin();
+
+	while (itListener != listeners.cend()) {
+		shared_ptr<Events> listener = itListener->lock();
+
+		if (listener) {
+			activeListeners.push_back(listener);
+			itListener++;
+		} else {
+			itListener = listeners.erase(itListener);
+		}
+	}
+
+	return activeListeners;
+}
+
 #ifndef __cpp_lib_make_reverse_iterator
 template<class Iterator>
 ::std::reverse_iterator<Iterator> make_reverse_iterator(Iterator i) {
@@ -263,8 +288,11 @@ template<class Iterator>
 }
 #endif
 
-void Fiv::preload() {
+void Fiv::preload(bool checkStarved) {
 	unique_lock<mutex> lckLoad(*mtxLoad);
+
+	if (checkStarved && !preloadStarved)
+		return;
 
 	auto start = chrono::steady_clock::now();
 
@@ -299,6 +327,8 @@ void Fiv::preload() {
 		if (stop)
 			break;
 	}
+
+	preloadStarved = preload > 0;
 
 	// Unload images that will not be preloaded
 	unordered_set<shared_ptr<Image>> keep(backgroundLoad.cbegin(), backgroundLoad.cend());
@@ -358,13 +388,23 @@ void Fiv::runLoader(weak_ptr<Fiv> wSelf) {
 			}
 		}
 
-		if (image && image->loadPrimary()) {
+		if (!image || !image->loadPrimary())
+			continue;
+
+		shared_ptr<Fiv> self = wSelf.lock();
+		if (!self)
+			return;
+
+		{
 			unique_lock<mutex> lckLoad(*mtxLoad);
-			shared_ptr<Fiv> self = wSelf.lock();
-			if (!self)
-				return;
 
 			self->loaded.insert(image);
+		}
+
+		{
+			if (image.get() == self->current().get())
+				for (auto listener : self->getListeners())
+					listener->loadedCurrent();
 		}
 	}
 }

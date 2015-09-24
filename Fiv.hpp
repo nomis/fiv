@@ -25,8 +25,11 @@
 #include <mutex>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include "Image.hpp"
+
+class Events;
 
 class Fiv: public std::enable_shared_from_this<Fiv> {
 public:
@@ -41,6 +44,8 @@ public:
 	bool next();
 	bool last();
 
+	void addListener(std::weak_ptr<Events> listener);
+
 	static const std::string appName;
 	static const std::string appId;
 
@@ -49,7 +54,9 @@ private:
 	void initImagesThread(std::unique_ptr<std::list<std::string>> filenames);
 	void initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
 	bool addImage(std::shared_ptr<Image> image);
-	void preload();
+	void preload(bool checkStarved = false);
+
+	std::vector<std::shared_ptr<Events>> getListeners();
 
 	static void runLoader(std::weak_ptr<Fiv> wSelf);
 
@@ -65,6 +72,9 @@ private:
 	std::unordered_set<std::shared_ptr<Image>> loaded;
 	std::deque<std::shared_ptr<Image>> backgroundLoad;
 	std::shared_ptr<std::condition_variable> loadingRequired;
+	bool preloadStarved;
+	std::vector<std::weak_ptr<Events>> listeners;
 };
 
 #endif /* fiv__FIV_HPP_ */
+

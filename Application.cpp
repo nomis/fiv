@@ -109,6 +109,7 @@ int Application::on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine>
 
 void Application::on_activate() {
 	win = make_shared<MainWindow>(fiv);
+	fiv->addListener(static_pointer_cast<Events>(win));
 	add_window(*win);
 	win->show();
 }
