@@ -42,7 +42,7 @@ ImageDrawable::ImageDrawable() {
 
 }
 
-void ImageDrawable::setImages(shared_ptr<Fiv::Images> images_) {
+void ImageDrawable::setImages(shared_ptr<Fiv> images_) {
 	images = images_;
 }
 

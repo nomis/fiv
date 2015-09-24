@@ -10,7 +10,6 @@ CPP_SRCS += \
 ../DataBuffer.cpp \
 ../FileDataBuffer.cpp \
 ../Fiv.cpp \
-../FivImages.cpp \
 ../Image.cpp \
 ../ImageDrawable.cpp \
 ../JpegCodec.cpp \
@@ -26,7 +25,6 @@ OBJS += \
 ./DataBuffer.o \
 ./FileDataBuffer.o \
 ./Fiv.o \
-./FivImages.o \
 ./Image.o \
 ./ImageDrawable.o \
 ./JpegCodec.o \
@@ -42,7 +40,6 @@ CPP_DEPS += \
 ./DataBuffer.d \
 ./FileDataBuffer.d \
 ./Fiv.d \
-./FivImages.d \
 ./Image.d \
 ./ImageDrawable.d \
 ./JpegCodec.d \

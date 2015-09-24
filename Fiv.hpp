@@ -28,61 +28,43 @@
 
 #include "Image.hpp"
 
-class Codec;
-
-class Image;
-
 class Fiv: public std::enable_shared_from_this<Fiv> {
 public:
-	class Images: public std::enable_shared_from_this<Images> {
-	public:
-		Images(std::shared_ptr<Fiv> fiv);
-		virtual ~Images();
-		void start();
-		std::shared_ptr<Image> current();
-		void orientation(Image::Orientation modify);
-		bool first();
-		bool previous();
-		bool next();
-		bool last();
-
-	private:
-		void preload();
-
-		static void runLoader(std::weak_ptr<Images> wSelf);
-
-		std::shared_ptr<Fiv> fiv;
-		std::list<std::shared_ptr<Image>>::const_iterator itCurrent;
-
-		std::shared_ptr<std::mutex> mtxLoad;
-		std::unordered_set<std::shared_ptr<Image>> loaded;
-		std::deque<std::shared_ptr<Image>> backgroundLoad;
-		std::shared_ptr<std::condition_variable> loadingRequired;
-	};
-
 	Fiv();
+	virtual ~Fiv();
 	bool init(int argc, char *argv[]);
 	void exit();
-	std::shared_ptr<Fiv::Images> getImages();
-	unsigned int getMaxPreload();
+	std::shared_ptr<Image> current();
+	void orientation(Image::Orientation modify);
+	bool first();
+	bool previous();
+	bool next();
+	bool last();
 
 	static const std::string appName;
 	static const std::string appId;
-
-
 
 private:
 	bool initImagesInBackground(std::unique_ptr<std::list<std::string>> filenames);
 	void initImagesThread(std::unique_ptr<std::list<std::string>> filenames);
 	void initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
 	bool addImage(std::shared_ptr<Image> image);
+	void preload();
+
+	static void runLoader(std::weak_ptr<Fiv> wSelf);
 
 	std::mutex mtxImages;
 	std::list<std::shared_ptr<Image>> images;
 	std::condition_variable imageAdded;
+	std::list<std::shared_ptr<Image>>::const_iterator itCurrent;
 	bool initImagesComplete;
 	bool initStop;
+
 	unsigned int maxPreload;
+	std::shared_ptr<std::mutex> mtxLoad;
+	std::unordered_set<std::shared_ptr<Image>> loaded;
+	std::deque<std::shared_ptr<Image>> backgroundLoad;
+	std::shared_ptr<std::condition_variable> loadingRequired;
 };
 
 #endif /* fiv__FIV_HPP_ */

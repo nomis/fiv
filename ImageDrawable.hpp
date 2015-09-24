@@ -29,14 +29,14 @@
 class ImageDrawable: public Gtk::DrawingArea {
 public:
 	ImageDrawable();
-	void setImages(std::shared_ptr<Fiv::Images> images);
+	void setImages(std::shared_ptr<Fiv> images);
 	void update();
 
 private:
 	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);
 	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int width, const int height);
 
-	std::shared_ptr<Fiv::Images> images;
+	std::shared_ptr<Fiv> images;
 };
 
 #endif /* fiv__IMAGEDRAWABLE_H_ */

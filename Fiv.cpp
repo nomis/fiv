@@ -21,24 +21,25 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
-#include <cassert>
+#include <chrono>
 #include <condition_variable>
 #include <cstdio>
 #include <deque>
 #include <functional>
 #include <iostream>
+#include <iterator>
 #include <list>
-#include <map>
 #include <memory>
 #include <mutex>
-#include <stdexcept>
 #include <string>
 #include <thread>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
+#include "Codec.hpp"
 #include "FileDataBuffer.hpp"
 #include "Image.hpp"
-#include "JpegCodec.hpp"
 
 using namespace std;
 
@@ -49,6 +50,13 @@ Fiv::Fiv() {
 	initImagesComplete = false;
 	initStop = false;
 	maxPreload = 100;
+
+	mtxLoad = make_shared<mutex>();
+	loadingRequired = make_shared<condition_variable>();
+}
+
+Fiv::~Fiv() {
+	loadingRequired->notify_all();
 }
 
 bool Fiv::init(int argc, char *argv[]) {
@@ -60,7 +68,21 @@ bool Fiv::init(int argc, char *argv[]) {
 	if (!args->size())
 		args->emplace_back(".");
 
-	return initImagesInBackground(move(args));
+
+	if (!initImagesInBackground(move(args)))
+		return false;
+
+	unique_lock<mutex> lckImages(mtxImages);
+	itCurrent = images.cbegin();
+	preload();
+
+	for (unsigned int i = 0; i < thread::hardware_concurrency(); i++) {
+		weak_ptr<Fiv> wSelf = shared_from_this();
+
+		thread([wSelf]{ runLoader(wSelf); }).detach();
+	}
+
+	return true;
 }
 
 void Fiv::exit() {
@@ -177,12 +199,173 @@ bool Fiv::addImage(shared_ptr<Image> image) {
 	return true;
 }
 
-std::shared_ptr<Fiv::Images> Fiv::getImages() {
-	auto fivImages = make_shared<Fiv::Images>(shared_from_this());
-	fivImages->start();
-	return fivImages;
+shared_ptr<Image> Fiv::current() {
+	unique_lock<mutex> lckImages(mtxImages);
+	return *itCurrent;
 }
 
-unsigned int Fiv::getMaxPreload() {
-	return maxPreload;
+void Fiv::orientation(Image::Orientation modify) {
+	unique_lock<mutex> lckImages(mtxImages);
+	auto image = *itCurrent;
+	image->setOrientation(modify);
+	if (image->loadThumbnail())
+		image->getThumbnail()->setOrientation(modify);
 }
+
+bool Fiv::first() {
+	unique_lock<mutex> lckImages(mtxImages);
+	if (itCurrent != images.cbegin()) {
+		itCurrent = images.cbegin();
+		preload();
+		return true;
+	}
+	return false;
+}
+
+bool Fiv::previous() {
+	unique_lock<mutex> lckImages(mtxImages);
+	if (itCurrent != images.cbegin()) {
+		itCurrent--;
+		preload();
+		return true;
+	}
+	return false;
+}
+
+bool Fiv::next() {
+	unique_lock<mutex> lckImages(mtxImages);
+	auto itNext = itCurrent;
+	itNext++;
+	if (itNext != images.cend()) {
+		itCurrent++;
+		preload();
+		return true;
+	}
+	return false;
+}
+
+bool Fiv::last() {
+	unique_lock<mutex> lckImages(mtxImages);
+	auto itLast = images.cend();
+	itLast--;
+	if (itCurrent != itLast) {
+		itCurrent = itLast;
+		preload();
+		return true;
+	}
+	return false;
+}
+
+#ifndef __cpp_lib_make_reverse_iterator
+template<class Iterator>
+::std::reverse_iterator<Iterator> make_reverse_iterator(Iterator i) {
+    return ::std::reverse_iterator<Iterator>(i);
+}
+#endif
+
+void Fiv::preload() {
+	unique_lock<mutex> lckLoad(*mtxLoad);
+
+	auto start = chrono::steady_clock::now();
+
+	unsigned int preload = maxPreload;
+	auto itForward = itCurrent;
+	auto itBackward = make_reverse_iterator(itCurrent);
+
+	backgroundLoad.clear();
+	backgroundLoad.push_back(*itCurrent);
+
+	// Preload images forward and backward
+	itForward++;
+	while (true) {
+		bool stop = true;
+
+		if (itForward != images.cend()) {
+			backgroundLoad.push_back(*(itForward++));
+
+			if (--preload == 0)
+				break;
+			stop = false;
+		}
+
+		if (itBackward != images.crend()) {
+			backgroundLoad.push_back(*(itBackward++));
+
+			if (--preload == 0)
+				break;
+			stop = false;
+		}
+
+		if (stop)
+			break;
+	}
+
+	// Unload images that will not be preloaded
+	unordered_set<shared_ptr<Image>> keep(backgroundLoad.cbegin(), backgroundLoad.cend());
+	auto itLoaded = loaded.cbegin();
+	while (itLoaded != loaded.cend()) {
+		if (keep.find(*itLoaded) == loaded.end()) {
+			(*itLoaded)->unloadPrimary();
+			itLoaded = loaded.erase(itLoaded);
+		} else {
+			itLoaded++;
+		}
+	}
+
+	// Start background loading for images that are not loaded
+	auto itQueue = backgroundLoad.cbegin();
+	while (itQueue != backgroundLoad.cend()) {
+		if (loaded.find(*itQueue) == loaded.end()) {
+			loadingRequired->notify_one();
+			itQueue++;
+		} else {
+			itQueue = backgroundLoad.erase(itQueue);
+		}
+	}
+
+	auto stop = chrono::steady_clock::now();
+	cout << "preload queued " << backgroundLoad.size() << " in " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
+}
+
+void Fiv::runLoader(weak_ptr<Fiv> wSelf) {
+	shared_ptr<mutex> mtxLoad;
+	shared_ptr<condition_variable> loadingRequired;
+
+	{
+		shared_ptr<Fiv> self = wSelf.lock();
+		if (!self)
+			return;
+
+		mtxLoad = self->mtxLoad;
+		loadingRequired = self->loadingRequired;
+	}
+
+	while (true) {
+		shared_ptr<Image> image;
+
+		{
+			unique_lock<mutex> lckLoad(*mtxLoad);
+			shared_ptr<Fiv> self = wSelf.lock();
+			if (!self)
+				return;
+
+			if (self->backgroundLoad.empty())
+				loadingRequired->wait(lckLoad);
+
+			if (!self->backgroundLoad.empty()) {
+				image = self->backgroundLoad.front();
+				self->backgroundLoad.pop_front();
+			}
+		}
+
+		if (image && image->loadPrimary()) {
+			unique_lock<mutex> lckLoad(*mtxLoad);
+			shared_ptr<Fiv> self = wSelf.lock();
+			if (!self)
+				return;
+
+			self->loaded.insert(image);
+		}
+	}
+}
+

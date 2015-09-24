@@ -41,8 +41,7 @@ private:
 	void update();
 
 	const std::string title;
-	std::shared_ptr<Fiv> fiv;
-	std::shared_ptr<Fiv::Images> images;
+	std::shared_ptr<Fiv> images;
 	ImageDrawable drawImage;
 };
 

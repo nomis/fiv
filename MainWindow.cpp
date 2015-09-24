@@ -28,9 +28,8 @@
 
 using namespace std;
 
-MainWindow::MainWindow(shared_ptr<Fiv> fiv_) : Gtk::ApplicationWindow(), title(Fiv::appName) {
-	fiv = fiv_;
-	images = fiv->getImages();
+MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow(), title(Fiv::appName) {
+	images = fiv;
 
 	set_default_size(1920/2, 1080/2);
 	add_action("view.first", sigc::mem_fun(this, &MainWindow::action_view_first));
