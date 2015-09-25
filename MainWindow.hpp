@@ -41,6 +41,7 @@ private:
 	void action_view_first();
 	void action_view_last();
 	void action_view_fullScreen();
+	void redraw();
 	void update();
 	virtual bool on_window_state_event(GdkEventWindowState *event);
 

@@ -28,8 +28,9 @@
 #include <glibmm/refptr.h>
 #include <gtkmm/widget.h>
 #include <algorithm>
-#include <deque>
+#include <cmath>
 #include <memory>
+#include <mutex>
 #include <utility>
 #include <vector>
 
@@ -40,6 +41,9 @@ using namespace std;
 
 ImageDrawable::ImageDrawable() {
 	waiting = false;
+	zoom = NAN;
+	x = 0;
+	y = 0;
 }
 
 void ImageDrawable::setImages(shared_ptr<Fiv> images_) {
@@ -47,19 +51,126 @@ void ImageDrawable::setImages(shared_ptr<Fiv> images_) {
 }
 
 void ImageDrawable::update() {
-	auto win = get_window();
-	if (win) {
-		auto allocation = get_allocation();
-		Gdk::Rectangle rect(0, 0, allocation.get_width(), allocation.get_height());
-		win->invalidate_rect(rect, false);
+	zoom = NAN;
+	redraw();
+}
+
+void ImageDrawable::redraw() {
+	if (is_visible()) {
+		auto win = get_window();
+		if (win) {
+			auto allocation = get_allocation();
+			Gdk::Rectangle rect(0, 0, allocation.get_width(), allocation.get_height());
+			win->invalidate_rect(rect, false);
+		}
+	} else {
+		show();
 	}
 }
 
 void ImageDrawable::loaded() {
-	unique_lock<mutex> lckWaiting(mtxWaiting);
+	lock_guard<mutex> lckDrawing(mtxDrawing);
 
 	if (waiting)
-		update();
+		redraw();
+}
+
+bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const int &awidth, const int &aheight, Image::Orientation iorientation, int &iwidth, int &iheight,
+		int &rwidth, int &rheight, double &rscale, double &rx, double &ry) {
+	iorientation = image->getOrientation();
+	iwidth = image->width();
+	iheight = image->height();
+
+	switch (iorientation.first) {
+	case Image::Rotate::ROTATE_NONE:
+	case Image::Rotate::ROTATE_180:
+		rwidth = iwidth;
+		rheight = iheight;
+		break;
+
+	case Image::Rotate::ROTATE_90:
+	case Image::Rotate::ROTATE_270:
+		rwidth = iheight;
+		rheight = iwidth;
+		break;
+
+	default:
+		return false;
+	}
+
+	if (std::isnan(zoom)) {
+		rscale = min((double)awidth / rwidth, (double)aheight / rheight);
+
+		if ((double)awidth / rwidth >= (double)aheight / rheight) {
+			rx = ((double)awidth - rscale * rwidth) / 2;
+			ry = 0;
+		} else {
+			rx = 0;
+			ry = ((double)aheight - rscale * rheight) / 2;
+		}
+	} else {
+		rscale = zoom;
+		rx = x;
+		ry = y;
+
+		if (rwidth < awidth) {
+			// Image width too small, centre horizontally
+			rx = ((double)awidth - rscale * rwidth) / 2;
+		} else if (rx > 0) {
+			// Gap at the left of the image, move to the left edge
+			rx = 0;
+		} else if (rx + rwidth * rscale < awidth) {
+			// Gap at the right of the image, move to the right edge
+			rx = awidth - rwidth * rscale;
+		}
+
+		if (rheight < aheight) {
+			// Image height too small, centre vertically
+			ry = ((double)aheight - rscale * rheight) / 2;
+		} else if (ry > 0) {
+			// Gap at the top of the image, move to the top edge
+			ry = 0;
+		} else if (ry + rheight * rscale < aheight) {
+			// Gap at the bottom of the image, move to the bottom edge
+			ry = aheight - rheight * rscale;
+		}
+	}
+
+	return true;
+}
+
+void ImageDrawable::zoomActual() {
+	Gtk::Allocation allocation = get_allocation();
+	const int awidth = allocation.get_width();
+	const int aheight = allocation.get_height();
+	int px, py;
+
+	get_pointer(px, py);
+
+	lock_guard<mutex> lckDrawing(mtxDrawing);
+
+	auto current = images->current();
+	auto image = current->getPrimary();
+	Image::Orientation iorientation;
+	int iwidth, iheight;
+	int rwidth, rheight;
+	double rscale;
+	double rx, ry;
+
+	if (!calcRenderedImage(current, awidth, aheight, iorientation, iwidth, iheight, rwidth, rheight, rscale, rx, ry))
+		return;
+
+	zoom = 1;
+	x = px - ((px - rx) / rscale * zoom);
+	y = py - ((py - ry) / rscale * zoom);
+	redraw();
+}
+
+void ImageDrawable::zoomFit() {
+	lock_guard<mutex> lckDrawing(mtxDrawing);
+
+	zoom = NAN;
+	redraw();
 }
 
 static void copyCairoClip(const Cairo::RefPtr<Cairo::Context> &src, const Cairo::RefPtr<Cairo::Context> &dst) {
@@ -104,18 +215,26 @@ bool ImageDrawable::on_draw(const Cairo::RefPtr<Cairo::Context> &cr) {
 }
 
 void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int awidth, const int aheight) {
-	unique_lock<mutex> lckWaiting(mtxWaiting);
+	unique_lock<mutex> lckDrawing(mtxDrawing);
 
 	auto current = images->current();
 	auto image = current->getPrimary();
-	auto iorientation = current->getOrientation();
-	const int iwidth = current->width();
-	const int iheight = current->height();
+	Image::Orientation iorientation;
+	int iwidth, iheight;
 	int rwidth, rheight;
-	double scale = 1;
+	double rscale;
+	double rx, ry;
+
+	//cout << "image " << iwidth << "x" << iheight << " " << iorientation.first << "," << iorientation.second << endl;
+
+	if (!calcRenderedImage(current, awidth, aheight, iorientation, iwidth, iheight, rwidth, rheight, rscale, rx, ry))
+		return;
+
+	cr->translate(rx, ry);
+	cr->scale(rscale, rscale);
 
 	waiting = !image;
-	lckWaiting.unlock();
+	lckDrawing.unlock();
 
 	if (!image) {
 		// TODO display fancy loading animation
@@ -124,35 +243,6 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int
 		cr->paint();
 		return;
 	}
-
-	//cout << "image " << iwidth << "x" << iheight << " " << iorientation.first << "," << iorientation.second << endl;
-
-	switch (iorientation.first) {
-	case Image::Rotate::ROTATE_NONE:
-	case Image::Rotate::ROTATE_180:
-		rwidth = iwidth;
-		rheight = iheight;
-		break;
-
-	case Image::Rotate::ROTATE_90:
-	case Image::Rotate::ROTATE_270:
-		rwidth = iheight;
-		rheight = iwidth;
-		break;
-
-	default:
-		return;
-	}
-
-	scale = min((double)awidth/rwidth, (double)aheight/rheight);
-
-	if ((double)awidth/rwidth >= (double)aheight/rheight) {
-		cr->translate(((double)awidth - scale*rwidth) / 2, 0);
-	} else {
-		cr->translate(0, ((double)aheight - scale*rheight) / 2);
-	}
-
-	cr->scale(scale, scale);
 
 	switch (iorientation.first) {
 	case Image::Rotate::ROTATE_NONE:

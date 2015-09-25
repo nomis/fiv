@@ -24,6 +24,8 @@
 #include <memory>
 #include <mutex>
 
+#include "Image.hpp"
+
 class Fiv;
 
 class ImageDrawable: public Gtk::DrawingArea {
@@ -31,15 +33,22 @@ public:
 	ImageDrawable();
 	void setImages(std::shared_ptr<Fiv> images);
 	void update();
+	void redraw();
 	void loaded();
+	void zoomActual();
+	void zoomFit();
 
 private:
 	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);
 	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int width, const int height);
+	bool inline calcRenderedImage(std::shared_ptr<Image> image, const int &awidth, const int &aheight, Image::Orientation iorientation, int &iwidth, int &iheight, int &rwidth, int &rheight, double &rscale, double &rx, double &ry);
 
 	std::shared_ptr<Fiv> images;
-	std::mutex mtxWaiting;
+
+	std::mutex mtxDrawing;
 	bool waiting;
+	double zoom;
+	double x, y;
 };
 
 #endif /* fiv__IMAGEDRAWABLE_H_ */

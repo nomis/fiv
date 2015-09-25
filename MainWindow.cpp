@@ -33,6 +33,10 @@ MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow(), title(Fi
 	fullScreen = false;
 
 	set_default_size(1920/2, 1080/2);
+
+	drawImage.setImages(images);
+	add(drawImage);
+
 	add_action("edit.rotateLeft", sigc::mem_fun(this, &MainWindow::action_edit_rotateLeft));
 	add_action("edit.rotateRight", sigc::mem_fun(this, &MainWindow::action_edit_rotateRight));
 	add_action("edit.flipHorizontal", sigc::mem_fun(this, &MainWindow::action_edit_flipHorizontal));
@@ -41,10 +45,9 @@ MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow(), title(Fi
 	add_action("view.previous", sigc::mem_fun(this, &MainWindow::action_view_previous));
 	add_action("view.next", sigc::mem_fun(this, &MainWindow::action_view_next));
 	add_action("view.last", sigc::mem_fun(this, &MainWindow::action_view_last));
+	add_action("view.zoomActual", sigc::mem_fun(drawImage, &ImageDrawable::zoomActual));
+	add_action("view.zoomFit", sigc::mem_fun(drawImage, &ImageDrawable::zoomFit));
 	add_action("view.fullScreen", sigc::mem_fun(this, &MainWindow::action_view_fullScreen));
-
-	drawImage.setImages(images);
-	add(drawImage);
 
 	update();
 }
@@ -99,15 +102,15 @@ void MainWindow::action_view_fullScreen() {
 	} else {
 		fullscreen();
 	}
-	update();
+	redraw();
+}
+
+void MainWindow::redraw() {
+	drawImage.redraw();
 }
 
 void MainWindow::update() {
-	if (drawImage.is_visible()) {
-		drawImage.update();
-	} else {
-		drawImage.show();
-	}
+	drawImage.update();
 	set_title(title + ": " + images->current()->name);
 }
 
