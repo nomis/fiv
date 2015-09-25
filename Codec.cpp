@@ -51,10 +51,10 @@ Image::Orientation Codec::getOrientation() {
 	return Image::Orientation(Image::Rotate::ROTATE_NONE, false);
 }
 
-Cairo::RefPtr<Cairo::Surface> Codec::getPrimary() {
-	return Cairo::RefPtr<Cairo::Surface>();
+Cairo::RefPtr<Cairo::ImageSurface> Codec::getPrimary() {
+	return Cairo::RefPtr<Cairo::ImageSurface>();
 }
 
-shared_ptr<Image> Codec::getThumbnail() {
-	return shared_ptr<Image>();
+Cairo::RefPtr<Cairo::ImageSurface> Codec::getThumbnail() {
+	return Cairo::RefPtr<Cairo::ImageSurface>();
 }

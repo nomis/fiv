@@ -40,8 +40,8 @@ public:
 	virtual int getWidth();
 	virtual int getHeight();
 	virtual Image::Orientation getOrientation();
-	virtual Cairo::RefPtr<Cairo::Surface> getPrimary();
-	virtual std::shared_ptr<Image> getThumbnail();
+	virtual Cairo::RefPtr<Cairo::ImageSurface> getPrimary();
+	virtual Cairo::RefPtr<Cairo::ImageSurface> getThumbnail();
 
 	static const std::string MIME_TYPE;
 

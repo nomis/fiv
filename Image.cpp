@@ -39,6 +39,7 @@ Image::Image(const string &name_, unique_ptr<DataBuffer> buffer_) :
 		name(name_), buffer(move(buffer_)), autoOrientation(true), orientation(Image::Rotate::ROTATE_NONE, false) {
 	primaryUnload = false;
 	primaryFailed = false;
+	thumbnailUnload = false;
 	thumbnailFailed = false;
 }
 
@@ -46,6 +47,7 @@ Image::Image(const string &name_, unique_ptr<DataBuffer> buffer_, Orientation or
 		name(name_), buffer(move(buffer_)), autoOrientation(true), orientation(orientation_) {
 	primaryUnload = false;
 	primaryFailed = false;
+	thumbnailUnload = false;
 	thumbnailFailed = false;
 }
 
@@ -91,6 +93,29 @@ int Image::height() {
 	return codec->getHeight();
 }
 
+Image::Orientation Image::getOrientation() {
+	if (autoOrientation) {
+		orientation = codec->getOrientation();
+		autoOrientation = false;
+	}
+
+	return orientation;
+}
+
+void Image::setOrientation(Image::Orientation modify) {
+	static const Image::Rotate ROTATE_MAP[4][4] = {
+			                 /*                ROTATE_NONE                 ROTATE_90                   ROTATE_180                  ROTATE_270  */
+			/* ROTATE_NONE */ { Image::Rotate::ROTATE_NONE, Image::Rotate::ROTATE_90,   Image::Rotate::ROTATE_180,  Image::Rotate::ROTATE_270  },
+			/* ROTATE_90   */ { Image::Rotate::ROTATE_90,   Image::Rotate::ROTATE_180,  Image::Rotate::ROTATE_270,  Image::Rotate::ROTATE_NONE },
+			/* ROTATE_180  */ { Image::Rotate::ROTATE_180,  Image::Rotate::ROTATE_270,  Image::Rotate::ROTATE_NONE, Image::Rotate::ROTATE_90   },
+			/* ROTATE_270  */ { Image::Rotate::ROTATE_270,  Image::Rotate::ROTATE_NONE, Image::Rotate::ROTATE_90,   Image::Rotate::ROTATE_180  }
+	};
+
+	getOrientation();
+	orientation.first = ROTATE_MAP[orientation.first][modify.first];
+	orientation.second = orientation.second ^ modify.second;
+}
+
 bool Image::loadPrimary() {
 	unique_lock<mutex> lckPrimary(mtxPrimary);
 
@@ -102,7 +127,7 @@ bool Image::loadPrimary() {
 
 	unique_lock<mutex> lckPrimaryLoad(mtxPrimaryLoad, defer_lock);
 	if (lckPrimaryLoad.try_lock()) {
-		Cairo::RefPtr<Cairo::Surface> loadedPrimary;
+		Cairo::RefPtr<Cairo::ImageSurface> loadedPrimary;
 
 		primaryUnload = false;
 
@@ -151,60 +176,80 @@ void Image::unloadPrimary() {
 	if (!primary)
 		return;
 
-	primary = Cairo::RefPtr<Cairo::Surface>();
+	primary = Cairo::RefPtr<Cairo::ImageSurface>();
 	primaryUnload = true;
 }
 
-Cairo::RefPtr<Cairo::Surface> Image::getPrimary() {
+Cairo::RefPtr<Cairo::ImageSurface> Image::getPrimary() {
 	lock_guard<mutex> lckPrimary(mtxPrimary);
 	return primary;
 }
 
-Image::Orientation Image::getOrientation() {
-	if (autoOrientation) {
-		orientation = codec->getOrientation();
-		autoOrientation = false;
-	}
-
-	return orientation;
-}
-
-void Image::setOrientation(Image::Orientation modify) {
-	static const Image::Rotate ROTATE_MAP[4][4] = {
-			                 /*                ROTATE_NONE                 ROTATE_90                   ROTATE_180                  ROTATE_270  */
-			/* ROTATE_NONE */ { Image::Rotate::ROTATE_NONE, Image::Rotate::ROTATE_90,   Image::Rotate::ROTATE_180,  Image::Rotate::ROTATE_270  },
-			/* ROTATE_90   */ { Image::Rotate::ROTATE_90,   Image::Rotate::ROTATE_180,  Image::Rotate::ROTATE_270,  Image::Rotate::ROTATE_NONE },
-			/* ROTATE_180  */ { Image::Rotate::ROTATE_180,  Image::Rotate::ROTATE_270,  Image::Rotate::ROTATE_NONE, Image::Rotate::ROTATE_90   },
-			/* ROTATE_270  */ { Image::Rotate::ROTATE_270,  Image::Rotate::ROTATE_NONE, Image::Rotate::ROTATE_90,   Image::Rotate::ROTATE_180  }
-	};
-
-	getOrientation();
-	orientation.first = ROTATE_MAP[orientation.first][modify.first];
-	orientation.second = orientation.second ^ modify.second;
-}
-
 bool Image::loadThumbnail() {
+	unique_lock<mutex> lckThumbnail(mtxThumbnail);
+
 	if (thumbnail)
 		return true;
 
 	if (thumbnailFailed)
 		return false;
 
-	thumbnail = codec->getThumbnail();
+	unique_lock<mutex> lckThumbnailLoad(mtxThumbnailLoad, defer_lock);
+	if (lckThumbnailLoad.try_lock()) {
+		Cairo::RefPtr<Cairo::ImageSurface> loadedThumbnail;
+
+		thumbnailUnload = false;
+
+		try {
+			lckThumbnail.unlock();
+
+			auto start = chrono::steady_clock::now();
+			loadedThumbnail = codec->getThumbnail();
+			auto stop = chrono::steady_clock::now();
+			cout << "load " << name << " thumbnail in " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
+
+			if (!loadedThumbnail)
+				thumbnailFailed = true;
+		} catch (...) {
+			lckThumbnail.lock();
+			lckThumbnailLoad.unlock();
+			thumbnailFailed = true;
+			throw;
+		}
+
+		lckThumbnail.lock();
+		lckThumbnailLoad.unlock();
+		if (!thumbnailUnload)
+			thumbnail = loadedThumbnail;
+		thumbnailUnload = false;
+	}
+
 	if (thumbnail)
 		return true;
 
-	thumbnailFailed = true;
 	return false;
 }
 
-shared_ptr<Image> Image::getThumbnail() const {
-	if (thumbnail)
-		return thumbnail;
+bool Image::isThumbnailFailed() {
+	lock_guard<mutex> lckThumbnail(mtxThumbnail);
 
-	return shared_ptr<Image>();
+	if (thumbnailFailed)
+		return true;
+
+	return false;
 }
 
 void Image::unloadThumbnail() {
-	thumbnail = nullptr;
+	lock_guard<mutex> lckThumbnail(mtxThumbnail);
+
+	if (!thumbnail)
+		return;
+
+	thumbnail = Cairo::RefPtr<Cairo::ImageSurface>();
+	thumbnailUnload = true;
+}
+
+Cairo::RefPtr<Cairo::ImageSurface> Image::getThumbnail() {
+	lock_guard<mutex> lckThumbnail(mtxThumbnail);
+	return thumbnail;
 }

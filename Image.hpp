@@ -59,15 +59,17 @@ public:
 	int width();
 	int height();
 
-	bool loadPrimary();
-	bool isPrimaryFailed();
-	Cairo::RefPtr<Cairo::Surface> getPrimary();
-	void unloadPrimary();
 	Image::Orientation getOrientation();
 	void setOrientation(Image::Orientation modify);
 
+	bool loadPrimary();
+	bool isPrimaryFailed();
+	Cairo::RefPtr<Cairo::ImageSurface> getPrimary();
+	void unloadPrimary();
+
 	bool loadThumbnail();
-	std::shared_ptr<Image> getThumbnail() const;
+	bool isThumbnailFailed();
+	Cairo::RefPtr<Cairo::ImageSurface> getThumbnail();
 	void unloadThumbnail();
 
 	const std::string name;
@@ -78,12 +80,17 @@ private:
 	bool autoOrientation;
 	Orientation orientation;
 	std::unique_ptr<Codec> codec;
+
 	std::mutex mtxPrimary;
 	std::mutex mtxPrimaryLoad;
-	Cairo::RefPtr<Cairo::Surface> primary;
+	Cairo::RefPtr<Cairo::ImageSurface> primary;
 	bool primaryUnload;
 	bool primaryFailed;
-	std::shared_ptr<Image> thumbnail;
+
+	std::mutex mtxThumbnail;
+	std::mutex mtxThumbnailLoad;
+	Cairo::RefPtr<Cairo::ImageSurface> thumbnail;
+	bool thumbnailUnload;
 	bool thumbnailFailed;
 };
 

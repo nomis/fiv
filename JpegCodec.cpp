@@ -82,7 +82,7 @@ Image::Orientation JpegCodec::getOrientation() {
 	return orientation;
 }
 
-Cairo::RefPtr<Cairo::Surface> JpegCodec::getPrimary() {
+Cairo::RefPtr<Cairo::ImageSurface> JpegCodec::getPrimary() {
 	Cairo::RefPtr<Cairo::ImageSurface> surface;
 	tjhandle tj;
 
@@ -111,20 +111,20 @@ err:
 	return surface;
 }
 
-shared_ptr<Image> JpegCodec::getThumbnail() {
+Cairo::RefPtr<Cairo::ImageSurface> JpegCodec::getThumbnail() {
 	Exiv2::ExifData exif = getExifData();
 
 	auto dataTag = exif.findKey(Exif_Thumbnail_JPEGInterchangeFormat);
 	if (dataTag == exif.end())
-		return shared_ptr<Image>();
+		return Cairo::RefPtr<Cairo::ImageSurface>();
 
 	unique_ptr<MemoryDataBuffer> buffer = make_unique<MemoryDataBuffer>(dataTag->dataArea());
-	shared_ptr<Image> thumbnail = make_shared<Image>(image->name + " <Exif_Thumbnail>", move(buffer), orientation);
+	shared_ptr<Image> thumbnail = make_shared<Image>(image->name + " <Exif_Thumbnail>", move(buffer));
 
 	if (!thumbnail->load())
-		return shared_ptr<Image>();
+		return Cairo::RefPtr<Cairo::ImageSurface>();
 
-	return thumbnail;
+	return thumbnail->getPrimary();
 }
 
 void JpegCodec::initHeader() {

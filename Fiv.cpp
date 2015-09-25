@@ -210,8 +210,6 @@ void Fiv::orientation(Image::Orientation modify) {
 	unique_lock<mutex> lckImages(mtxImages);
 	auto image = *itCurrent;
 	image->setOrientation(modify);
-	if (image->loadThumbnail())
-		image->getThumbnail()->setOrientation(modify);
 }
 
 bool Fiv::first() {

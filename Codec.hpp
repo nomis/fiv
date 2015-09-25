@@ -38,8 +38,8 @@ public:
 	virtual int getWidth();
 	virtual int getHeight();
 	virtual Image::Orientation getOrientation();
-	virtual Cairo::RefPtr<Cairo::Surface> getPrimary();
-	virtual std::shared_ptr<Image> getThumbnail();
+	virtual Cairo::RefPtr<Cairo::ImageSurface> getPrimary();
+	virtual Cairo::RefPtr<Cairo::ImageSurface> getThumbnail();
 
 protected:
 	Codec(std::shared_ptr<const Image> image);
