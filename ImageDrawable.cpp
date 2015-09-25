@@ -292,10 +292,18 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int
 	waiting = !image;
 	lckDrawing.unlock();
 
-	if (!image) {
+	if (current->isPrimaryFailed()) {
+		// TODO display fancy failed indicator
+		cr->set_source_rgb(0.75, 0.5, 0.5);
+		cr->rectangle(0, 0, rwidth, rheight);
+		cr->clip();
+		cr->paint();
+		return;
+	} else if (!image) {
 		// TODO display fancy loading animation
-		// TODO handle failed images
-		cr->set_source_rgb(0, 0, 0);
+		cr->set_source_rgb(0.5, 0.75, 0.5);
+		cr->rectangle(0, 0, rwidth, rheight);
+		cr->clip();
 		cr->paint();
 		return;
 	}

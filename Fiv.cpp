@@ -388,24 +388,24 @@ void Fiv::runLoader(weak_ptr<Fiv> wSelf) {
 			}
 		}
 
-		if (!image || !image->loadPrimary())
+		if (!image)
 			continue;
+
+		bool loaded = image->loadPrimary();
 
 		shared_ptr<Fiv> self = wSelf.lock();
 		if (!self)
 			return;
 
-		{
+		if (loaded) {
 			unique_lock<mutex> lckLoad(*mtxLoad);
 
 			self->loaded.insert(image);
 		}
 
-		{
-			if (image.get() == self->current().get())
-				for (auto listener : self->getListeners())
-					listener->loadedCurrent();
-		}
+		if (image.get() == self->current().get())
+			for (auto listener : self->getListeners())
+				listener->loadedCurrent();
 	}
 }
 

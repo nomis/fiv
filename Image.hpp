@@ -60,7 +60,7 @@ public:
 	int height();
 
 	bool loadPrimary();
-	bool isPrimaryLoaded();
+	bool isPrimaryFailed();
 	Cairo::RefPtr<Cairo::Surface> getPrimary();
 	void unloadPrimary();
 	Image::Orientation getOrientation();

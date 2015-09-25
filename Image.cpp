@@ -136,11 +136,8 @@ bool Image::loadPrimary() {
 	return false;
 }
 
-bool Image::isPrimaryLoaded() {
+bool Image::isPrimaryFailed() {
 	lock_guard<mutex> lckPrimary(mtxPrimary);
-
-	if (primary)
-		return true;
 
 	if (primaryFailed)
 		return true;
