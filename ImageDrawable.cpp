@@ -23,9 +23,13 @@
 #include <cairomm/refptr.h>
 #include <cairomm/surface.h>
 #include <cairomm/types.h>
+#include <gdk/gdk.h>
+#include <gdkmm/device.h>
 #include <gdkmm/rectangle.h>
 #include <gdkmm/window.h>
+#include <glib.h>
 #include <glibmm/refptr.h>
+#include <gtkmm/gesturedrag.h>
 #include <gtkmm/widget.h>
 #include <algorithm>
 #include <cmath>
@@ -44,15 +48,8 @@ ImageDrawable::ImageDrawable() {
 	zoom = NAN;
 	x = 0;
 	y = 0;
-	mouse1Press = false;
-	startX = 0;
-	startY = 0;
-	offsetX = 0;
-	offsetY = 0;
-
-	add_events(Gdk::BUTTON_PRESS_MASK);
-	add_events(Gdk::BUTTON_RELEASE_MASK);
-	add_events(Gdk::BUTTON_MOTION_MASK);
+	dragOffsetX = 0;
+	dragOffsetY = 0;
 }
 
 void ImageDrawable::setImages(shared_ptr<Fiv> images_) {
@@ -119,8 +116,8 @@ bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const int 
 		}
 	} else {
 		rscale = zoom;
-		rx = x + offsetX;
-		ry = y + offsetY;
+		rx = x + dragOffsetX;
+		ry = y + dragOffsetY;
 
 		if (rwidth < awidth) {
 			// Image width too small, centre horizontally
@@ -168,8 +165,8 @@ void ImageDrawable::finaliseRenderedImage() {
 
 	x = rx;
 	y = ry;
-	offsetX = 0;
-	offsetY = 0;
+	dragOffsetX = 0;
+	dragOffsetY = 0;
 }
 
 void ImageDrawable::zoomActual() {
@@ -206,37 +203,21 @@ void ImageDrawable::zoomFit() {
 	redraw();
 }
 
-bool ImageDrawable::on_button_press_event(GdkEventButton *event) {
-	if (event->button == 1 && !mouse1Press) {
-		mouse1Press = true;
-		finaliseRenderedImage();
-		startX = event->x;
-		startY = event->y;
-	}
-	return false;
+void ImageDrawable::dragBegin(double startX __attribute__((unused)), double startY __attribute__((unused))) {
+	finaliseRenderedImage();
 }
 
-bool ImageDrawable::on_button_release_event(GdkEventButton *event) {
-	if (event->button == 1 && mouse1Press) {
-		mouse1Press = false;
-		finaliseRenderedImage();
-		redraw();
-	}
-	return false;
+void ImageDrawable::dragUpdate(double offsetX, double offsetY) {
+	dragOffsetX = offsetX;
+	dragOffsetY = offsetY;
+	redraw();
 }
 
-bool ImageDrawable::on_motion_notify_event(GdkEventMotion *event) {
-	if (mouse1Press && !(event->state & GDK_BUTTON1_MASK)) {
-		mouse1Press = false;
-		finaliseRenderedImage();
-	}
-
-	if (mouse1Press) {
-		offsetX = event->x - startX;
-		offsetY = event->y - startY;
-		redraw();
-	}
-	return false;
+void ImageDrawable::dragEnd(double offsetX, double offsetY) {
+	dragOffsetX = offsetX;
+	dragOffsetY = offsetY;
+	finaliseRenderedImage();
+	redraw();
 }
 
 static void copyCairoClip(const Cairo::RefPtr<Cairo::Context> &src, const Cairo::RefPtr<Cairo::Context> &dst) {

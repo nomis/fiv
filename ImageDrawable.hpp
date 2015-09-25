@@ -20,7 +20,10 @@
 
 #include <cairomm/context.h>
 #include <cairomm/refptr.h>
+#include <glib.h>
+#include <gdk/gdk.h>
 #include <gtkmm/drawingarea.h>
+#include <gtkmm/gesture.h>
 #include <memory>
 #include <mutex>
 
@@ -37,14 +40,14 @@ public:
 	void loaded();
 	void zoomActual();
 	void zoomFit();
+	void dragBegin(double startX, double startY);
+	void dragUpdate(double offsetX, double offsetY);
+	void dragEnd(double offsetX, double offsetY);
 
 private:
 	bool inline calcRenderedImage(std::shared_ptr<Image> image, const int &awidth, const int &aheight, Image::Orientation iorientation, int &iwidth, int &iheight, int &rwidth, int &rheight, double &rscale, double &rx, double &ry);
 	void finaliseRenderedImage();
 	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int width, const int height);
-	virtual bool on_button_press_event(GdkEventButton *event);
-	virtual bool on_button_release_event(GdkEventButton *event);
-	virtual bool on_motion_notify_event(GdkEventMotion *event);
 	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);
 
 	std::shared_ptr<Fiv> images;
@@ -54,9 +57,7 @@ private:
 	double zoom;
 	double x, y;
 
-	bool mouse1Press;
-	double startX, startY;
-	double offsetX, offsetY;
+	double dragOffsetX, dragOffsetY;
 };
 
 #endif /* fiv__IMAGEDRAWABLE_H_ */

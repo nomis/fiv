@@ -18,7 +18,10 @@
 #ifndef fiv__MAINWINDOW_HPP_
 #define fiv__MAINWINDOW_HPP_
 
+#include <glibmm/refptr.h>
+#include <gdk/gdk.h>
 #include <gtkmm/applicationwindow.h>
+#include <gtkmm/gesturedrag.h>
 #include <memory>
 #include <string>
 
@@ -48,6 +51,7 @@ private:
 	const std::string title;
 	std::shared_ptr<Fiv> images;
 	ImageDrawable drawImage;
+	Glib::RefPtr<Gtk::GestureDrag> drag;
 	bool fullScreen;
 };
 
