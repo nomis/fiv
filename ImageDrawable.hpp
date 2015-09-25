@@ -46,7 +46,9 @@ public:
 	void applyZoom(double scale);
 
 private:
-	bool inline calcRenderedImage(std::shared_ptr<Image> image, const int &awidth, const int &aheight, Image::Orientation iorientation, int &iwidth, int &iheight, int &rwidth, int &rheight, double &rscale, double &rx, double &ry);
+	bool inline calcRenderedImage(std::shared_ptr<Image> image, const int &awidth, const int &aheight,
+			Image::Orientation &iorientation, int &iwidth, int &iheight,
+			int &rwidth, int &rheight, double &rscale, double &rx, double &ry);
 	void finaliseRenderedImage();
 	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int width, const int height);
 	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);

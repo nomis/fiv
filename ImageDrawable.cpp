@@ -82,7 +82,8 @@ void ImageDrawable::loaded() {
 		redraw();
 }
 
-bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const int &awidth, const int &aheight, Image::Orientation iorientation, int &iwidth, int &iheight,
+bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const int &awidth, const int &aheight,
+		Image::Orientation &iorientation, int &iwidth, int &iheight,
 		int &rwidth, int &rheight, double &rscale, double &rx, double &ry) {
 	iorientation = image->getOrientation();
 	iwidth = image->width();
