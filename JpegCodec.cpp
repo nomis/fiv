@@ -46,8 +46,12 @@ const Exiv2::ExifKey Exif_Image_Orientation("Exif.Image.Orientation");
 
 const string JpegCodec::MIME_TYPE = "image/jpeg";
 
-JpegCodec::JpegCodec() : JpegCodec(nullptr) {
+JpegCodec::JpegCodec() {
 	atexit(&Exiv2::XmpParser::terminate);
+
+	width = 0;
+	height = 0;
+	orientation = Image::Orientation(Image::Rotate::ROTATE_NONE, false);
 }
 
 JpegCodec::~JpegCodec() {
@@ -58,9 +62,8 @@ JpegCodec::JpegCodec(shared_ptr<const Image> image_) : Codec(image_) {
 	width = 0;
 	height = 0;
 	orientation = Image::Orientation(Image::Rotate::ROTATE_NONE, false);
-	headerInit = false;
-	headerError = false;
-	exiv2Error = false;
+	initHeader();
+	initExiv2();
 }
 
 unique_ptr<Codec> JpegCodec::getInstance(shared_ptr<const Image> image_) const {
@@ -68,19 +71,14 @@ unique_ptr<Codec> JpegCodec::getInstance(shared_ptr<const Image> image_) const {
 }
 
 int JpegCodec::getWidth() {
-	initHeader();
 	return width;
 }
 
 int JpegCodec::getHeight() {
-	initHeader();
 	return height;
 }
 
 Image::Orientation JpegCodec::getOrientation() {
-	if (!initExiv2())
-		return Image::Orientation(Image::Rotate::ROTATE_NONE, false);
-
 	return orientation;
 }
 
@@ -88,7 +86,7 @@ Cairo::RefPtr<Cairo::Surface> JpegCodec::getPrimary() {
 	Cairo::RefPtr<Cairo::ImageSurface> surface;
 	tjhandle tj;
 
-	if (!initHeader())
+	if (width <= 0 || height <= 0)
 		goto err;
 
 	tj = tjInitDecompress();
@@ -114,11 +112,9 @@ err:
 }
 
 shared_ptr<Image> JpegCodec::getThumbnail() {
-	if (!initExiv2())
-		return shared_ptr<Image>();
+	Exiv2::ExifData exif = getExifData();
 
 	auto dataTag = exif.findKey(Exif_Thumbnail_JPEGInterchangeFormat);
-
 	if (dataTag == exif.end())
 		return shared_ptr<Image>();
 
@@ -131,80 +127,63 @@ shared_ptr<Image> JpegCodec::getThumbnail() {
 	return thumbnail;
 }
 
-bool JpegCodec::initHeader() {
-	if (headerInit)
-		return true;
-
-	if (headerError)
-		return false;
-
+void JpegCodec::initHeader() {
 	tjhandle tj = tjInitDecompress();
 	if (tj) {
 		int subsamp;
 
 		if (!tjDecompressHeader2(tj, const_cast<uint8_t*>(image->begin()), image->size(), &width, &height, &subsamp)) {
-			headerInit = true;
 		} else {
 			cerr << image->name << ": TurboJPEG: error reading header" << endl;
-			headerError = true;
 		}
 		tjDestroy(tj);
-	} else {
-		headerError = true;
 	}
-
-	return headerInit;
 }
 
-bool JpegCodec::initExiv2() {
-	if (exiv2Error)
-		return false;
-
-	if (exiv2)
-		return true;
-
+Exiv2::ExifData JpegCodec::getExifData() {
 	try {
 		unique_ptr<Exiv2::Image> tmp = Exiv2::ImageFactory::open(image->begin(), image->size());
 		if (tmp && tmp->good()) {
 			tmp->readMetadata();
-			exif = tmp->exifData();
-			exiv2 = move(tmp);
-
-			auto orientationTag = exif.findKey(Exif_Image_Orientation);
-			if (orientationTag != exif.end() && orientationTag->toLong() >= 1 && orientationTag->toLong() <= 8) {
-				static const Image::Orientation ORIENTATION_MAP[8] = {
-						/* Horizontal (normal) */
-						Image::Orientation(Image::Rotate::ROTATE_NONE, false),
-
-						/* Mirror horizontal */
-						Image::Orientation(Image::Rotate::ROTATE_NONE, true),
-
-						/* Rotate 180 */
-						Image::Orientation(Image::Rotate::ROTATE_180, false),
-
-						/* Mirror vertical */
-						Image::Orientation(Image::Rotate::ROTATE_180, true),
-
-						/* Mirror horizontal and rotate 270 CW */
-						Image::Orientation(Image::Rotate::ROTATE_270, true),
-
-						/* Rotate 90 CW */
-						Image::Orientation(Image::Rotate::ROTATE_90, false),
-
-						/* Mirror horizontal and rotate 90 CW */
-						Image::Orientation(Image::Rotate::ROTATE_90, true),
-
-						/* Rotate 270 CW */
-						Image::Orientation(Image::Rotate::ROTATE_270, false)
-				};
-
-				orientation = ORIENTATION_MAP[orientationTag->toLong() - 1];
-			}
+			return tmp->exifData();
 		}
 	} catch (const Exiv2::Error& e) {
 		cerr << image->name << ": Exiv2: " << e.what() << endl;
-		exiv2Error = true;
 	}
+	return Exiv2::ExifData();
+}
 
-	return (bool)exiv2;
+void JpegCodec::initExiv2() {
+	Exiv2::ExifData exif = getExifData();
+
+	auto orientationTag = exif.findKey(Exif_Image_Orientation);
+	if (orientationTag != exif.end() && orientationTag->toLong() >= 1 && orientationTag->toLong() <= 8) {
+		static const Image::Orientation ORIENTATION_MAP[8] = {
+				/* Horizontal (normal) */
+				Image::Orientation(Image::Rotate::ROTATE_NONE, false),
+
+				/* Mirror horizontal */
+				Image::Orientation(Image::Rotate::ROTATE_NONE, true),
+
+				/* Rotate 180 */
+				Image::Orientation(Image::Rotate::ROTATE_180, false),
+
+				/* Mirror vertical */
+				Image::Orientation(Image::Rotate::ROTATE_180, true),
+
+				/* Mirror horizontal and rotate 270 CW */
+				Image::Orientation(Image::Rotate::ROTATE_270, true),
+
+				/* Rotate 90 CW */
+				Image::Orientation(Image::Rotate::ROTATE_90, false),
+
+				/* Mirror horizontal and rotate 90 CW */
+				Image::Orientation(Image::Rotate::ROTATE_90, true),
+
+				/* Rotate 270 CW */
+				Image::Orientation(Image::Rotate::ROTATE_270, false)
+		};
+
+		orientation = ORIENTATION_MAP[orientationTag->toLong() - 1];
+	}
 }

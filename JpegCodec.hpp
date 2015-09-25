@@ -46,18 +46,13 @@ public:
 	static const std::string MIME_TYPE;
 
 private:
-	bool initHeader();
-	bool initExiv2();
+	void initHeader();
+	void initExiv2();
+	Exiv2::ExifData getExifData();
 
 	int width;
 	int height;
 	Image::Orientation orientation;
-	bool headerInit;
-	bool headerError;
-
-	std::unique_ptr<Exiv2::Image> exiv2;
-	Exiv2::ExifData exif;
-	bool exiv2Error;
 };
 
 #endif /* fiv__JPEGCODEC_HPP_ */
