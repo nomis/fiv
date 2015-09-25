@@ -39,7 +39,7 @@
 using namespace std;
 
 ImageDrawable::ImageDrawable() {
-
+	waiting = false;
 }
 
 void ImageDrawable::setImages(shared_ptr<Fiv> images_) {
@@ -56,6 +56,8 @@ void ImageDrawable::update() {
 }
 
 void ImageDrawable::loaded() {
+	unique_lock<mutex> lckWaiting(mtxWaiting);
+
 	if (waiting)
 		update();
 }
@@ -102,6 +104,8 @@ bool ImageDrawable::on_draw(const Cairo::RefPtr<Cairo::Context> &cr) {
 }
 
 void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int awidth, const int aheight) {
+	unique_lock<mutex> lckWaiting(mtxWaiting);
+
 	auto current = images->current();
 	auto image = current->getPrimary();
 	auto iorientation = current->getOrientation();
@@ -110,14 +114,15 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int
 	int rwidth, rheight;
 	double scale = 1;
 
+	waiting = !image;
+	lckWaiting.unlock();
+
 	if (!image) {
-		waiting = true;
 		// TODO display fancy loading animation
+		// TODO handle failed images
 		cr->set_source_rgb(0, 0, 0);
 		cr->paint();
 		return;
-	} else {
-		waiting = false;
 	}
 
 	//cout << "image " << iwidth << "x" << iheight << " " << iorientation.first << "," << iorientation.second << endl;

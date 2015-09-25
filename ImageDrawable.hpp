@@ -21,11 +21,10 @@
 #include <cairomm/context.h>
 #include <cairomm/refptr.h>
 #include <gtkmm/drawingarea.h>
-#include <atomic>
 #include <memory>
+#include <mutex>
 
-#include "Fiv.hpp"
-#include "Image.hpp"
+class Fiv;
 
 class ImageDrawable: public Gtk::DrawingArea {
 public:
@@ -39,7 +38,8 @@ private:
 	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int width, const int height);
 
 	std::shared_ptr<Fiv> images;
-	std::atomic<bool> waiting;
+	std::mutex mtxWaiting;
+	bool waiting;
 };
 
 #endif /* fiv__IMAGEDRAWABLE_H_ */
