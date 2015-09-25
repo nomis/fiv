@@ -118,4 +118,3 @@ bool MainWindow::on_window_state_event(GdkEventWindowState *event) {
 	fullScreen = (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) != 0;
 	return false;
 }
-

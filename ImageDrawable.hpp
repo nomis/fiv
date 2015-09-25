@@ -39,9 +39,13 @@ public:
 	void zoomFit();
 
 private:
-	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);
-	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int width, const int height);
 	bool inline calcRenderedImage(std::shared_ptr<Image> image, const int &awidth, const int &aheight, Image::Orientation iorientation, int &iwidth, int &iheight, int &rwidth, int &rheight, double &rscale, double &rx, double &ry);
+	void finaliseRenderedImage();
+	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int width, const int height);
+	virtual bool on_button_press_event(GdkEventButton *event);
+	virtual bool on_button_release_event(GdkEventButton *event);
+	virtual bool on_motion_notify_event(GdkEventMotion *event);
+	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);
 
 	std::shared_ptr<Fiv> images;
 
@@ -49,6 +53,10 @@ private:
 	bool waiting;
 	double zoom;
 	double x, y;
+
+	bool mouse1Press;
+	double startX, startY;
+	double offsetX, offsetY;
 };
 
 #endif /* fiv__IMAGEDRAWABLE_H_ */

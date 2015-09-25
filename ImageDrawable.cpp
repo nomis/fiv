@@ -44,6 +44,15 @@ ImageDrawable::ImageDrawable() {
 	zoom = NAN;
 	x = 0;
 	y = 0;
+	mouse1Press = false;
+	startX = 0;
+	startY = 0;
+	offsetX = 0;
+	offsetY = 0;
+
+	add_events(Gdk::BUTTON_PRESS_MASK);
+	add_events(Gdk::BUTTON_RELEASE_MASK);
+	add_events(Gdk::BUTTON_MOTION_MASK);
 }
 
 void ImageDrawable::setImages(shared_ptr<Fiv> images_) {
@@ -110,8 +119,8 @@ bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const int 
 		}
 	} else {
 		rscale = zoom;
-		rx = x;
-		ry = y;
+		rx = x + offsetX;
+		ry = y + offsetY;
 
 		if (rwidth < awidth) {
 			// Image width too small, centre horizontally
@@ -137,6 +146,30 @@ bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const int 
 	}
 
 	return true;
+}
+
+void ImageDrawable::finaliseRenderedImage() {
+	Gtk::Allocation allocation = get_allocation();
+	const int awidth = allocation.get_width();
+	const int aheight = allocation.get_height();
+
+	lock_guard<mutex> lckDrawing(mtxDrawing);
+
+	auto current = images->current();
+	auto image = current->getPrimary();
+	Image::Orientation iorientation;
+	int iwidth, iheight;
+	int rwidth, rheight;
+	double rscale;
+	double rx, ry;
+
+	if (!calcRenderedImage(current, awidth, aheight, iorientation, iwidth, iheight, rwidth, rheight, rscale, rx, ry))
+		return;
+
+	x = rx;
+	y = ry;
+	offsetX = 0;
+	offsetY = 0;
 }
 
 void ImageDrawable::zoomActual() {
@@ -171,6 +204,39 @@ void ImageDrawable::zoomFit() {
 
 	zoom = NAN;
 	redraw();
+}
+
+bool ImageDrawable::on_button_press_event(GdkEventButton *event) {
+	if (event->button == 1 && !mouse1Press) {
+		mouse1Press = true;
+		finaliseRenderedImage();
+		startX = event->x;
+		startY = event->y;
+	}
+	return false;
+}
+
+bool ImageDrawable::on_button_release_event(GdkEventButton *event) {
+	if (event->button == 1 && mouse1Press) {
+		mouse1Press = false;
+		finaliseRenderedImage();
+		redraw();
+	}
+	return false;
+}
+
+bool ImageDrawable::on_motion_notify_event(GdkEventMotion *event) {
+	if (mouse1Press && !(event->state & GDK_BUTTON1_MASK)) {
+		mouse1Press = false;
+		finaliseRenderedImage();
+	}
+
+	if (mouse1Press) {
+		offsetX = event->x - startX;
+		offsetY = event->y - startY;
+		redraw();
+	}
+	return false;
 }
 
 static void copyCairoClip(const Cairo::RefPtr<Cairo::Context> &src, const Cairo::RefPtr<Cairo::Context> &dst) {
