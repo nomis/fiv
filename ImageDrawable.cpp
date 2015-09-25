@@ -24,15 +24,14 @@
 #include <cairomm/surface.h>
 #include <cairomm/types.h>
 #include <gdk/gdk.h>
-#include <gdkmm/device.h>
 #include <gdkmm/rectangle.h>
 #include <gdkmm/window.h>
 #include <glib.h>
 #include <glibmm/refptr.h>
-#include <gtkmm/gesturedrag.h>
 #include <gtkmm/widget.h>
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -50,6 +49,8 @@ ImageDrawable::ImageDrawable() {
 	y = 0;
 	dragOffsetX = 0;
 	dragOffsetY = 0;
+
+	add_events(Gdk::SCROLL_MASK);
 }
 
 void ImageDrawable::setImages(shared_ptr<Fiv> images_) {
@@ -119,7 +120,7 @@ bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const int 
 		rx = x + dragOffsetX;
 		ry = y + dragOffsetY;
 
-		if (rwidth < awidth) {
+		if (rwidth * rscale < awidth) {
 			// Image width too small, centre horizontally
 			rx = ((double)awidth - rscale * rwidth) / 2;
 		} else if (rx > 0) {
@@ -130,7 +131,7 @@ bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const int 
 			rx = awidth - rwidth * rscale;
 		}
 
-		if (rheight < aheight) {
+		if (rheight * rscale < aheight) {
 			// Image height too small, centre vertically
 			ry = ((double)aheight - rscale * rheight) / 2;
 		} else if (ry > 0) {
@@ -150,8 +151,6 @@ void ImageDrawable::finaliseRenderedImage() {
 	const int awidth = allocation.get_width();
 	const int aheight = allocation.get_height();
 
-	lock_guard<mutex> lckDrawing(mtxDrawing);
-
 	auto current = images->current();
 	auto image = current->getPrimary();
 	Image::Orientation iorientation;
@@ -170,6 +169,36 @@ void ImageDrawable::finaliseRenderedImage() {
 }
 
 void ImageDrawable::zoomActual() {
+	applyZoom(NAN);
+}
+
+void ImageDrawable::zoomFit() {
+	lock_guard<mutex> lckDrawing(mtxDrawing);
+
+	zoom = NAN;
+	redraw();
+}
+
+void ImageDrawable::dragBegin(double startX __attribute__((unused)), double startY __attribute__((unused))) {
+	finaliseRenderedImage();
+}
+
+void ImageDrawable::dragUpdate(double offsetX, double offsetY) {
+	unique_lock<mutex> lckDrawing(mtxDrawing);
+	dragOffsetX = offsetX;
+	dragOffsetY = offsetY;
+	redraw();
+}
+
+void ImageDrawable::dragEnd(double offsetX, double offsetY) {
+	unique_lock<mutex> lckDrawing(mtxDrawing);
+	dragOffsetX = offsetX;
+	dragOffsetY = offsetY;
+	finaliseRenderedImage();
+	redraw();
+}
+
+void ImageDrawable::applyZoom(double scale) {
 	Gtk::Allocation allocation = get_allocation();
 	const int awidth = allocation.get_width();
 	const int aheight = allocation.get_height();
@@ -190,33 +219,13 @@ void ImageDrawable::zoomActual() {
 	if (!calcRenderedImage(current, awidth, aheight, iorientation, iwidth, iheight, rwidth, rheight, rscale, rx, ry))
 		return;
 
-	zoom = 1;
-	x = px - ((px - rx) / rscale * zoom);
-	y = py - ((py - ry) / rscale * zoom);
-	redraw();
-}
-
-void ImageDrawable::zoomFit() {
-	lock_guard<mutex> lckDrawing(mtxDrawing);
-
-	zoom = NAN;
-	redraw();
-}
-
-void ImageDrawable::dragBegin(double startX __attribute__((unused)), double startY __attribute__((unused))) {
-	finaliseRenderedImage();
-}
-
-void ImageDrawable::dragUpdate(double offsetX, double offsetY) {
-	dragOffsetX = offsetX;
-	dragOffsetY = offsetY;
-	redraw();
-}
-
-void ImageDrawable::dragEnd(double offsetX, double offsetY) {
-	dragOffsetX = offsetX;
-	dragOffsetY = offsetY;
-	finaliseRenderedImage();
+	if (std::isnan(scale)) {
+		zoom = 1;
+	} else {
+		zoom = rscale * scale;
+	}
+	x = px - ((px - rx) / rscale * zoom) - dragOffsetX;
+	y = py - ((py - ry) / rscale * zoom) - dragOffsetY;
 	redraw();
 }
 
@@ -324,4 +333,16 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int
 	cr->paint();
 	//auto stop = chrono::steady_clock::now();
 	//cout << "paint " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
+}
+
+bool ImageDrawable::on_scroll_event(GdkEventScroll *event) {
+	static const double zoomFactor = 1.10;
+
+	if (event->direction == GDK_SCROLL_UP) {
+		applyZoom(zoomFactor);
+	} else if (event->direction == GDK_SCROLL_DOWN) {
+		applyZoom(1.0/zoomFactor);
+	}
+
+	return true;
 }

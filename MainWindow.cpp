@@ -17,6 +17,12 @@
 
 #include "MainWindow.hpp"
 
+#include <gdk/gdkevents.h>
+#include <glibmm/refptr.h>
+#include <glibmm/signalproxy.h>
+#include <gtkmm/gesturedrag.h>
+#include <gtkmm/gesturezoom.h>
+#include <sigc++/connection.h>
 #include <sigc++/functors/mem_fun.h>
 #include <memory>
 #include <string>
@@ -53,6 +59,9 @@ MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow(), title(Fi
 	drag->signal_drag_begin().connect(sigc::mem_fun(drawImage, &ImageDrawable::dragBegin));
 	drag->signal_drag_update().connect(sigc::mem_fun(drawImage, &ImageDrawable::dragUpdate));
 	drag->signal_drag_end().connect(sigc::mem_fun(drawImage, &ImageDrawable::dragEnd));
+
+	zoom = Gtk::GestureZoom::create(drawImage);
+	zoom->signal_scale_changed().connect(sigc::mem_fun(drawImage, &ImageDrawable::applyZoom));
 
 	update();
 }

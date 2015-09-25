@@ -22,6 +22,7 @@
 #include <gdk/gdk.h>
 #include <gtkmm/applicationwindow.h>
 #include <gtkmm/gesturedrag.h>
+#include <gtkmm/gesturezoom.h>
 #include <memory>
 #include <string>
 
@@ -52,6 +53,7 @@ private:
 	std::shared_ptr<Fiv> images;
 	ImageDrawable drawImage;
 	Glib::RefPtr<Gtk::GestureDrag> drag;
+	Glib::RefPtr<Gtk::GestureZoom> zoom;
 	bool fullScreen;
 };
 
