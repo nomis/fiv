@@ -32,19 +32,22 @@ public:
 	virtual void loadedCurrent();
 
 private:
-	void action_view_previous();
-	void action_view_next();
-	void action_view_first();
-	void action_view_last();
 	void action_edit_rotateLeft();
 	void action_edit_rotateRight();
 	void action_edit_flipHorizontal();
 	void action_edit_flipVertical();
+	void action_view_previous();
+	void action_view_next();
+	void action_view_first();
+	void action_view_last();
+	void action_view_fullScreen();
 	void update();
+	virtual bool on_window_state_event(GdkEventWindowState *event);
 
 	const std::string title;
 	std::shared_ptr<Fiv> images;
 	ImageDrawable drawImage;
+	bool fullScreen;
 };
 
 #endif /* fiv__MAINWINDOW_HPP_ */

@@ -30,20 +30,46 @@ using namespace std;
 
 MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow(), title(Fiv::appName) {
 	images = fiv;
+	fullScreen = false;
 
 	set_default_size(1920/2, 1080/2);
-	add_action("view.first", sigc::mem_fun(this, &MainWindow::action_view_first));
-	add_action("view.previous", sigc::mem_fun(this, &MainWindow::action_view_previous));
-	add_action("view.next", sigc::mem_fun(this, &MainWindow::action_view_next));
-	add_action("view.last", sigc::mem_fun(this, &MainWindow::action_view_last));
 	add_action("edit.rotateLeft", sigc::mem_fun(this, &MainWindow::action_edit_rotateLeft));
 	add_action("edit.rotateRight", sigc::mem_fun(this, &MainWindow::action_edit_rotateRight));
 	add_action("edit.flipHorizontal", sigc::mem_fun(this, &MainWindow::action_edit_flipHorizontal));
 	add_action("edit.flipVertical", sigc::mem_fun(this, &MainWindow::action_edit_flipVertical));
+	add_action("view.first", sigc::mem_fun(this, &MainWindow::action_view_first));
+	add_action("view.previous", sigc::mem_fun(this, &MainWindow::action_view_previous));
+	add_action("view.next", sigc::mem_fun(this, &MainWindow::action_view_next));
+	add_action("view.last", sigc::mem_fun(this, &MainWindow::action_view_last));
+	add_action("view.fullScreen", sigc::mem_fun(this, &MainWindow::action_view_fullScreen));
 
 	drawImage.setImages(images);
 	add(drawImage);
 
+	update();
+}
+
+void MainWindow::loadedCurrent() {
+	drawImage.loaded();
+}
+
+void MainWindow::action_edit_rotateLeft() {
+	images->orientation(Image::Orientation(Image::Rotate::ROTATE_270, false));
+	update();
+}
+
+void MainWindow::action_edit_rotateRight() {
+	images->orientation(Image::Orientation(Image::Rotate::ROTATE_90, false));
+	update();
+}
+
+void MainWindow::action_edit_flipHorizontal() {
+	images->orientation(Image::Orientation(Image::Rotate::ROTATE_NONE, true));
+	update();
+}
+
+void MainWindow::action_edit_flipVertical() {
+	images->orientation(Image::Orientation(Image::Rotate::ROTATE_180, true));
 	update();
 }
 
@@ -67,23 +93,12 @@ void MainWindow::action_view_last() {
 		update();
 }
 
-void MainWindow::action_edit_rotateLeft() {
-	images->orientation(Image::Orientation(Image::Rotate::ROTATE_270, false));
-	update();
-}
-
-void MainWindow::action_edit_rotateRight() {
-	images->orientation(Image::Orientation(Image::Rotate::ROTATE_90, false));
-	update();
-}
-
-void MainWindow::action_edit_flipHorizontal() {
-	images->orientation(Image::Orientation(Image::Rotate::ROTATE_NONE, true));
-	update();
-}
-
-void MainWindow::action_edit_flipVertical() {
-	images->orientation(Image::Orientation(Image::Rotate::ROTATE_180, true));
+void MainWindow::action_view_fullScreen() {
+	if (fullScreen) {
+		unfullscreen();
+	} else {
+		fullscreen();
+	}
 	update();
 }
 
@@ -96,6 +111,8 @@ void MainWindow::update() {
 	set_title(title + ": " + images->current()->name);
 }
 
-void MainWindow::loadedCurrent() {
-	drawImage.loaded();
+bool MainWindow::on_window_state_event(GdkEventWindowState *event) {
+	fullScreen = (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) != 0;
+	return false;
 }
+

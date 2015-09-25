@@ -44,29 +44,36 @@ void Application::on_startup() {
 
 	{
 		auto mnuImage = Gio::Menu::create();
+
 		mnuImage->append("_Quit", "app.quit");
 		set_accels_for_action("app.quit", {"<Primary>q", "q", "<Alt>F4"});
+
 		menubar->append_submenu("_Image", mnuImage);
 	}
 
 	{
 		auto mnuEdit = Gio::Menu::create();
+
 		mnuEdit->append("Rotate _Left", "win.edit.rotateLeft");
 		set_accels_for_action("win.edit.rotateLeft", {"l"});
 
 		mnuEdit->append("Rotate _Right", "win.edit.rotateRight");
 		set_accels_for_action("win.edit.rotateRight", {"r"});
 
+		// TODO separator
+
 		mnuEdit->append("Flip _Horizontal", "win.edit.flipHorizontal");
 		set_accels_for_action("win.edit.flipHorizontal", {"h"});
 
 		mnuEdit->append("Flip _Vertical", "win.edit.flipVertical");
 		set_accels_for_action("win.edit.flipVertical", {"v"});
+
 		menubar->append_submenu("_Edit", mnuEdit);
 	}
 
 	{
 		auto mnuView = Gio::Menu::create();
+
 		mnuView->append("_Previous", "win.view.previous");
 		set_accels_for_action("win.view.previous", {"Left"});
 
@@ -78,6 +85,20 @@ void Application::on_startup() {
 
 		mnuView->append("_Last", "win.view.last");
 		set_accels_for_action("win.view.last", {"End"});
+
+		// TODO separator
+
+		mnuView->append("Norm_al Size", "win.view.zoomActual");
+		set_accels_for_action("win.view.zoomActual", {"a", "1"});
+
+		mnuView->append("Best _Fit", "win.view.zoomFit");
+		set_accels_for_action("win.view.zoomFit", {"f"});
+
+		// TODO separator
+
+		mnuView->append("F_ull Screen", "win.view.fullScreen");
+		set_accels_for_action("win.view.fullScreen", {"F11"});
+
 		menubar->append_submenu("_View", mnuView);
 	}
 
