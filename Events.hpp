@@ -24,6 +24,7 @@ class Events:  public std::enable_shared_from_this<Events> {
 public:
 	Events();
 	virtual ~Events();
+	virtual void addImage();
 	virtual void loadedCurrent();
 };
 

@@ -200,6 +200,11 @@ bool Fiv::addImage(shared_ptr<Image> image) {
 		images.push_back(image);
 		preload(true);
 		imageAdded.notify_all();
+
+		lckImages.unlock();
+
+		for (auto listener : getListeners())
+			listener->addImage();
 	} else {
 		unique_lock<mutex> lckImages(mtxImages);
 
@@ -262,6 +267,11 @@ bool Fiv::last() {
 		return true;
 	}
 	return false;
+}
+
+pair<int,int> Fiv::position() {
+	unique_lock<mutex> lckImages(mtxImages);
+	return pair<int,int>(distance(images.cbegin(), itCurrent) + 1, images.size());
 }
 
 bool Fiv::hasMarkSupport() {
@@ -404,10 +414,12 @@ bool Fiv::unmark(shared_ptr<Image> image) {
 }
 
 void Fiv::addListener(weak_ptr<Events> listener) {
+	lock_guard<mutex> lckListeners(mtxListeners);
 	listeners.push_back(listener);
 }
 
 vector<shared_ptr<Events>> Fiv::getListeners() {
+	lock_guard<mutex> lckListeners(mtxListeners);
 	vector<shared_ptr<Events>> activeListeners;
 
 	auto itListener = listeners.cbegin();

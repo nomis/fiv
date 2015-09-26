@@ -34,7 +34,7 @@
 
 using namespace std;
 
-MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow(), title(Fiv::appName) {
+MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow() {
 	images = fiv;
 	fullScreen = false;
 
@@ -70,61 +70,77 @@ MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow(), title(Fi
 	updateAll();
 }
 
+void MainWindow::addImage() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
+	updateTitle();
+}
+
 void MainWindow::loadedCurrent() {
 	drawImage.loaded();
 }
 
 void MainWindow::action_edit_mark() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->mark(images->current()))
 		updateTitle();
 }
 
 void MainWindow::action_edit_toggleMark() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->toggleMark(images->current()))
 		updateTitle();
 }
 
 void MainWindow::action_edit_unmark() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->unmark(images->current()))
 		updateTitle();
 }
 
 void MainWindow::action_image_rotateLeft() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_270, false));
 	updateAll();
 }
 
 void MainWindow::action_image_rotateRight() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_90, false));
 	updateAll();
 }
 
 void MainWindow::action_image_flipHorizontal() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_NONE, true));
 	updateAll();
 }
 
 void MainWindow::action_image_flipVertical() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_180, true));
 	updateAll();
 }
 
 void MainWindow::action_view_previous() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->previous())
 		updateAll();
 }
 
 void MainWindow::action_view_next() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->next())
 		updateAll();
 }
 
 void MainWindow::action_view_first() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->first())
 		updateAll();
 }
 
 void MainWindow::action_view_last() {
+	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->last())
 		updateAll();
 }
@@ -149,9 +165,15 @@ void MainWindow::updateAll() {
 
 void MainWindow::updateTitle() {
 	auto image = images->current();
-	string mark = images->hasMarkSupport() ? (images->isMarked(image) ? " \u2611" : " \u2610") : "";
+	pair<int,int> pos = images->position();
+	stringstream title;
 
-	set_title(title + ": " + image->name + mark);
+	title << Fiv::appName << ": " << image->name;
+	if (images->hasMarkSupport())
+		title << (images->isMarked(image) ? " \u2611" : " \u2610");
+	title << " (" << pos.first << "/" << pos.second << ")";
+
+	set_title(title.str());
 }
 
 bool MainWindow::on_window_state_event(GdkEventWindowState *event) {

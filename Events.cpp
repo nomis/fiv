@@ -25,6 +25,10 @@ Events::~Events() {
 
 }
 
+void Events::addImage() {
+
+}
+
 void Events::loadedCurrent() {
 
 }

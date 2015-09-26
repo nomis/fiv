@@ -47,6 +47,7 @@ public:
 	bool previous();
 	bool next();
 	bool last();
+	std::pair<int,int> position();
 
 	bool hasMarkSupport();
 	bool isMarked(std::shared_ptr<Image> image);
@@ -85,6 +86,8 @@ private:
 	std::deque<std::shared_ptr<Image>> backgroundLoad;
 	std::shared_ptr<std::condition_variable> loadingRequired;
 	bool preloadStarved;
+
+	std::mutex mtxListeners;
 	std::vector<std::weak_ptr<Events>> listeners;
 };
 
