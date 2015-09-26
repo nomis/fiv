@@ -192,6 +192,9 @@ void ImageDrawable::toggleAfPoints() {
 }
 
 void ImageDrawable::dragBegin(double startX __attribute__((unused)), double startY __attribute__((unused))) {
+	auto win = get_window();
+	if (win)
+		win->set_cursor(Gdk::Cursor::create(Gdk::CursorType::FLEUR));
 	finaliseRenderedImage();
 }
 
@@ -208,6 +211,10 @@ void ImageDrawable::dragEnd(double offsetX, double offsetY) {
 	dragOffsetY = offsetY;
 	finaliseRenderedImage();
 	redraw();
+
+	auto win = get_window();
+	if (win)
+		win->set_cursor();
 }
 
 void ImageDrawable::applyZoom(double scale) {
