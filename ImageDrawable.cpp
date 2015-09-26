@@ -341,6 +341,7 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const Gtk
 
 	if (afPoints) {
 		auto properties = image->getProperties();
+		valarray<double> dashes(5.0 / rscale, 5.0 / rscale);
 
 		cr->save();
 		cr->set_operator(static_cast<Cairo::Operator>(CAIRO_OPERATOR_DIFFERENCE));
@@ -349,12 +350,15 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const Gtk
 			if (properties.focusPointsActive.find(rect) != properties.focusPointsActive.cend()) {
 				cr->set_source_rgb(1, 0, 1);
 				cr->set_line_width(4.0 / rscale);
+				cr->unset_dash();
 			} else if (properties.focusPointsSelected.find(rect) != properties.focusPointsSelected.cend()) {
 				cr->set_source_rgb(1, 0, 0);
 				cr->set_line_width(2.0 / rscale);
+				cr->unset_dash();
 			} else {
 				cr->set_source_rgb(1, 1, 1);
 				cr->set_line_width(1.0 / rscale);
+				cr->set_dash(dashes, 0);
 			}
 			cr->rectangle(rect.x, rect.y, rect.width, rect.height);
 			cr->stroke();
