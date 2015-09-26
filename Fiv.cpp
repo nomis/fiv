@@ -23,7 +23,6 @@
 #include <unistd.h>
 #include <algorithm>
 #include <cerrno>
-#include <chrono>
 #include <climits>
 #include <condition_variable>
 #include <cstdbool>
@@ -33,7 +32,6 @@
 #include <deque>
 #include <functional>
 #include <future>
-#include <iostream>
 #include <iterator>
 #include <list>
 #include <memory>
@@ -504,7 +502,7 @@ void Fiv::preload(bool checkStarved) {
 	if (checkStarved && !preloadStarved)
 		return;
 
-	auto start = chrono::steady_clock::now();
+	//auto start = chrono::steady_clock::now();
 
 	int preload = maxPreload;
 	auto itForward = itCurrent;
@@ -563,8 +561,8 @@ void Fiv::preload(bool checkStarved) {
 		}
 	}
 
-	auto stop = chrono::steady_clock::now();
-	cout << "preload queued " << backgroundLoad.size() << " in " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
+	//auto stop = chrono::steady_clock::now();
+	//cout << "preload queued " << backgroundLoad.size() << " in " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
 }
 
 void Fiv::runLoader(weak_ptr<Fiv> wSelf) {
