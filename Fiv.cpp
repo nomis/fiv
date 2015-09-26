@@ -140,7 +140,7 @@ void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
 			bgImages.push_back(task.get_future());
 			thread(move(task), filename, filename).detach();
 
-			while (bgImages.size() > thread::hardware_concurrency()) {
+			while (bgImages.size() > thread::hardware_concurrency() * 2) {
 				auto result = move(bgImages.front());
 
 				bgImages.pop_front();
@@ -211,7 +211,7 @@ bool Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dir
 			bgImages.push_back(task.get_future());
 			thread(move(task), dirname == "." ? entry->d_name : filename, filename).detach();
 
-			while (bgImages.size() > thread::hardware_concurrency()) {
+			while (bgImages.size() > thread::hardware_concurrency() * 2) {
 				auto result = move(bgImages.front());
 
 				bgImages.pop_front();
