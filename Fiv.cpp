@@ -31,6 +31,7 @@
 #include <cstring>
 #include <deque>
 #include <functional>
+#include <future>
 #include <iostream>
 #include <iterator>
 #include <list>
@@ -113,7 +114,14 @@ bool Fiv::initImagesInBackground(unique_ptr<list<string>> filenames_) {
 	return images.size();
 }
 
+static shared_ptr<Image> loadImage(string name, string filename) {
+	unique_ptr<DataBuffer> buffer(make_unique<FileDataBuffer>(filename));
+	return make_shared<Image>(name, move(buffer));
+}
+
 void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
+	deque<future<shared_ptr<Image>>> bgImages;
+
 	for (auto filename : *filenames) {
 		struct stat st;
 
@@ -126,20 +134,36 @@ void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
 			continue;
 
 		if (S_ISREG(st.st_mode)) {
-			unique_ptr<DataBuffer> buffer(make_unique<FileDataBuffer>(filename));
-			shared_ptr<Image> image(make_shared<Image>(filename, move(buffer)));
+			packaged_task<shared_ptr<Image>(string,string)> task(loadImage);
 
-			if (!addImage(image))
-				goto stop;
+			bgImages.push_back(task.get_future());
+			thread(move(task), filename, filename).detach();
+
+			while (bgImages.size() > thread::hardware_concurrency()) {
+				auto result = move(bgImages.front());
+
+				bgImages.pop_front();
+				if (!addImage(result.get()))
+					goto stop;
+			}
 		} else if (S_ISDIR(st.st_mode)) {
 			deque<shared_ptr<Image>> dirImages;
 
-			initImagesFromDir(filename, dirImages);
+			if (!initImagesFromDir(filename, dirImages))
+				goto stop;
 
 			for (auto image : dirImages)
 				if (!addImage(image))
 					goto stop;
 		}
+	}
+
+	while (bgImages.size()) {
+		auto result = move(bgImages.front());
+
+		bgImages.pop_front();
+		if (!addImage(result.get()))
+			goto stop;
 	}
 
 stop:
@@ -152,13 +176,14 @@ static bool compareImage(const shared_ptr<Image> &a, const shared_ptr<Image> &b)
 	return a->name < b->name;
 }
 
-void Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dirImages) {
+bool Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dirImages) {
+	deque<future<shared_ptr<Image>>> bgImages;
 	DIR *dir = opendir(dirname.c_str());
 	struct dirent *entry;
 
 	if (dir == nullptr) {
 		perror(dirname.c_str());
-		return;
+		return true;
 	}
 
 	while ((entry = readdir(dir)) != NULL) {
@@ -180,14 +205,41 @@ void Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dir
 				continue;
 			}
 
-			unique_ptr<DataBuffer> buffer(make_unique<FileDataBuffer>(filename));
-			dirImages.push_back(make_shared<Image>(dirname == "." ? entry->d_name : filename, move(buffer)));
+			packaged_task<shared_ptr<Image>(string,string)> task(loadImage);
+
+			bgImages.push_back(task.get_future());
+			thread(move(task), dirname == "." ? entry->d_name : filename, filename).detach();
+
+			while (bgImages.size() > thread::hardware_concurrency()) {
+				auto result = move(bgImages.front());
+
+				bgImages.pop_front();
+				dirImages.push_back((result.get()));
+
+				unique_lock<mutex> lckImages(mtxImages);
+
+				if (initStop)
+					return false;
+			}
 		}
 	}
 
 	closedir(dir);
 
+	while (bgImages.size()) {
+		auto result = move(bgImages.front());
+
+		bgImages.pop_front();
+		dirImages.push_back(result.get());
+
+		unique_lock<mutex> lckImages(mtxImages);
+
+		if (initStop)
+			return false;
+	}
+
 	sort(dirImages.begin(), dirImages.end(), compareImage);
+	return true;
 }
 
 bool Fiv::addImage(shared_ptr<Image> image) {

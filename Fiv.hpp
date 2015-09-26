@@ -63,7 +63,7 @@ public:
 private:
 	bool initImagesInBackground(std::unique_ptr<std::list<std::string>> filenames);
 	void initImagesThread(std::unique_ptr<std::list<std::string>> filenames);
-	void initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
+	bool initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
 	bool addImage(std::shared_ptr<Image> image);
 	void preload(bool checkStarved = false);
 	bool getMarkStatus(std::shared_ptr<Image> image, std::string &filename, std::string &linkname, bool &marked);
