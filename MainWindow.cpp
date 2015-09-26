@@ -17,7 +17,8 @@
 
 #include "MainWindow.hpp"
 
-#include <gdk/gdkevents.h>
+#include <gdk/gdk.h>
+#include <glibmm/main.h>
 #include <glibmm/refptr.h>
 #include <glibmm/signalproxy.h>
 #include <gtkmm/gesturedrag.h>
@@ -25,6 +26,8 @@
 #include <sigc++/connection.h>
 #include <sigc++/functors/mem_fun.h>
 #include <memory>
+#include <mutex>
+#include <sstream>
 #include <string>
 #include <utility>
 
@@ -71,12 +74,16 @@ MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow() {
 }
 
 void MainWindow::addImage() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
-	updateTitle();
+	Glib::signal_idle().connect_once([this]{
+		lock_guard<mutex> lckUpdate(this->mtxUpdate);
+		this->updateTitle();
+	});
 }
 
 void MainWindow::loadedCurrent() {
-	drawImage.loaded();
+	Glib::signal_idle().connect_once([this]{
+		this->drawImage.loaded();
+	});
 }
 
 void MainWindow::action_edit_mark() {

@@ -26,6 +26,7 @@
 #include <chrono>
 #include <climits>
 #include <condition_variable>
+#include <cstdbool>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
