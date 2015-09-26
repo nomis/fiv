@@ -55,6 +55,10 @@ ostream& operator<<(ostream &stream, const Image &image) {
 	return stream << "Image(name=" << image.name << ",type=" << image.mimeType << ")";
 }
 
+string Image::getFilename() {
+	return buffer->getFilename();
+}
+
 bool Image::load() {
 	if (!buffer->load())
 		return false;

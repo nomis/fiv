@@ -45,6 +45,22 @@ void Application::on_startup() {
 	{
 		auto mnuImage = Gio::Menu::create();
 
+		mnuImage->append("Rotate _Left", "win.image.rotateLeft");
+		set_accels_for_action("win.edit.rotateLeft", {"l"});
+
+		mnuImage->append("Rotate _Right", "win.image.rotateRight");
+		set_accels_for_action("win.image.rotateRight", {"r"});
+
+		// TODO separator
+
+		mnuImage->append("Flip _Horizontal", "win.image.flipHorizontal");
+		set_accels_for_action("win.image.flipHorizontal", {"h"});
+
+		mnuImage->append("Flip _Vertical", "win.image.flipVertical");
+		set_accels_for_action("win.image.flipVertical", {"v"});
+
+		// TODO separator
+
 		mnuImage->append("_Quit", "app.quit");
 		set_accels_for_action("app.quit", {"<Primary>q", "q", "<Alt>F4"});
 
@@ -54,19 +70,14 @@ void Application::on_startup() {
 	{
 		auto mnuEdit = Gio::Menu::create();
 
-		mnuEdit->append("Rotate _Left", "win.edit.rotateLeft");
-		set_accels_for_action("win.edit.rotateLeft", {"l"});
+		mnuEdit->append("&Mark", "win.edit.mark");
+		set_accels_for_action("win.edit.mark", {"Insert"});
 
-		mnuEdit->append("Rotate _Right", "win.edit.rotateRight");
-		set_accels_for_action("win.edit.rotateRight", {"r"});
+		mnuEdit->append("&Toggle mark", "win.edit.toggleMark");
+		set_accels_for_action("win.edit.toggleMark", {"Tab"});
 
-		// TODO separator
-
-		mnuEdit->append("Flip _Horizontal", "win.edit.flipHorizontal");
-		set_accels_for_action("win.edit.flipHorizontal", {"h"});
-
-		mnuEdit->append("Flip _Vertical", "win.edit.flipVertical");
-		set_accels_for_action("win.edit.flipVertical", {"v"});
+		mnuEdit->append("&Unmark", "win.edit.unmark");
+		set_accels_for_action("win.edit.unmark", {"Delete"});
 
 		menubar->append_submenu("_Edit", mnuEdit);
 	}
@@ -78,7 +89,7 @@ void Application::on_startup() {
 		set_accels_for_action("win.view.previous", {"Left"});
 
 		mnuView->append("_Next", "win.view.next");
-		set_accels_for_action("win.view.next", {"Right"});
+		set_accels_for_action("win.view.next", {"Right", "Return"});
 
 		mnuView->append("_First", "win.view.first");
 		set_accels_for_action("win.view.first", {"Home"});
@@ -114,7 +125,27 @@ void Application::on_startup() {
 int Application::on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &cmd) {
 	Glib::OptionContext ctx;
 
+
 	Glib::OptionGroup group("options", "Application Options");
+
+	Glib::OptionEntry maxPreload;
+	int optMaxPreload = 100;
+	maxPreload.set_short_name('p');
+	maxPreload.set_long_name("preload");
+	maxPreload.set_arg_description("N");
+	stringstream maxPreloadDesc;
+	maxPreloadDesc << "Number of images to preload (default=" << optMaxPreload << ")";
+	maxPreload.set_description(maxPreloadDesc.str());
+	group.add_entry(maxPreload, optMaxPreload);
+
+	Glib::OptionEntry markDirectory;
+	Glib::ustring optMarkDirectory = "";
+	markDirectory.set_short_name('m');
+	markDirectory.set_long_name("markDirectory");
+	markDirectory.set_arg_description("path");
+	markDirectory.set_description("Location to use to mark images using symlinks");
+	group.add_entry(markDirectory, optMarkDirectory);
+
 	ctx.set_main_group(group);
 
 	Glib::OptionGroup gtkgroup(gtk_get_option_group(true));
@@ -126,6 +157,8 @@ int Application::on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine>
 		return EXIT_FAILURE;
 
 	fiv = make_shared<Fiv>();
+	fiv->markDirectory = optMarkDirectory;
+	fiv->maxPreload = optMaxPreload;
 	if (!fiv->init(argc, argv))
 		return EXIT_FAILURE;
 

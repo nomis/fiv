@@ -18,12 +18,17 @@
 #include "Fiv.hpp"
 
 #include <dirent.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
+#include <cerrno>
 #include <chrono>
+#include <climits>
 #include <condition_variable>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <deque>
 #include <functional>
 #include <iostream>
@@ -31,11 +36,13 @@
 #include <list>
 #include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "Codec.hpp"
 #include "Events.hpp"
@@ -50,7 +57,8 @@ const string Fiv::appId = "uk.uuid.fiv";
 Fiv::Fiv() {
 	initImagesComplete = false;
 	initStop = false;
-	maxPreload = 100;
+	markDirectory = "";
+	maxPreload = 0;
 	itCurrent = images.cend();
 
 	mtxLoad = make_shared<mutex>();
@@ -256,6 +264,145 @@ bool Fiv::last() {
 	return false;
 }
 
+bool Fiv::hasMarkSupport() {
+	return markDirectory.length();
+}
+
+static string relativePath(string path, string target) {
+	deque<string> pSplit, tSplit;
+	stringstream filename;
+	char pReal[PATH_MAX], tReal[PATH_MAX];
+	char *token;
+	char *saveptr;
+
+	// Get absolute paths
+	if (realpath(path.c_str(), pReal) == nullptr)
+		return "";
+
+	if (realpath(target.c_str(), tReal) == nullptr)
+		return "";
+
+	// Split paths by /
+	if ((token = strtok_r(&pReal[1], "/", &saveptr)) != nullptr) {
+		pSplit.push_back(token);
+
+		while ((token = strtok_r(nullptr, "/", &saveptr)) != nullptr)
+			pSplit.push_back(token);
+	}
+
+	if ((token = strtok_r(&tReal[1], "/", &saveptr)) != nullptr) {
+		tSplit.push_back(token);
+
+		while ((token = strtok_r(nullptr, "/", &saveptr)) != nullptr)
+			tSplit.push_back(token);
+	}
+
+	// Remove identical path components
+	while (pSplit.size() > 0 && tSplit.size() > 1 && pSplit.front() == tSplit.front()) {
+		pSplit.pop_front();
+		tSplit.pop_front();
+	}
+
+	// Go up remaining parent directories to reach common prefix
+	while (pSplit.size() > 0) {
+		filename << "../";
+		pSplit.pop_front();
+	}
+
+	// Go down to target path
+	while (tSplit.size() > 1) {
+		filename << tSplit.front() << "/";
+		tSplit.pop_front();
+	}
+
+	filename << tSplit.back();
+
+	return filename.str();
+}
+
+bool Fiv::getMarkStatus(shared_ptr<Image> image, string &filename, string &linkname, bool &marked) {
+	if (!markDirectory.length())
+		return false;
+
+	filename = image->getFilename();
+	if (!filename.length())
+		return false;
+
+	vector<char> tmp(filename.begin(), filename.end());
+	tmp.push_back('\0');
+	linkname = markDirectory + "/" + basename(&tmp[0]);
+
+	filename = relativePath(markDirectory, filename);
+	if (!filename.length())
+		return false;
+
+	// Check for presence of a matching link, or no link
+	char buf[PATH_MAX];
+	int len = readlink(linkname.c_str(), buf, sizeof(buf) - 1);
+	if (len >= 0) {
+		buf[len] = '\0';
+
+		marked = (buf == filename);
+	} else {
+		if (errno != ENOENT)
+			return false;
+
+		marked = false;
+	}
+
+	return true;
+}
+
+bool Fiv::isMarked(shared_ptr<Image> image) {
+	string filename, linkname;
+	bool marked;
+
+	if (!getMarkStatus(image, filename, linkname, marked))
+		return false;
+
+	return marked;
+}
+
+bool Fiv::mark(shared_ptr<Image> image) {
+	string filename, linkname;
+	bool marked;
+
+	if (!getMarkStatus(image, filename, linkname, marked))
+		return false;
+
+	if (marked)
+		return false;
+
+	return !symlink(filename.c_str(), linkname.c_str());
+}
+
+bool Fiv::toggleMark(shared_ptr<Image> image) {
+	string filename, linkname;
+	bool marked;
+
+	if (!getMarkStatus(image, filename, linkname, marked))
+		return false;
+
+	if (marked) {
+		return !unlink(linkname.c_str());
+	} else {
+		return !symlink(filename.c_str(), linkname.c_str());
+	}
+}
+
+bool Fiv::unmark(shared_ptr<Image> image) {
+	string filename, linkname;
+	bool marked;
+
+	if (!getMarkStatus(image, filename, linkname, marked))
+		return false;
+
+	if (!marked)
+		return false;
+
+	return !unlink(linkname.c_str());
+}
+
 void Fiv::addListener(weak_ptr<Events> listener) {
 	listeners.push_back(listener);
 }
@@ -294,7 +441,7 @@ void Fiv::preload(bool checkStarved) {
 
 	auto start = chrono::steady_clock::now();
 
-	unsigned int preload = maxPreload;
+	int preload = maxPreload;
 	auto itForward = itCurrent;
 	auto itBackward = make_reverse_iterator(itCurrent);
 
@@ -303,7 +450,7 @@ void Fiv::preload(bool checkStarved) {
 
 	// Preload images forward and backward
 	itForward++;
-	while (true) {
+	while (preload > 0) {
 		bool stop = true;
 
 		if (itForward != images.cend()) {

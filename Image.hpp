@@ -45,6 +45,7 @@ struct RectCompare {
 
 class Image: public std::enable_shared_from_this<Image> {
 	friend class Codec;
+	friend class Fiv;
 
 public:
 	enum Rotate {
@@ -80,6 +81,7 @@ public:
 	Image(const std::string &name, std::unique_ptr<DataBuffer> buffer);
 	Image(const std::string &name, std::unique_ptr<DataBuffer> buffer, Orientation orientation);
 	friend std::ostream& operator<<(std::ostream &stream, const Image &image);
+	std::string getFilename();
 
 	bool load();
 	const uint8_t *begin() const;

@@ -78,3 +78,7 @@ void FileDataBuffer::unload() {
 		mapping = nullptr;
 	}
 }
+
+string FileDataBuffer::getFilename() {
+	return filename;
+}

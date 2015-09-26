@@ -28,6 +28,7 @@ public:
 	virtual ~FileDataBuffer();
 	virtual bool load();
 	virtual void unload();
+	virtual std::string getFilename();
 
 private:
 	std::string filename;

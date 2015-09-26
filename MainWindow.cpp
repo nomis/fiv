@@ -43,10 +43,13 @@ MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow(), title(Fi
 	drawImage.setImages(images);
 	add(drawImage);
 
-	add_action("edit.rotateLeft", sigc::mem_fun(this, &MainWindow::action_edit_rotateLeft));
-	add_action("edit.rotateRight", sigc::mem_fun(this, &MainWindow::action_edit_rotateRight));
-	add_action("edit.flipHorizontal", sigc::mem_fun(this, &MainWindow::action_edit_flipHorizontal));
-	add_action("edit.flipVertical", sigc::mem_fun(this, &MainWindow::action_edit_flipVertical));
+	add_action("edit.mark", sigc::mem_fun(this, &MainWindow::action_edit_mark));
+	add_action("edit.toggleMark", sigc::mem_fun(this, &MainWindow::action_edit_toggleMark));
+	add_action("edit.unmark", sigc::mem_fun(this, &MainWindow::action_edit_unmark));
+	add_action("image.rotateLeft", sigc::mem_fun(this, &MainWindow::action_image_rotateLeft));
+	add_action("image.rotateRight", sigc::mem_fun(this, &MainWindow::action_image_rotateRight));
+	add_action("image.flipHorizontal", sigc::mem_fun(this, &MainWindow::action_image_flipHorizontal));
+	add_action("image.flipVertical", sigc::mem_fun(this, &MainWindow::action_image_flipVertical));
 	add_action("view.first", sigc::mem_fun(this, &MainWindow::action_view_first));
 	add_action("view.previous", sigc::mem_fun(this, &MainWindow::action_view_previous));
 	add_action("view.next", sigc::mem_fun(this, &MainWindow::action_view_next));
@@ -64,51 +67,66 @@ MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow(), title(Fi
 	zoom = Gtk::GestureZoom::create(drawImage);
 	zoom->signal_scale_changed().connect(sigc::mem_fun(drawImage, &ImageDrawable::applyZoom));
 
-	update();
+	updateAll();
 }
 
 void MainWindow::loadedCurrent() {
 	drawImage.loaded();
 }
 
-void MainWindow::action_edit_rotateLeft() {
+void MainWindow::action_edit_mark() {
+	if (images->mark(images->current()))
+		updateTitle();
+}
+
+void MainWindow::action_edit_toggleMark() {
+	if (images->toggleMark(images->current()))
+		updateTitle();
+}
+
+void MainWindow::action_edit_unmark() {
+	if (images->unmark(images->current()))
+		updateTitle();
+}
+
+void MainWindow::action_image_rotateLeft() {
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_270, false));
-	update();
+	updateAll();
 }
 
-void MainWindow::action_edit_rotateRight() {
+void MainWindow::action_image_rotateRight() {
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_90, false));
-	update();
+	updateAll();
 }
 
-void MainWindow::action_edit_flipHorizontal() {
+void MainWindow::action_image_flipHorizontal() {
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_NONE, true));
-	update();
+	updateAll();
 }
 
-void MainWindow::action_edit_flipVertical() {
+void MainWindow::action_image_flipVertical() {
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_180, true));
-	update();
+	updateAll();
 }
 
 void MainWindow::action_view_previous() {
 	if (images->previous())
-		update();
+		updateAll();
 }
 
 void MainWindow::action_view_next() {
 	if (images->next())
-		update();
+		updateAll();
 }
 
 void MainWindow::action_view_first() {
 	if (images->first())
-		update();
+		updateAll();
 }
 
 void MainWindow::action_view_last() {
 	if (images->last())
-		update();
+		updateAll();
 }
 
 void MainWindow::action_view_fullScreen() {
@@ -124,9 +142,16 @@ void MainWindow::redraw() {
 	drawImage.redraw();
 }
 
-void MainWindow::update() {
+void MainWindow::updateAll() {
 	drawImage.update();
-	set_title(title + ": " + images->current()->name);
+	updateTitle();
+}
+
+void MainWindow::updateTitle() {
+	auto image = images->current();
+	string mark = images->hasMarkSupport() ? (images->isMarked(image) ? " \u2611" : " \u2610") : "";
+
+	set_title(title + ": " + image->name + mark);
 }
 
 bool MainWindow::on_window_state_event(GdkEventWindowState *event) {

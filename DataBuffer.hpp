@@ -20,13 +20,14 @@
 
 #include <stddef.h>
 #include <cstdint>
-#include <memory>
+#include <string>
 
 class DataBuffer {
 public:
 	virtual ~DataBuffer();
 	virtual bool load();
 	virtual void unload();
+	virtual std::string getFilename();
 	const uint8_t *begin() const;
 	const uint8_t *end() const;
 	size_t size() const;

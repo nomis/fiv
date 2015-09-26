@@ -29,9 +29,13 @@
 
 #include "Image.hpp"
 
+class Application;
+
 class Events;
 
 class Fiv: public std::enable_shared_from_this<Fiv> {
+	friend Application;
+
 public:
 	Fiv();
 	virtual ~Fiv();
@@ -44,6 +48,12 @@ public:
 	bool next();
 	bool last();
 
+	bool hasMarkSupport();
+	bool isMarked(std::shared_ptr<Image> image);
+	bool mark(std::shared_ptr<Image> image);
+	bool toggleMark(std::shared_ptr<Image> image);
+	bool unmark(std::shared_ptr<Image> image);
+
 	void addListener(std::weak_ptr<Events> listener);
 
 	static const std::string appName;
@@ -55,6 +65,7 @@ private:
 	void initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
 	bool addImage(std::shared_ptr<Image> image);
 	void preload(bool checkStarved = false);
+	bool getMarkStatus(std::shared_ptr<Image> image, std::string &filename, std::string &linkname, bool &marked);
 
 	std::vector<std::shared_ptr<Events>> getListeners();
 
@@ -66,8 +77,9 @@ private:
 	std::list<std::shared_ptr<Image>>::const_iterator itCurrent;
 	bool initImagesComplete;
 	bool initStop;
+	std::string markDirectory;
 
-	unsigned int maxPreload;
+	int maxPreload;
 	std::shared_ptr<std::mutex> mtxLoad;
 	std::unordered_set<std::shared_ptr<Image>> loaded;
 	std::deque<std::shared_ptr<Image>> backgroundLoad;

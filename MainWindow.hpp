@@ -36,17 +36,21 @@ public:
 	virtual void loadedCurrent();
 
 private:
-	void action_edit_rotateLeft();
-	void action_edit_rotateRight();
-	void action_edit_flipHorizontal();
-	void action_edit_flipVertical();
+	void action_edit_mark();
+	void action_edit_toggleMark();
+	void action_edit_unmark();
+	void action_image_rotateLeft();
+	void action_image_rotateRight();
+	void action_image_flipHorizontal();
+	void action_image_flipVertical();
 	void action_view_previous();
 	void action_view_next();
 	void action_view_first();
 	void action_view_last();
 	void action_view_fullScreen();
 	void redraw();
-	void update();
+	void updateAll();
+	void updateTitle();
 	virtual bool on_window_state_event(GdkEventWindowState *event);
 
 	const std::string title;

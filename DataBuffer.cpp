@@ -41,6 +41,10 @@ void DataBuffer::unload() {
 	length = 0;
 }
 
+string DataBuffer::getFilename() {
+	return "";
+}
+
 const uint8_t *DataBuffer::begin() const {
 	return data;
 }
