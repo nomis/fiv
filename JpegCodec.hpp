@@ -40,6 +40,7 @@ public:
 	virtual int getWidth();
 	virtual int getHeight();
 	virtual Image::Orientation getOrientation();
+	virtual const Image::Properties getProperties();
 	virtual Cairo::RefPtr<Cairo::ImageSurface> getPrimary();
 	virtual Cairo::RefPtr<Cairo::ImageSurface> getThumbnail();
 
@@ -48,11 +49,13 @@ public:
 private:
 	void initHeader();
 	void initExiv2();
-	Exiv2::ExifData getExifData();
+	std::unique_ptr<Exiv2::Image> getExiv2Data();
+	void getCanonAF(const Exiv2::ExifData &exif);
 
 	int width;
 	int height;
 	Image::Orientation orientation;
+	Image::Properties properties;
 };
 
 #endif /* fiv__JPEGCODEC_HPP_ */

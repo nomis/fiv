@@ -20,21 +20,31 @@
 #include <cairomm/enums.h>
 #include <cairomm/refptr.h>
 #include <cairomm/surface.h>
+#include <cairomm/types.h>
+#include <exiv2/easyaccess.hpp>
 #include <exiv2/error.hpp>
 #include <exiv2/exif.hpp>
 #include <exiv2/image.hpp>
+#include <exiv2/properties.hpp>
 #include <exiv2/tags.hpp>
 #include <exiv2/types.hpp>
 #include <exiv2/xmp.hpp>
 #include <turbojpeg.h>
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <iomanip>
 #include <iostream>
+#include <iterator>
 #include <list>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "Image.hpp"
 #include "MemoryDataBuffer.hpp"
@@ -42,7 +52,16 @@
 using namespace std;
 
 const Exiv2::ExifKey Exif_Thumbnail_JPEGInterchangeFormat("Exif.Thumbnail.JPEGInterchangeFormat");
-const Exiv2::ExifKey Exif_Image_Orientation("Exif.Image.Orientation");
+const Exiv2::ExifKey Exif_Image_DateTime("Exif.Image.DateTime");
+const Exiv2::ExifKey Exif_Photo_SubSecTime("Exif.Photo.SubSecTime");
+const Exiv2::ExifKey Exif_Image_DateTimeOriginal("Exif.Image.DateTimeOriginal");
+const Exiv2::ExifKey Exif_Photo_SubSecTimeOriginal("Exif.Photo.SubSecTimeOriginal");
+const Exiv2::ExifKey Exif_Photo_DateTimeDigitized("Exif.Photo.DateTimeDigitized");
+const Exiv2::ExifKey Exif_Photo_SubSecTimeDigitized("Exif.Photo.SubSecTimeDigitized");
+const Exiv2::ExifKey Exif_Image_ExposureBiasValue("Exif.Image.ExposureBiasValue");
+const Exiv2::ExifKey Exif_Image_Flash("Exif.Image.Flash");
+const Exiv2::XmpKey Xmp_xmp_Rating("Xmp.xmp.Rating");
+const Exiv2::ExifKey Exif_Canon_AFInfo("Exif.Canon.AFInfo");
 
 const string JpegCodec::MIME_TYPE = "image/jpeg";
 
@@ -52,6 +71,7 @@ JpegCodec::JpegCodec() {
 	width = 0;
 	height = 0;
 	orientation = Image::Orientation(Image::Rotate::ROTATE_NONE, false);
+	properties = Image::Properties();
 }
 
 JpegCodec::~JpegCodec() {
@@ -62,6 +82,7 @@ JpegCodec::JpegCodec(shared_ptr<const Image> image_) : Codec(image_) {
 	width = 0;
 	height = 0;
 	orientation = Image::Orientation(Image::Rotate::ROTATE_NONE, false);
+	properties = Image::Properties();
 	initHeader();
 	initExiv2();
 }
@@ -80,6 +101,10 @@ int JpegCodec::getHeight() {
 
 Image::Orientation JpegCodec::getOrientation() {
 	return orientation;
+}
+
+const Image::Properties JpegCodec::getProperties() {
+	return properties;
 }
 
 Cairo::RefPtr<Cairo::ImageSurface> JpegCodec::getPrimary() {
@@ -112,8 +137,11 @@ err:
 }
 
 Cairo::RefPtr<Cairo::ImageSurface> JpegCodec::getThumbnail() {
-	Exiv2::ExifData exif = getExifData();
+	unique_ptr<Exiv2::Image> exiv2 = getExiv2Data();
+	if (!exiv2)
+		return Cairo::RefPtr<Cairo::ImageSurface>();
 
+	auto exif = exiv2->exifData();
 	auto dataTag = exif.findKey(Exif_Thumbnail_JPEGInterchangeFormat);
 	if (dataTag == exif.end())
 		return Cairo::RefPtr<Cairo::ImageSurface>();
@@ -140,23 +168,156 @@ void JpegCodec::initHeader() {
 	}
 }
 
-Exiv2::ExifData JpegCodec::getExifData() {
+unique_ptr<Exiv2::Image> JpegCodec::getExiv2Data() {
 	try {
 		unique_ptr<Exiv2::Image> tmp = Exiv2::ImageFactory::open(image->begin(), image->size());
 		if (tmp && tmp->good()) {
 			tmp->readMetadata();
-			return tmp->exifData();
+			return tmp;
 		}
 	} catch (const Exiv2::Error& e) {
 		cerr << image->name << ": Exiv2: " << e.what() << endl;
 	}
-	return Exiv2::ExifData();
+	return unique_ptr<Exiv2::Image>();
+}
+
+static bool getTimestamp(const Exiv2::ExifData &exif, Exiv2::ExifKey datetimeKey, Exiv2::ExifKey subsecKey, chrono::high_resolution_clock::time_point &timestamp) {
+	auto timestampTag = exif.findKey(datetimeKey);
+	if (timestampTag != exif.end()) {
+		tm tm;
+		char *ret = strptime(timestampTag->toString().c_str(), "%Y:%m:%d %H:%M:%S", &tm);
+
+		if (ret != nullptr && strlen(ret) == 0) {
+			timestamp = chrono::high_resolution_clock::from_time_t(mktime(&tm));
+
+			auto timestampSubSecTag = exif.findKey(subsecKey);
+			if (timestampSubSecTag != exif.end()) {
+				stringstream subsec;
+				const char *nptr;
+				char *endp;
+
+				subsec << left << setw(9) << setfill('0') << timestampSubSecTag->toString();
+				nptr = subsec.str().substr(0, 9).c_str();
+				chrono::nanoseconds ns(strtoull(nptr, &endp, 10));
+				if (strlen(endp) == 0)
+					timestamp += ns;
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void getShort(const Exiv2::ExifData &exif, const Exiv2::ExifKey &exifKey, unsigned short &value) {
+	auto exifTag = exif.findKey(exifKey);
+	if (exifTag != exif.end())
+		value = exifTag->toLong();
+}
+
+static void getLong(const Exiv2::ExifData &exif, Exiv2::ExifData::const_iterator (*func)(const Exiv2::ExifData& ed), long &value) {
+	auto exifTag = func(exif);
+	if (exifTag != exif.end())
+		value = exifTag->toLong();
+}
+
+static void getLong(const Exiv2::XmpData &xmp, const Exiv2::XmpKey &xmpKey, long &value) {
+	auto xmpTag = xmp.findKey(xmpKey);
+	if (xmpTag != xmp.end())
+		value = xmpTag->toLong();
+}
+
+static void getRational(const Exiv2::ExifData &exif, Exiv2::ExifData::const_iterator (*func)(const Exiv2::ExifData& ed), double &value) {
+	auto exifTag = func(exif);
+	if (exifTag != exif.end()) {
+		Exiv2::Rational r = exifTag->toRational();
+		value = (double)r.first / r.second;
+	}
+}
+
+static void getRational(const Exiv2::ExifData &exif, const Exiv2::ExifKey &exifKey, double &value) {
+	auto exifTag = exif.findKey(exifKey);
+	if (exifTag != exif.end()) {
+		Exiv2::Rational r = exifTag->toRational();
+		value = (double)r.first / r.second;
+	}
+}
+
+void JpegCodec::getCanonAF(const Exiv2::ExifData &exif) {
+	vector<Cairo::Rectangle> afPoints;
+
+	auto exifTag = exif.findKey(Exif_Canon_AFInfo);
+	if (exifTag == exif.end())
+		return;
+
+	long count = exifTag->toLong(0) / 2;
+
+	int pos = 2;
+	if (count < pos + 6)
+		return;
+
+	long numAFPoints = exifTag->toLong(pos++);
+	long validAFPoints = exifTag->toLong(pos++);
+	long imgWidth = exifTag->toLong(pos++);
+	long imgHeight = exifTag->toLong(pos++);
+	long afWidth = exifTag->toLong(pos++);
+	long afHeight = exifTag->toLong(pos++);
+
+	if (imgWidth != width || imgHeight != height)
+		return;
+
+	if (count < pos + numAFPoints * 4)
+		return;
+
+	for (long i = 0; i < validAFPoints; i++) {
+		Cairo::Rectangle rect;
+
+		rect.width = (int16_t)exifTag->toLong(8 + i);
+		rect.height = (int16_t)exifTag->toLong(8 + numAFPoints + i);
+		rect.x = (int16_t)exifTag->toLong(8 + numAFPoints * 2 + i);
+		rect.y = -(int16_t)exifTag->toLong(8 + numAFPoints * 3 + i);
+
+		rect.x += (double)afWidth / 2;
+		rect.y += (double)afHeight / 2;
+
+		rect.width *= (double)afWidth / imgWidth;
+		rect.height *= (double)afHeight / imgHeight;
+		rect.x *= (double)afWidth / imgWidth;
+		rect.y *= (double)afHeight / imgHeight;
+
+		afPoints.push_back(rect);
+		properties.focusPoints.push_back(rect);
+	}
+
+	pos += numAFPoints * 4;
+
+	long bitfieldAFPoints = (numAFPoints + 15) / 16;
+	if (count < pos + bitfieldAFPoints)
+		return;
+
+	for (long i = 0; i < validAFPoints; i++)
+		if ((exifTag->toLong(pos + i/16) & 1 << (i % 16)) != 0)
+			properties.focusPointsActive.insert(afPoints.at(i));
+
+	pos += bitfieldAFPoints;
+	if (count < pos + bitfieldAFPoints)
+		return;
+
+	for (long i = 0; i < validAFPoints; i++)
+		if ((exifTag->toLong(pos + i/16) & 1 << (i % 16)) != 0)
+			properties.focusPointsSelected.insert(afPoints.at(i));
 }
 
 void JpegCodec::initExiv2() {
-	Exiv2::ExifData exif = getExifData();
+	unique_ptr<Exiv2::Image> exiv2 = getExiv2Data();
+	if (!exiv2)
+		return;
 
-	auto orientationTag = exif.findKey(Exif_Image_Orientation);
+	auto exif = exiv2->exifData();
+	auto xmp = exiv2->xmpData();
+
+	auto orientationTag = Exiv2::orientation(exif);
 	if (orientationTag != exif.end() && orientationTag->toLong() >= 1 && orientationTag->toLong() <= 8) {
 		static const Image::Orientation ORIENTATION_MAP[8] = {
 				/* Horizontal (normal) */
@@ -186,4 +347,18 @@ void JpegCodec::initExiv2() {
 
 		orientation = ORIENTATION_MAP[orientationTag->toLong() - 1];
 	}
+
+	if (!getTimestamp(exif, Exif_Image_DateTimeOriginal, Exif_Photo_SubSecTimeOriginal, properties.timestamp))
+		if (!getTimestamp(exif, Exif_Image_DateTime, Exif_Photo_SubSecTime, properties.timestamp))
+			getTimestamp(exif, Exif_Photo_DateTimeDigitized, Exif_Photo_SubSecTimeDigitized, properties.timestamp);
+
+	getLong(exif, &Exiv2::isoSpeed, properties.isoSpeed);
+	getRational(exif, &Exiv2::fNumber, properties.fAperture);
+	getRational(exif, &Exiv2::focalLength, properties.mmFocalLength);
+	getRational(exif, &Exiv2::exposureTime, properties.sExposureTime);
+	getRational(exif, Exif_Image_ExposureBiasValue, properties.evExposureBias);
+	getShort(exif, Exif_Image_Flash, properties.flash);
+	getRational(exif, &Exiv2::flashBias, properties.evFlashBias);
+	getLong(xmp, Xmp_xmp_Rating, properties.rating);
+	getCanonAF(exif);
 }

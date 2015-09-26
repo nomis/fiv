@@ -51,6 +51,10 @@ Image::Orientation Codec::getOrientation() {
 	return Image::Orientation(Image::Rotate::ROTATE_NONE, false);
 }
 
+const Image::Properties Codec::getProperties() {
+	return Image::Properties();
+}
+
 Cairo::RefPtr<Cairo::ImageSurface> Codec::getPrimary() {
 	return Cairo::RefPtr<Cairo::ImageSurface>();
 }

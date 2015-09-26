@@ -17,6 +17,7 @@
 
 #include "ImageDrawable.hpp"
 
+#include <cairo.h>
 #include <cairomm/context.h>
 #include <cairomm/enums.h>
 #include <cairomm/pattern.h>
@@ -24,6 +25,7 @@
 #include <cairomm/surface.h>
 #include <cairomm/types.h>
 #include <gdk/gdk.h>
+#include <gdkmm/device.h>
 #include <gdkmm/rectangle.h>
 #include <gdkmm/window.h>
 #include <glib.h>
@@ -31,9 +33,10 @@
 #include <gtkmm/widget.h>
 #include <algorithm>
 #include <cmath>
-#include <iostream>
+#include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -44,6 +47,7 @@ using namespace std;
 
 ImageDrawable::ImageDrawable() {
 	waiting = false;
+	afPoints = false;
 	zoom = NAN;
 	x = 0;
 	y = 0;
@@ -177,6 +181,13 @@ void ImageDrawable::zoomFit() {
 	lock_guard<mutex> lckDrawing(mtxDrawing);
 
 	zoom = NAN;
+	redraw();
+}
+
+void ImageDrawable::toggleAfPoints() {
+	lock_guard<mutex> lckDrawing(mtxDrawing);
+
+	afPoints = !afPoints;
 	redraw();
 }
 
@@ -342,6 +353,30 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int
 	cr->paint();
 	//auto stop = chrono::steady_clock::now();
 	//cout << "paint " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
+
+	if (afPoints) {
+		auto properties = current->getProperties();
+
+		cr->save();
+		cr->set_operator(static_cast<Cairo::Operator>(CAIRO_OPERATOR_DIFFERENCE));
+
+		for (auto &rect : properties.focusPoints) {
+			if (properties.focusPointsActive.find(rect) != properties.focusPointsActive.cend()) {
+				cr->set_source_rgb(1, 0, 1);
+				cr->set_line_width(4.0 / rscale);
+			} else if (properties.focusPointsSelected.find(rect) != properties.focusPointsSelected.cend()) {
+				cr->set_source_rgb(1, 0, 0);
+				cr->set_line_width(2.0 / rscale);
+			} else {
+				cr->set_source_rgb(1, 1, 1);
+				cr->set_line_width(1.0 / rscale);
+			}
+			cr->rectangle(rect.x, rect.y, rect.width, rect.height);
+			cr->stroke();
+		}
+
+		cr->restore();
+	}
 }
 
 bool ImageDrawable::on_scroll_event(GdkEventScroll *event) {

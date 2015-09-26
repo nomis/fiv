@@ -38,6 +38,7 @@ public:
 	virtual int getWidth();
 	virtual int getHeight();
 	virtual Image::Orientation getOrientation();
+	virtual const Image::Properties getProperties();
 	virtual Cairo::RefPtr<Cairo::ImageSurface> getPrimary();
 	virtual Cairo::RefPtr<Cairo::ImageSurface> getThumbnail();
 

@@ -54,6 +54,7 @@ MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow(), title(Fi
 	add_action("view.zoomActual", sigc::mem_fun(drawImage, &ImageDrawable::zoomActual));
 	add_action("view.zoomFit", sigc::mem_fun(drawImage, &ImageDrawable::zoomFit));
 	add_action("view.fullScreen", sigc::mem_fun(this, &MainWindow::action_view_fullScreen));
+	add_action("view.afPoints", sigc::mem_fun(drawImage, &ImageDrawable::toggleAfPoints));
 
 	drag = Gtk::GestureDrag::create(drawImage);
 	drag->signal_drag_begin().connect(sigc::mem_fun(drawImage, &ImageDrawable::dragBegin));

@@ -99,6 +99,11 @@ void Application::on_startup() {
 		mnuView->append("F_ull Screen", "win.view.fullScreen");
 		set_accels_for_action("win.view.fullScreen", {"F11"});
 
+		// TODO separator
+
+		mnuView->append("AF P_oints", "win.view.afPoints");
+		set_accels_for_action("win.view.afPoints", {"p"});
+
 		menubar->append_submenu("_View", mnuView);
 	}
 

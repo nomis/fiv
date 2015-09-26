@@ -20,11 +20,15 @@
 
 #include <cairomm/refptr.h>
 #include <cairomm/surface.h>
+#include <cairomm/types.h>
 #include <stddef.h>
+#include <chrono>
 #include <cstdint>
 #include <iostream>
+#include <list>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -32,6 +36,12 @@ class DataBuffer;
 class TextureDataBuffer;
 
 class Codec;
+
+struct RectCompare {
+	bool operator() (const Cairo::Rectangle &a, const Cairo::Rectangle &b) const {
+		return (a.x < b.x) || (a.y < b.y) || (a.width < b.width) || (a.height < b.height);
+	}
+};
 
 class Image: public std::enable_shared_from_this<Image> {
 	friend class Codec;
@@ -48,6 +58,25 @@ public:
 
 	typedef std::pair<Rotate,HFlip> Orientation;
 
+	class Properties {
+	public:
+		Properties();
+
+		std::chrono::high_resolution_clock::time_point timestamp;
+		long isoSpeed;
+		double fAperture;
+		double mmFocalLength;
+		double sExposureTime;
+		double evExposureBias;
+		unsigned short flash;
+		double evFlashBias;
+
+		long rating;
+		std::list<Cairo::Rectangle> focusPoints;
+		std::set<Cairo::Rectangle, RectCompare> focusPointsSelected;
+		std::set<Cairo::Rectangle, RectCompare> focusPointsActive;
+	};
+
 	Image(const std::string &name, std::unique_ptr<DataBuffer> buffer);
 	Image(const std::string &name, std::unique_ptr<DataBuffer> buffer, Orientation orientation);
 	friend std::ostream& operator<<(std::ostream &stream, const Image &image);
@@ -61,6 +90,7 @@ public:
 
 	Image::Orientation getOrientation();
 	void setOrientation(Image::Orientation modify);
+	const Image::Properties getProperties();
 
 	bool loadPrimary();
 	bool isPrimaryFailed();

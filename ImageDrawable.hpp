@@ -40,6 +40,7 @@ public:
 	void loaded();
 	void zoomActual();
 	void zoomFit();
+	void toggleAfPoints();
 	void dragBegin(double startX, double startY);
 	void dragUpdate(double offsetX, double offsetY);
 	void dragEnd(double offsetX, double offsetY);
@@ -58,6 +59,7 @@ private:
 
 	std::mutex mtxDrawing;
 	bool waiting;
+	bool afPoints;
 	double zoom;
 	double x, y;
 

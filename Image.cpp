@@ -116,6 +116,21 @@ void Image::setOrientation(Image::Orientation modify) {
 	orientation.second = orientation.second ^ modify.second;
 }
 
+Image::Properties::Properties() {
+	isoSpeed = 0;
+	fAperture = NAN;
+	mmFocalLength = NAN;
+	sExposureTime = NAN;
+	evExposureBias = NAN;
+	flash = false;
+	evFlashBias = NAN;
+	rating = 0;
+}
+
+const Image::Properties Image::getProperties() {
+	return codec->getProperties();
+}
+
 bool Image::loadPrimary() {
 	unique_lock<mutex> lckPrimary(mtxPrimary);
 
