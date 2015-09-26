@@ -86,24 +86,22 @@ void ImageDrawable::loaded() {
 		redraw();
 }
 
-bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const int &awidth, const int &aheight,
-		Image::Orientation &iorientation, int &iwidth, int &iheight,
+bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const Gtk::Allocation &allocation,
 		int &rwidth, int &rheight, double &rscale, double &rx, double &ry) {
-	iorientation = image->getOrientation();
-	iwidth = image->width();
-	iheight = image->height();
+	const int awidth = allocation.get_width();
+	const int aheight = allocation.get_height();
 
-	switch (iorientation.first) {
+	switch (image->getOrientation().first) {
 	case Image::Rotate::ROTATE_NONE:
 	case Image::Rotate::ROTATE_180:
-		rwidth = iwidth;
-		rheight = iheight;
+		rwidth = image->width();
+		rheight = image->height();
 		break;
 
 	case Image::Rotate::ROTATE_90:
 	case Image::Rotate::ROTATE_270:
-		rwidth = iheight;
-		rheight = iwidth;
+		rwidth = image->height();
+		rheight = image->width();
 		break;
 
 	default:
@@ -151,20 +149,11 @@ bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const int 
 	return true;
 }
 
-void ImageDrawable::finaliseRenderedImage() {
-	Gtk::Allocation allocation = get_allocation();
-	const int awidth = allocation.get_width();
-	const int aheight = allocation.get_height();
+void ImageDrawable::finalisePosition() {
+	int rheight, rwidth;
+	double rscale, rx, ry;
 
-	auto current = images->current();
-	auto image = current->getPrimary();
-	Image::Orientation iorientation;
-	int iwidth, iheight;
-	int rwidth, rheight;
-	double rscale;
-	double rx, ry;
-
-	if (!calcRenderedImage(current, awidth, aheight, iorientation, iwidth, iheight, rwidth, rheight, rscale, rx, ry))
+	if (!calcRenderedImage(images->current(), get_allocation(), rwidth, rheight, rscale, rx, ry))
 		return;
 
 	x = rx;
@@ -195,7 +184,7 @@ void ImageDrawable::dragBegin(double startX __attribute__((unused)), double star
 	auto win = get_window();
 	if (win)
 		win->set_cursor(Gdk::Cursor::create(Gdk::CursorType::FLEUR));
-	finaliseRenderedImage();
+	finalisePosition();
 }
 
 void ImageDrawable::dragUpdate(double offsetX, double offsetY) {
@@ -209,7 +198,7 @@ void ImageDrawable::dragEnd(double offsetX, double offsetY) {
 	unique_lock<mutex> lckDrawing(mtxDrawing);
 	dragOffsetX = offsetX;
 	dragOffsetY = offsetY;
-	finaliseRenderedImage();
+	finalisePosition();
 	redraw();
 
 	auto win = get_window();
@@ -218,24 +207,17 @@ void ImageDrawable::dragEnd(double offsetX, double offsetY) {
 }
 
 void ImageDrawable::applyZoom(double scale) {
-	Gtk::Allocation allocation = get_allocation();
-	const int awidth = allocation.get_width();
-	const int aheight = allocation.get_height();
 	int px, py;
 
 	get_pointer(px, py);
 
 	lock_guard<mutex> lckDrawing(mtxDrawing);
 
-	auto current = images->current();
-	auto image = current->getPrimary();
-	Image::Orientation iorientation;
-	int iwidth, iheight;
 	int rwidth, rheight;
 	double rscale;
 	double rx, ry;
 
-	if (!calcRenderedImage(current, awidth, aheight, iorientation, iwidth, iheight, rwidth, rheight, rscale, rx, ry))
+	if (!calcRenderedImage(images->current(), get_allocation(), rwidth, rheight, rscale, rx, ry))
 		return;
 
 	if (std::isnan(scale)) {
@@ -270,15 +252,13 @@ static void copyCairoClip(const Cairo::RefPtr<Cairo::Context> &src, const Cairo:
 
 bool ImageDrawable::on_draw(const Cairo::RefPtr<Cairo::Context> &cr) {
 	Gtk::Allocation allocation = get_allocation();
-	const int awidth = allocation.get_width();
-	const int aheight = allocation.get_height();
 
 	//cout << "draw " << awidth << "x" << aheight << endl;
 
-	auto surface = Cairo::ImageSurface::create(Cairo::Format::FORMAT_RGB24, awidth, aheight);
+	auto surface = Cairo::ImageSurface::create(Cairo::Format::FORMAT_RGB24, allocation.get_width(), allocation.get_height());
 	auto cr2 = Cairo::Context::create(surface);
 	copyCairoClip(cr, cr2);
-	drawImage(cr2, awidth, aheight);
+	drawImage(cr2, allocation);
 
 	//auto start = chrono::steady_clock::now();
 	cr->set_source(surface, 0, 0);
@@ -289,36 +269,34 @@ bool ImageDrawable::on_draw(const Cairo::RefPtr<Cairo::Context> &cr) {
 	return true;
 }
 
-void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int awidth, const int aheight) {
+void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const Gtk::Allocation &allocation) {
 	unique_lock<mutex> lckDrawing(mtxDrawing);
 
-	auto current = images->current();
-	auto image = current->getPrimary();
-	Image::Orientation iorientation;
-	int iwidth, iheight;
+	auto image = images->current();
+	auto surface = image->getPrimary();
 	int rwidth, rheight;
 	double rscale;
 	double rx, ry;
 
 	//cout << "image " << iwidth << "x" << iheight << " " << iorientation.first << "," << iorientation.second << endl;
 
-	if (!calcRenderedImage(current, awidth, aheight, iorientation, iwidth, iheight, rwidth, rheight, rscale, rx, ry))
+	if (!calcRenderedImage(image, allocation, rwidth, rheight, rscale, rx, ry))
 		return;
 
 	cr->translate(rx, ry);
 	cr->scale(rscale, rscale);
 
-	waiting = !image;
+	waiting = !surface;
 	lckDrawing.unlock();
 
-	if (current->isPrimaryFailed()) {
+	if (image->isPrimaryFailed()) {
 		// TODO display fancy failed indicator
 		cr->set_source_rgb(0.75, 0.5, 0.5);
 		cr->rectangle(0, 0, rwidth, rheight);
 		cr->clip();
 		cr->paint();
 		return;
-	} else if (!image) {
+	} else if (!surface) {
 		// TODO display fancy loading animation
 		cr->set_source_rgb(0.5, 0.75, 0.5);
 		cr->rectangle(0, 0, rwidth, rheight);
@@ -327,32 +305,32 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int
 		return;
 	}
 
-	switch (iorientation.first) {
+	switch (image->getOrientation().first) {
 	case Image::Rotate::ROTATE_NONE:
 		break;
 
 	case Image::Rotate::ROTATE_90:
-		cr->translate(iheight, 0);
+		cr->translate(image->height(), 0);
 		cr->rotate_degrees(90);
 		break;
 
 	case Image::Rotate::ROTATE_180:
-		cr->translate(iwidth, iheight);
+		cr->translate(image->width(), image->height());
 		cr->rotate_degrees(180);
 		break;
 
 	case Image::Rotate::ROTATE_270:
-		cr->translate(0, iwidth);
+		cr->translate(0, image->width());
 		cr->rotate_degrees(270);
 		break;
 	}
 
-	if (iorientation.second) {
-		cr->translate(iwidth, 0);
+	if (image->getOrientation().second) {
+		cr->translate(image->width(), 0);
 		cr->scale(-1, 1);
 	}
 
-	auto pattern = Cairo::SurfacePattern::create(image);
+	auto pattern = Cairo::SurfacePattern::create(surface);
 	pattern->set_filter(Cairo::Filter::FILTER_FAST);
 	cr->set_source(pattern);
 
@@ -362,7 +340,7 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const int
 	//cout << "paint " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
 
 	if (afPoints) {
-		auto properties = current->getProperties();
+		auto properties = image->getProperties();
 
 		cr->save();
 		cr->set_operator(static_cast<Cairo::Operator>(CAIRO_OPERATOR_DIFFERENCE));
