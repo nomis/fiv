@@ -5,13 +5,13 @@
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.toolchain.gnu.base.524456053" moduleId="org.eclipse.cdt.core.settings" name="build">
 				<macros>
 					<stringMacro name="PCI_cairomm-1.0" type="VALUE_TEXT" value="$(shell pkg-config --cflags cairomm-1.0)"/>
-					<stringMacro name="PCI_CXX" type="VALUE_TEXT" value="${PCI_cairomm-1.0} ${PCI_exiv2} ${PCI_gtkmm-3.0}"/>
 					<stringMacro name="PCL_exiv2" type="VALUE_TEXT" value="$(shell pkg-config --libs exiv2)"/>
+					<stringMacro name="PCI_CXX" type="VALUE_TEXT" value="${PCI_cairomm-1.0} ${PCI_exiv2} ${PCI_gtkmm-3.0}"/>
 					<stringMacro name="PCL_ALL" type="VALUE_TEXT" value="${PCL_cairomm-1.0} ${PCL_exiv2} ${PCL_gtkmm-3.0}"/>
 					<stringMacro name="PCI_gtkmm-3.0" type="VALUE_TEXT" value="$(shell pkg-config --cflags gtkmm-3.0)"/>
-					<stringMacro name="PCL_cairomm-1.0" type="VALUE_TEXT" value="$(shell pkg-config --libs cairomm-1.0)"/>
-					<stringMacro name="PCI_exiv2" type="VALUE_TEXT" value="$(shell pkg-config --cflags exiv2)"/>
 					<stringMacro name="PCL_gtkmm-3.0" type="VALUE_TEXT" value="$(shell pkg-config --libs gtkmm-3.0)"/>
+					<stringMacro name="PCI_exiv2" type="VALUE_TEXT" value="$(shell pkg-config --cflags exiv2)"/>
+					<stringMacro name="PCL_cairomm-1.0" type="VALUE_TEXT" value="$(shell pkg-config --libs cairomm-1.0)"/>
 				</macros>
 				<externalSettings/>
 				<extensions>
@@ -50,7 +50,7 @@
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1443887826" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.base.1640090089" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.base"/>
-							<tool command="${LD}" commandLinePattern="${COMMAND} $(LDFLAGS) ${FLAGS} ${OUTPUT_FLAG} ${OUTPUT_PREFIX}${OUTPUT} ${INPUTS} ${PCL_ALL} $(LDLIBS)" errorParsers="org.eclipse.cdt.core.GLDErrorParser" id="cdt.managedbuild.tool.gnu.cpp.linker.base.651281723" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.base">
+							<tool command="${CXX}" commandLinePattern="${COMMAND} $(LDFLAGS) ${FLAGS} ${OUTPUT_FLAG} ${OUTPUT_PREFIX}${OUTPUT} ${INPUTS} ${PCL_ALL} $(LDLIBS)" errorParsers="org.eclipse.cdt.core.GLDErrorParser" id="cdt.managedbuild.tool.gnu.cpp.linker.base.651281723" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.base">
 								<option id="gnu.cpp.link.option.libs.569783845" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="pthread"/>
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="magic"/>

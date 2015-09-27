@@ -76,79 +76,70 @@ MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow() {
 
 void MainWindow::addImage() {
 	Glib::signal_idle().connect_once([this]{
-		lock_guard<mutex> lckUpdate(this->mtxUpdate);
 		this->updateTitle();
 	});
 }
 
-void MainWindow::loadedCurrent() {
-	Glib::signal_idle().connect_once([this]{
-		this->drawImage.loaded();
-	});
+void MainWindow::loadedImage(shared_ptr<Image> image) {
+	if (images->current() == image) {
+		Glib::signal_idle().connect_once([this, image]{
+			if (images->current() == image)
+				this->drawImage.loaded();
+		});
+	}
 }
 
 void MainWindow::action_edit_mark() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->mark(images->current()))
 		updateTitle();
 }
 
 void MainWindow::action_edit_toggleMark() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->toggleMark(images->current()))
 		updateTitle();
 }
 
 void MainWindow::action_edit_unmark() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->unmark(images->current()))
 		updateTitle();
 }
 
 void MainWindow::action_image_rotateLeft() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_270, false));
 	updateAll();
 }
 
 void MainWindow::action_image_rotateRight() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_90, false));
 	updateAll();
 }
 
 void MainWindow::action_image_flipHorizontal() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_NONE, true));
 	updateAll();
 }
 
 void MainWindow::action_image_flipVertical() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
 	images->orientation(Image::Orientation(Image::Rotate::ROTATE_180, true));
 	updateAll();
 }
 
 void MainWindow::action_view_previous() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->previous())
 		updateAll();
 }
 
 void MainWindow::action_view_next() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->next())
 		updateAll();
 }
 
 void MainWindow::action_view_first() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->first())
 		updateAll();
 }
 
 void MainWindow::action_view_last() {
-	lock_guard<mutex> lckUpdate(mtxUpdate);
 	if (images->last())
 		updateAll();
 }
@@ -187,7 +178,7 @@ void MainWindow::updateTitle() {
 	set_title(title.str());
 }
 
-bool MainWindow::on_window_state_event(GdkEventWindowState *event) {
-	fullScreen = (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) != 0;
+bool MainWindow::on_window_state_event(GdkEventWindowState *state) {
+	fullScreen = (state->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) != 0;
 	return false;
 }

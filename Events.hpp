@@ -20,12 +20,14 @@
 
 #include <memory>
 
+class Image;
+
 class Events:  public std::enable_shared_from_this<Events> {
 public:
 	Events();
 	virtual ~Events();
 	virtual void addImage();
-	virtual void loadedCurrent();
+	virtual void loadedImage(std::shared_ptr<Image> image);
 };
 
 #endif /* fiv__EVENTS_HPP_ */

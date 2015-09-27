@@ -24,7 +24,6 @@
 #include <gtkmm/gesturedrag.h>
 #include <gtkmm/gesturezoom.h>
 #include <memory>
-#include <mutex>
 #include <string>
 
 #include "Events.hpp"
@@ -35,7 +34,7 @@ class MainWindow: public Gtk::ApplicationWindow, public Events {
 public:
 	MainWindow(std::shared_ptr<Fiv> fiv_);
 	virtual void addImage();
-	virtual void loadedCurrent();
+	virtual void loadedImage(std::shared_ptr<Image> image);
 
 private:
 	void action_edit_mark();
@@ -53,9 +52,8 @@ private:
 	void redraw();
 	void updateAll();
 	void updateTitle();
-	virtual bool on_window_state_event(GdkEventWindowState *event);
+	virtual bool on_window_state_event(GdkEventWindowState *state);
 
-	std::mutex mtxUpdate;
 	std::shared_ptr<Fiv> images;
 	ImageDrawable drawImage;
 	Glib::RefPtr<Gtk::GestureDrag> drag;

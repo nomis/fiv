@@ -25,7 +25,6 @@
 #include <gtkmm/drawingarea.h>
 #include <gtkmm/gesture.h>
 #include <memory>
-#include <mutex>
 
 #include "Image.hpp"
 
@@ -47,16 +46,15 @@ public:
 	void applyZoom(double scale);
 
 private:
-	bool inline calcRenderedImage(std::shared_ptr<Image> image, const Gtk::Allocation &allocation,
+	void inline calcRenderedImage(std::shared_ptr<Image> image, const Gtk::Allocation &allocation,
 			int &rwidth, int &rheight, double &rscale, double &rx, double &ry);
 	void finalisePosition();
 	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const Gtk::Allocation &allocation);
 	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);
-	virtual bool on_scroll_event(GdkEventScroll *event);
+	virtual bool on_scroll_event(GdkEventScroll *scroll);
 
 	std::shared_ptr<Fiv> images;
 
-	std::mutex mtxDrawing;
 	bool waiting;
 	bool afPoints;
 	double zoom;

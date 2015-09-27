@@ -35,7 +35,6 @@
 #include <cmath>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <set>
 #include <utility>
 #include <vector>
@@ -80,13 +79,11 @@ void ImageDrawable::redraw() {
 }
 
 void ImageDrawable::loaded() {
-	lock_guard<mutex> lckDrawing(mtxDrawing);
-
 	if (waiting)
 		redraw();
 }
 
-bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const Gtk::Allocation &allocation,
+void inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const Gtk::Allocation &allocation,
 		int &rwidth, int &rheight, double &rscale, double &rx, double &ry) {
 	const int awidth = allocation.get_width();
 	const int aheight = allocation.get_height();
@@ -94,6 +91,7 @@ bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const Gtk:
 	switch (image->getOrientation().first) {
 	case Image::Rotate::ROTATE_NONE:
 	case Image::Rotate::ROTATE_180:
+	default:
 		rwidth = image->width();
 		rheight = image->height();
 		break;
@@ -103,9 +101,6 @@ bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const Gtk:
 		rwidth = image->height();
 		rheight = image->width();
 		break;
-
-	default:
-		return false;
 	}
 
 	if (std::isnan(zoom)) {
@@ -145,16 +140,13 @@ bool inline ImageDrawable::calcRenderedImage(shared_ptr<Image> image, const Gtk:
 			ry = aheight - rheight * rscale;
 		}
 	}
-
-	return true;
 }
 
 void ImageDrawable::finalisePosition() {
 	int rheight, rwidth;
 	double rscale, rx, ry;
 
-	if (!calcRenderedImage(images->current(), get_allocation(), rwidth, rheight, rscale, rx, ry))
-		return;
+	calcRenderedImage(images->current(), get_allocation(), rwidth, rheight, rscale, rx, ry);
 
 	x = rx;
 	y = ry;
@@ -167,15 +159,11 @@ void ImageDrawable::zoomActual() {
 }
 
 void ImageDrawable::zoomFit() {
-	lock_guard<mutex> lckDrawing(mtxDrawing);
-
 	zoom = NAN;
 	redraw();
 }
 
 void ImageDrawable::toggleAfPoints() {
-	lock_guard<mutex> lckDrawing(mtxDrawing);
-
 	afPoints = !afPoints;
 	redraw();
 }
@@ -188,14 +176,12 @@ void ImageDrawable::dragBegin(double startX __attribute__((unused)), double star
 }
 
 void ImageDrawable::dragUpdate(double offsetX, double offsetY) {
-	unique_lock<mutex> lckDrawing(mtxDrawing);
 	dragOffsetX = offsetX;
 	dragOffsetY = offsetY;
 	redraw();
 }
 
 void ImageDrawable::dragEnd(double offsetX, double offsetY) {
-	unique_lock<mutex> lckDrawing(mtxDrawing);
 	dragOffsetX = offsetX;
 	dragOffsetY = offsetY;
 	finalisePosition();
@@ -208,17 +194,13 @@ void ImageDrawable::dragEnd(double offsetX, double offsetY) {
 
 void ImageDrawable::applyZoom(double scale) {
 	int px, py;
-
-	get_pointer(px, py);
-
-	lock_guard<mutex> lckDrawing(mtxDrawing);
-
 	int rwidth, rheight;
 	double rscale;
 	double rx, ry;
 
-	if (!calcRenderedImage(images->current(), get_allocation(), rwidth, rheight, rscale, rx, ry))
-		return;
+	get_pointer(px, py);
+
+	calcRenderedImage(images->current(), get_allocation(), rwidth, rheight, rscale, rx, ry);
 
 	if (std::isnan(scale)) {
 		zoom = 1;
@@ -270,8 +252,6 @@ bool ImageDrawable::on_draw(const Cairo::RefPtr<Cairo::Context> &cr) {
 }
 
 void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const Gtk::Allocation &allocation) {
-	unique_lock<mutex> lckDrawing(mtxDrawing);
-
 	auto image = images->current();
 	auto surface = image->getPrimary();
 	int rwidth, rheight;
@@ -280,14 +260,12 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const Gtk
 
 	//cout << "image " << iwidth << "x" << iheight << " " << iorientation.first << "," << iorientation.second << endl;
 
-	if (!calcRenderedImage(image, allocation, rwidth, rheight, rscale, rx, ry))
-		return;
+	calcRenderedImage(image, allocation, rwidth, rheight, rscale, rx, ry);
 
 	cr->translate(rx, ry);
 	cr->scale(rscale, rscale);
 
 	waiting = !surface;
-	lckDrawing.unlock();
 
 	if (image->isPrimaryFailed()) {
 		// TODO display fancy failed indicator
@@ -368,12 +346,12 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const Gtk
 	}
 }
 
-bool ImageDrawable::on_scroll_event(GdkEventScroll *event) {
+bool ImageDrawable::on_scroll_event(GdkEventScroll *scroll) {
 	static const double zoomFactor = 1.10;
 
-	if (event->direction == GDK_SCROLL_UP) {
+	if (scroll->direction == GDK_SCROLL_UP) {
 		applyZoom(zoomFactor);
-	} else if (event->direction == GDK_SCROLL_DOWN) {
+	} else if (scroll->direction == GDK_SCROLL_DOWN) {
 		applyZoom(1.0/zoomFactor);
 	}
 

@@ -86,7 +86,7 @@ bool Fiv::init(int argc, char *argv[]) {
 
 	unique_lock<mutex> lckImages(mtxImages);
 	itCurrent = images.cbegin();
-	preload();
+	preloadImages();
 
 	weak_ptr<Fiv> wSelf = shared_from_this();
 	for (unsigned int i = 0; i < thread::hardware_concurrency(); i++)
@@ -256,7 +256,7 @@ bool Fiv::addImage(shared_ptr<Image> image) {
 
 	if (image) {
 		images.push_back(image);
-		preload(true);
+		preloadImages(true);
 		imageAdded.notify_all();
 
 		lckImages.unlock();
@@ -283,7 +283,7 @@ bool Fiv::first() {
 	unique_lock<mutex> lckImages(mtxImages);
 	if (itCurrent != images.cbegin()) {
 		itCurrent = images.cbegin();
-		preload();
+		preloadImages();
 		return true;
 	}
 	return false;
@@ -293,7 +293,7 @@ bool Fiv::previous() {
 	unique_lock<mutex> lckImages(mtxImages);
 	if (itCurrent != images.cbegin()) {
 		itCurrent--;
-		preload();
+		preloadImages();
 		return true;
 	}
 	return false;
@@ -305,7 +305,7 @@ bool Fiv::next() {
 	itNext++;
 	if (itNext != images.cend()) {
 		itCurrent++;
-		preload();
+		preloadImages();
 		return true;
 	}
 	return false;
@@ -317,7 +317,7 @@ bool Fiv::last() {
 	itLast--;
 	if (itCurrent != itLast) {
 		itCurrent = itLast;
-		preload();
+		preloadImages();
 		return true;
 	}
 	return false;
@@ -499,7 +499,7 @@ template<class Iterator>
 }
 #endif
 
-void Fiv::preload(bool checkStarved) {
+void Fiv::preloadImages(bool checkStarved) {
 	unique_lock<mutex> lckLoad(*mtxLoad);
 
 	if (checkStarved && !preloadStarved)
@@ -614,9 +614,8 @@ void Fiv::runLoader(weak_ptr<Fiv> wSelf) {
 			self->loaded.insert(image);
 		}
 
-		if (image.get() == self->current().get())
-			for (auto listener : self->getListeners())
-				listener->loadedCurrent();
+		for (auto listener : self->getListeners())
+			listener->loadedImage(image);
 	}
 }
 

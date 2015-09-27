@@ -17,6 +17,12 @@
 
 #include "Events.hpp"
 
+#include <memory>
+
+#include "Image.hpp"
+
+using namespace std;
+
 Events::Events() {
 
 }
@@ -29,6 +35,6 @@ void Events::addImage() {
 
 }
 
-void Events::loadedCurrent() {
+void Events::loadedImage(shared_ptr<Image> image __attribute__((unused))) {
 
 }

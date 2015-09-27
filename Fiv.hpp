@@ -69,7 +69,7 @@ private:
 	bool backgroundInitImage(std::deque<std::future<std::shared_ptr<Image>>> &bgImages, std::shared_ptr<Image> image);
 	bool processBackgroundInitImages(std::deque<std::future<std::shared_ptr<Image>>> &bgImages, bool all = true);
 	bool addImage(std::shared_ptr<Image> image);
-	void preload(bool checkStarved = false);
+	void preloadImages(bool checkStarved = false);
 	bool getMarkStatus(std::shared_ptr<Image> image, std::string &filename, std::string &linkname, bool &marked);
 
 	std::vector<std::shared_ptr<Events>> getListeners();
