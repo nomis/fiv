@@ -20,6 +20,7 @@
 
 #include <condition_variable>
 #include <deque>
+#include <future>
 #include <list>
 #include <memory>
 #include <mutex>
@@ -65,6 +66,8 @@ private:
 	bool initImagesInBackground(std::unique_ptr<std::list<std::string>> filenames);
 	void initImagesThread(std::unique_ptr<std::list<std::string>> filenames);
 	bool initImagesFromDir(const std::string &dirname, std::deque<std::shared_ptr<Image>> &dirImages);
+	bool backgroundInitImage(std::deque<std::future<std::shared_ptr<Image>>> &bgImages, std::shared_ptr<Image> image);
+	bool processBackgroundInitImages(std::deque<std::future<std::shared_ptr<Image>>> &bgImages, bool all = true);
 	bool addImage(std::shared_ptr<Image> image);
 	void preload(bool checkStarved = false);
 	bool getMarkStatus(std::shared_ptr<Image> image, std::string &filename, std::string &linkname, bool &marked);
@@ -93,4 +96,3 @@ private:
 };
 
 #endif /* fiv__FIV_HPP_ */
-

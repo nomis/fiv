@@ -114,9 +114,42 @@ bool Fiv::initImagesInBackground(unique_ptr<list<string>> filenames_) {
 	return images.size();
 }
 
-static shared_ptr<Image> loadImage(string name, string filename) {
-	unique_ptr<DataBuffer> buffer(make_unique<FileDataBuffer>(filename));
-	return make_shared<Image>(name, move(buffer));
+bool Fiv::backgroundInitImage(deque<future<shared_ptr<Image>>> &bgImages, shared_ptr<Image> image) {
+	unique_lock<mutex> lckImages(mtxImages);
+
+	if (initStop)
+		return false;
+
+	lckImages.unlock();
+
+	packaged_task<shared_ptr<Image>()> task([image]{
+		if (image->load()) {
+			return image;
+		} else {
+			return shared_ptr<Image>();
+		}
+	});
+
+	bgImages.push_back(task.get_future());
+	thread(move(task)).detach();
+
+	if (!processBackgroundInitImages(bgImages, false))
+		return false;
+
+	return true;
+}
+
+bool Fiv::processBackgroundInitImages(deque<future<shared_ptr<Image>>> &bgImages, bool all) {
+	while (all ? bgImages.size() : (bgImages.size() > thread::hardware_concurrency() * 2)) {
+		auto result = move(bgImages.front());
+
+		bgImages.pop_front();
+
+		if (!addImage(result.get()))
+			return false;
+	}
+
+	return true;
 }
 
 void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
@@ -134,18 +167,11 @@ void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
 			continue;
 
 		if (S_ISREG(st.st_mode)) {
-			packaged_task<shared_ptr<Image>(string,string)> task(loadImage);
+			auto buffer(make_unique<FileDataBuffer>(filename));
+			auto image = make_shared<Image>(filename, move(buffer));
 
-			bgImages.push_back(task.get_future());
-			thread(move(task), filename, filename).detach();
-
-			while (bgImages.size() > thread::hardware_concurrency() * 2) {
-				auto result = move(bgImages.front());
-
-				bgImages.pop_front();
-				if (!addImage(result.get()))
-					goto stop;
-			}
+			if (!backgroundInitImage(bgImages, image))
+				goto stop;
 		} else if (S_ISDIR(st.st_mode)) {
 			deque<shared_ptr<Image>> dirImages;
 
@@ -153,18 +179,13 @@ void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
 				goto stop;
 
 			for (auto image : dirImages)
-				if (!addImage(image))
+				if (!backgroundInitImage(bgImages, image))
 					goto stop;
 		}
 	}
 
-	while (bgImages.size()) {
-		auto result = move(bgImages.front());
-
-		bgImages.pop_front();
-		if (!addImage(result.get()))
-			goto stop;
-	}
+	if (!processBackgroundInitImages(bgImages))
+		goto stop;
 
 stop:
 	unique_lock<mutex> lckImages(mtxImages);
@@ -182,7 +203,6 @@ static bool compareImage(const shared_ptr<Image> &a, const shared_ptr<Image> &b)
 }
 
 bool Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dirImages) {
-	deque<future<shared_ptr<Image>>> bgImages;
 	DIR *dir = opendir(dirname.c_str());
 	struct dirent *entry;
 
@@ -210,50 +230,31 @@ bool Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dir
 				continue;
 			}
 
-			packaged_task<shared_ptr<Image>(string,string)> task(loadImage);
+			auto buffer(make_unique<FileDataBuffer>(filename));
+			auto image = make_shared<Image>(dirname == "." ? entry->d_name : filename, move(buffer));
 
-			bgImages.push_back(task.get_future());
-			thread(move(task), dirname == "." ? entry->d_name : filename, filename).detach();
+			dirImages.push_back(image);
 
-			while (bgImages.size() > thread::hardware_concurrency() * 2) {
-				auto result = move(bgImages.front());
+			unique_lock<mutex> lckImages(mtxImages);
 
-				bgImages.pop_front();
-				dirImages.push_back((result.get()));
-
-				unique_lock<mutex> lckImages(mtxImages);
-
-				if (initStop)
-					return false;
-			}
+			if (initStop)
+				return false;
 		}
 	}
 
 	closedir(dir);
-
-	while (bgImages.size()) {
-		auto result = move(bgImages.front());
-
-		bgImages.pop_front();
-		dirImages.push_back(result.get());
-
-		unique_lock<mutex> lckImages(mtxImages);
-
-		if (initStop)
-			return false;
-	}
 
 	sort(dirImages.begin(), dirImages.end(), compareImage);
 	return true;
 }
 
 bool Fiv::addImage(shared_ptr<Image> image) {
-	if (image->load()) {
-		unique_lock<mutex> lckImages(mtxImages);
+	unique_lock<mutex> lckImages(mtxImages);
 
-		if (initStop)
-			return false;
+	if (initStop)
+		return false;
 
+	if (image) {
 		images.push_back(image);
 		preload(true);
 		imageAdded.notify_all();
@@ -262,12 +263,8 @@ bool Fiv::addImage(shared_ptr<Image> image) {
 
 		for (auto listener : getListeners())
 			listener->addImage();
-	} else {
-		unique_lock<mutex> lckImages(mtxImages);
-
-		if (initStop)
-			return false;
 	}
+
 	return true;
 }
 
