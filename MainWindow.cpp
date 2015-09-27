@@ -29,6 +29,7 @@
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <utility>
 
 #include "Fiv.hpp"
@@ -172,13 +173,16 @@ void MainWindow::updateAll() {
 
 void MainWindow::updateTitle() {
 	auto image = images->current();
-	pair<int,int> pos = images->position();
+	tuple<int,int,bool> pos = images->position();
 	stringstream title;
 
 	title << Fiv::appName << ": " << image->name;
 	if (images->hasMarkSupport())
 		title << (images->isMarked(image) ? " \u2611" : " \u2610");
-	title << " (" << pos.first << "/" << pos.second << ")";
+	title << " (" << get<0>(pos) << "/" << get<1>(pos);
+	if (!get<2>(pos))
+		title << "+";
+	title << ")";
 
 	set_title(title.str());
 }

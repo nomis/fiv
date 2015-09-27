@@ -24,6 +24,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <tuple>
 #include <unordered_set>
 #include <vector>
 
@@ -47,7 +48,7 @@ public:
 	bool previous();
 	bool next();
 	bool last();
-	std::pair<int,int> position();
+	std::tuple<int,int,bool> position();
 
 	bool hasMarkSupport();
 	bool isMarked(std::shared_ptr<Image> image);

@@ -39,6 +39,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -169,6 +170,11 @@ stop:
 	unique_lock<mutex> lckImages(mtxImages);
 	initImagesComplete = true;
 	imageAdded.notify_all();
+
+	lckImages.unlock();
+
+	for (auto listener : getListeners())
+		listener->addImage();
 }
 
 static bool compareImage(const shared_ptr<Image> &a, const shared_ptr<Image> &b) {
@@ -320,9 +326,9 @@ bool Fiv::last() {
 	return false;
 }
 
-pair<int,int> Fiv::position() {
+tuple<int,int,bool> Fiv::position() {
 	unique_lock<mutex> lckImages(mtxImages);
-	return pair<int,int>(distance(images.cbegin(), itCurrent) + 1, images.size());
+	return tuple<int,int,bool>(distance(images.cbegin(), itCurrent) + 1, images.size(), initImagesComplete);
 }
 
 bool Fiv::hasMarkSupport() {
