@@ -76,15 +76,18 @@ private:
 
 	static void runLoader(std::weak_ptr<Fiv> wSelf);
 
+	int maxPreload;
+	std::string markDirectory;
+
 	std::mutex mtxImages;
 	std::list<std::shared_ptr<Image>> images;
 	std::condition_variable imageAdded;
-	std::list<std::shared_ptr<Image>>::const_iterator itCurrent;
 	bool initImagesComplete;
 	bool initStop;
-	std::string markDirectory;
 
-	int maxPreload;
+	std::mutex mtxPosition;
+	std::list<std::shared_ptr<Image>>::const_iterator itCurrent;
+
 	std::shared_ptr<std::mutex> mtxLoad;
 	std::unordered_set<std::shared_ptr<Image>> loaded;
 	std::deque<std::shared_ptr<Image>> backgroundLoad;

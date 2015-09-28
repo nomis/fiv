@@ -318,6 +318,7 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const Gtk
 	//cout << "paint " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
 
 	if (afPoints) {
+		//start = chrono::steady_clock::now();
 		auto properties = image->getProperties();
 		valarray<double> dashes(5.0 / rscale, 5.0 / rscale);
 
@@ -343,6 +344,9 @@ void ImageDrawable::drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const Gtk
 		}
 
 		cr->restore();
+
+		//stop = chrono::steady_clock::now();
+		//cout << "afpaint " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
 	}
 }
 

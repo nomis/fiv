@@ -84,8 +84,10 @@ bool Fiv::init(int argc, char *argv[]) {
 	if (!initImagesInBackground(move(args)))
 		return false;
 
+	unique_lock<mutex> lckPosition(mtxPosition);
 	unique_lock<mutex> lckImages(mtxImages);
 	itCurrent = images.cbegin();
+	mtxPosition.unlock();
 	preloadImages();
 
 	weak_ptr<Fiv> wSelf = shared_from_this();
@@ -235,7 +237,7 @@ bool Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dir
 
 			dirImages.push_back(image);
 
-			unique_lock<mutex> lckImages(mtxImages);
+			lock_guard<mutex> lckImages(mtxImages);
 
 			if (initStop)
 				return false;
@@ -269,20 +271,22 @@ bool Fiv::addImage(shared_ptr<Image> image) {
 }
 
 shared_ptr<Image> Fiv::current() {
-	unique_lock<mutex> lckImages(mtxImages);
+	lock_guard<mutex> lckPosition(mtxPosition);
 	return *itCurrent;
 }
 
 void Fiv::orientation(Image::Orientation modify) {
-	unique_lock<mutex> lckImages(mtxImages);
+	lock_guard<mutex> lckPosition(mtxPosition);
 	auto image = *itCurrent;
 	image->setOrientation(modify);
 }
 
 bool Fiv::first() {
-	unique_lock<mutex> lckImages(mtxImages);
+	unique_lock<mutex> lckPosition(mtxPosition);
+	lock_guard<mutex> lckImages(mtxImages);
 	if (itCurrent != images.cbegin()) {
 		itCurrent = images.cbegin();
+		mtxPosition.unlock();
 		preloadImages();
 		return true;
 	}
@@ -290,9 +294,11 @@ bool Fiv::first() {
 }
 
 bool Fiv::previous() {
-	unique_lock<mutex> lckImages(mtxImages);
+	unique_lock<mutex> lckPosition(mtxPosition);
+	lock_guard<mutex> lckImages(mtxImages);
 	if (itCurrent != images.cbegin()) {
 		itCurrent--;
+		mtxPosition.unlock();
 		preloadImages();
 		return true;
 	}
@@ -300,11 +306,13 @@ bool Fiv::previous() {
 }
 
 bool Fiv::next() {
-	unique_lock<mutex> lckImages(mtxImages);
+	unique_lock<mutex> lckPosition(mtxPosition);
+	lock_guard<mutex> lckImages(mtxImages);
 	auto itNext = itCurrent;
 	itNext++;
 	if (itNext != images.cend()) {
 		itCurrent++;
+		mtxPosition.unlock();
 		preloadImages();
 		return true;
 	}
@@ -312,11 +320,13 @@ bool Fiv::next() {
 }
 
 bool Fiv::last() {
-	unique_lock<mutex> lckImages(mtxImages);
+	unique_lock<mutex> lckPosition(mtxPosition);
+	lock_guard<mutex> lckImages(mtxImages);
 	auto itLast = images.cend();
 	itLast--;
 	if (itCurrent != itLast) {
 		itCurrent = itLast;
+		mtxPosition.unlock();
 		preloadImages();
 		return true;
 	}
@@ -324,7 +334,8 @@ bool Fiv::last() {
 }
 
 tuple<int,int,bool> Fiv::position() {
-	unique_lock<mutex> lckImages(mtxImages);
+	lock_guard<mutex> lckPosition(mtxPosition);
+	lock_guard<mutex> lckImages(mtxImages);
 	return tuple<int,int,bool>(distance(images.cbegin(), itCurrent) + 1, images.size(), initImagesComplete);
 }
 
@@ -609,7 +620,7 @@ void Fiv::runLoader(weak_ptr<Fiv> wSelf) {
 			return;
 
 		if (loaded) {
-			unique_lock<mutex> lckLoad(*mtxLoad);
+			lock_guard<mutex> lckLoad(*mtxLoad);
 
 			self->loaded.insert(image);
 		}
