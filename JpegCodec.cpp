@@ -66,6 +66,7 @@ const Exiv2::ExifKey Exif_Canon_AFInfo("Exif.Canon.AFInfo");
 const string JpegCodec::MIME_TYPE = "image/jpeg";
 
 JpegCodec::JpegCodec() {
+	Exiv2::XmpParser::initialize();
 	atexit(&Exiv2::XmpParser::terminate);
 
 	width = 0;
