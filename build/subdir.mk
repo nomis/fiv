@@ -17,6 +17,7 @@ CPP_SRCS += \
 ../Magic.cpp \
 ../MainWindow.cpp \
 ../MemoryDataBuffer.cpp \
+../ThreadLocalStream.cpp \
 ../main.cpp 
 
 OBJS += \
@@ -33,6 +34,7 @@ OBJS += \
 ./Magic.o \
 ./MainWindow.o \
 ./MemoryDataBuffer.o \
+./ThreadLocalStream.o \
 ./main.o 
 
 CPP_DEPS += \
@@ -49,6 +51,7 @@ CPP_DEPS += \
 ./Magic.d \
 ./MainWindow.d \
 ./MemoryDataBuffer.d \
+./ThreadLocalStream.d \
 ./main.d 
 
 

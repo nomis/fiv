@@ -49,6 +49,7 @@
 #include "Events.hpp"
 #include "FileDataBuffer.hpp"
 #include "Image.hpp"
+#include "ThreadLocalStream.hpp"
 
 using namespace std;
 
@@ -161,7 +162,7 @@ void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
 		struct stat st;
 
 		if (access(filename.c_str(), R_OK)) {
-			perror(filename.c_str());
+			ThreadLocalEStream::perror(filename);
 			continue;
 		}
 
@@ -209,7 +210,7 @@ bool Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dir
 	struct dirent *entry;
 
 	if (dir == nullptr) {
-		perror(dirname.c_str());
+		ThreadLocalEStream::perror(dirname);
 		return true;
 	}
 
@@ -228,7 +229,7 @@ bool Fiv::initImagesFromDir(const string &dirname, deque<shared_ptr<Image>> &dir
 			}
 
 			if (access(filename.c_str(), R_OK)) {
-				perror(filename.c_str());
+				ThreadLocalEStream::perror(filename);
 				continue;
 			}
 

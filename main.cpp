@@ -17,14 +17,21 @@
 
 #include <glibmm/miscutils.h>
 #include <glibmmconfig.h>
+#include <iomanip>
+#include <iostream>
 #include <memory>
 
 #include "Application.hpp"
 #include "Fiv.hpp"
+#include "ThreadLocalStream.hpp"
 
 using namespace std;
 
 int main(int argc, char *argv[]) {
+	cout.rdbuf(&ThreadLocalOStream::instance);
+	cerr.rdbuf(&ThreadLocalEStream::instance);
+	clog.rdbuf(&ThreadLocalEStream::instance);
+
 	Glib::set_application_name(Fiv::appName);
 	auto app = make_shared<Application>();
 	int ret = app->run(argc, argv);

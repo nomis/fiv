@@ -26,6 +26,8 @@
 #include <iostream>
 #include <string>
 
+#include "ThreadLocalStream.hpp"
+
 using namespace std;
 
 FileDataBuffer::FileDataBuffer(const string &filename_) : filename(filename_) {
@@ -63,7 +65,7 @@ bool FileDataBuffer::load() {
 	return DataBuffer::load();
 
 err:
-	perror(filename.c_str());
+	ThreadLocalEStream::perror(filename);
 	if (fd >= 0)
 		close(fd);
 	return false;

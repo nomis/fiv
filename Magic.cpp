@@ -24,6 +24,8 @@
 #include <iostream>
 #include <string>
 
+#include "ThreadLocalStream.hpp"
+
 using namespace std;
 
 thread_local Magic Magic::instance;
@@ -31,7 +33,7 @@ thread_local Magic Magic::instance;
 Magic::Magic() {
 	cookie = magic_open(MAGIC_MIME_TYPE|MAGIC_CONTINUE|MAGIC_ERROR|MAGIC_NO_CHECK_BUILTIN);
 	if (cookie == nullptr) {
-		perror("magic_open");
+		ThreadLocalEStream::perror("magic_open");
 		return;
 	}
 
