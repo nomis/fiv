@@ -43,6 +43,7 @@ MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow() {
 	fullScreen = false;
 
 	set_default_size(1920/2, 1080/2);
+	maximize();
 
 	drawImage.setImages(images);
 	add(drawImage);
