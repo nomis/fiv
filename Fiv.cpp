@@ -54,7 +54,6 @@
 using namespace std;
 
 const string Fiv::appName = "fiv";
-const string Fiv::appId = "uk.uuid.fiv";
 
 Fiv::Fiv() {
 	initImagesComplete = false;

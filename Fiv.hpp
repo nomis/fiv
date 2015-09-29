@@ -60,7 +60,6 @@ public:
 	void addListener(std::weak_ptr<Events> listener);
 
 	static const std::string appName;
-	static const std::string appId;
 
 private:
 	bool initImagesInBackground(std::unique_ptr<std::list<std::string>> filenames);

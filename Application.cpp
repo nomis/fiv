@@ -33,7 +33,7 @@
 
 using namespace std;
 
-Application::Application() : Gtk::Application(Fiv::appId, Gio::APPLICATION_HANDLES_COMMAND_LINE) {
+Application::Application() : Gtk::Application(Glib::ustring(), Gio::APPLICATION_HANDLES_COMMAND_LINE) {
 
 }
 
