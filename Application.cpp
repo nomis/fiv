@@ -70,13 +70,13 @@ void Application::on_startup() {
 	{
 		auto mnuEdit = Gio::Menu::create();
 
-		mnuEdit->append("&Mark", "win.edit.mark");
+		mnuEdit->append("_Mark", "win.edit.mark");
 		set_accels_for_action("win.edit.mark", {"Insert"});
 
-		mnuEdit->append("&Toggle mark", "win.edit.toggleMark");
+		mnuEdit->append("_Toggle mark", "win.edit.toggleMark");
 		set_accels_for_action("win.edit.toggleMark", {"Tab"});
 
-		mnuEdit->append("&Unmark", "win.edit.unmark");
+		mnuEdit->append("_Unmark", "win.edit.unmark");
 		set_accels_for_action("win.edit.unmark", {"Delete"});
 
 		menubar->append_submenu("_Edit", mnuEdit);
