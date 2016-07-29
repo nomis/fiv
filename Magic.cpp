@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015-2016  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ using namespace std;
 thread_local Magic Magic::instance;
 
 Magic::Magic() {
-	cookie = magic_open(MAGIC_MIME_TYPE|MAGIC_CONTINUE|MAGIC_ERROR|MAGIC_NO_CHECK_BUILTIN);
+	cookie = magic_open(MAGIC_MIME_TYPE|MAGIC_ERROR|MAGIC_NO_CHECK_BUILTIN);
 	if (cookie == nullptr) {
 		ThreadLocalEStream::perror("magic_open");
 		return;
