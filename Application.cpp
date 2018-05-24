@@ -46,7 +46,7 @@ void Application::on_startup() {
 		auto mnuImage = Gio::Menu::create();
 
 		mnuImage->append("Rotate _Left", "win.image.rotateLeft");
-		set_accels_for_action("win.edit.rotateLeft", {"l"});
+		set_accels_for_action("win.image.rotateLeft", {"l"});
 
 		mnuImage->append("Rotate _Right", "win.image.rotateRight");
 		set_accels_for_action("win.image.rotateRight", {"r"});
