@@ -59,7 +59,7 @@ CPP_DEPS += \
 %.o: ../%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	${CXX} $(shell pkg-config --cflags cairomm-1.0) $(shell pkg-config --cflags exiv2) $(shell pkg-config --cflags gtkmm-3.0) $(CXXFLAGS) -std=c++14 -D_FILE_OFFSET_BITS=64 -DGL_GLEXT_PROTOTYPES -O2 -g -Wall -Wextra -Werror -c -fmessage-length=0 -Wshadow -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	${CXX} $(shell pkg-config --cflags cairomm-1.0) $(shell pkg-config --cflags exiv2) $(shell pkg-config --cflags gtkmm-3.0) $(CXXFLAGS) -std=c++14 -D_FILE_OFFSET_BITS=64 -DGL_GLEXT_PROTOTYPES -O2 -g -Wall -Wextra -Werror -c -fmessage-length=0 -Wshadow -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
