@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -34,6 +34,10 @@ MemoryDataBuffer::MemoryDataBuffer(unique_ptr<const uint8_t[]> buffer_, size_t l
 MemoryDataBuffer::MemoryDataBuffer(const Exiv2::DataBufRef &dataBuf) {
 	data = dataBuf.p.first;
 	length = dataBuf.p.second;
+}
+
+bool MemoryDataBuffer::load() {
+	return true;
 }
 
 void MemoryDataBuffer::unload() {

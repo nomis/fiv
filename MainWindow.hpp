@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -32,9 +32,9 @@
 
 class MainWindow: public Gtk::ApplicationWindow, public Events {
 public:
-	MainWindow(std::shared_ptr<Fiv> fiv_);
-	virtual void addImage();
-	virtual void loadedImage(std::shared_ptr<Image> image);
+	explicit MainWindow(std::shared_ptr<Fiv> fiv_);
+	void addImage() override;
+	void loadedImage(std::shared_ptr<Image> image) override;
 
 private:
 	void action_edit_mark();
@@ -52,7 +52,7 @@ private:
 	void redraw();
 	void updateAll();
 	void updateTitle();
-	virtual bool on_window_state_event(GdkEventWindowState *state);
+	bool on_window_state_event(GdkEventWindowState *state) override;
 
 	std::shared_ptr<Fiv> images;
 	ImageDrawable drawImage;

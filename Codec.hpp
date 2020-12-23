@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -32,15 +32,15 @@ class Image;
 
 class Codec {
 public:
-	Codec();
-	virtual ~Codec();
-	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
-	virtual int getWidth();
-	virtual int getHeight();
-	virtual Image::Orientation getOrientation();
-	virtual const Image::Properties getProperties();
-	virtual Cairo::RefPtr<Cairo::ImageSurface> getPrimary();
-	virtual Cairo::RefPtr<Cairo::ImageSurface> getThumbnail();
+	Codec() = default;
+	virtual ~Codec() = default;
+	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const = 0;
+	virtual int getWidth() const = 0;
+	virtual int getHeight() const = 0;
+	virtual Image::Orientation getOrientation() const = 0;
+	virtual const Image::Properties getProperties() const = 0;
+	virtual Cairo::RefPtr<Cairo::ImageSurface> getPrimary() const = 0;
+	virtual Cairo::RefPtr<Cairo::ImageSurface> getThumbnail() const = 0;
 
 protected:
 	Codec(std::shared_ptr<const Image> image);

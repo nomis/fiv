@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -40,15 +40,15 @@ class Application: public Gtk::Application, public std::enable_shared_from_this<
 public:
 	Application();
 #if !GLIBMM_CHECK_VERSION(2, 46, 0)
-	virtual void on_shutdown();
+	void on_shutdown() override;
 #endif
 
 protected:
-	virtual void on_startup();
-	virtual int on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &command_line);
-	virtual void on_activate();
+	void on_startup() override;
+	int on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &command_line);
+	void on_activate() override;
 #if GLIBMM_CHECK_VERSION(2, 46, 0)
-	virtual void on_shutdown();
+	void on_shutdown();
 #endif
 
 	void action_quit();

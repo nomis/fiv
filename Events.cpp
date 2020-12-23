@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -22,19 +22,3 @@
 #include "Image.hpp"
 
 using namespace std;
-
-Events::Events() {
-
-}
-
-Events::~Events() {
-
-}
-
-void Events::addImage() {
-
-}
-
-void Events::loadedImage(shared_ptr<Image> image __attribute__((unused))) {
-
-}

@@ -1,5 +1,5 @@
 /*
-	Copyright 2015  Simon Arlott
+	Copyright 2015,2020  Simon Arlott
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -58,7 +58,6 @@ const string Fiv::appName = "fiv";
 Fiv::Fiv() {
 	initImagesComplete = false;
 	initStop = false;
-	markDirectory = "";
 	maxPreload = 0;
 	itCurrent = images.cend();
 
@@ -505,7 +504,7 @@ vector<shared_ptr<Events>> Fiv::getListeners() {
 
 #ifndef __cpp_lib_make_reverse_iterator
 template<class Iterator>
-::std::reverse_iterator<Iterator> make_reverse_iterator(Iterator i) {
+constexpr ::std::reverse_iterator<Iterator> make_reverse_iterator(Iterator i) {
     return ::std::reverse_iterator<Iterator>(i);
 }
 #endif

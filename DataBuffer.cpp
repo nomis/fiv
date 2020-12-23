@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -22,24 +22,6 @@
 #include <iostream>
 
 using namespace std;
-
-DataBuffer::DataBuffer() {
-	data = nullptr;
-	length = 0;
-}
-
-DataBuffer::~DataBuffer() {
-
-}
-
-bool DataBuffer::load() {
-	return data != nullptr;
-}
-
-void DataBuffer::unload() {
-	data = nullptr;
-	length = 0;
-}
 
 string DataBuffer::getFilename() {
 	return "";

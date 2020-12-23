@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -29,8 +29,9 @@
 class MemoryDataBuffer: public DataBuffer {
 public:
 	MemoryDataBuffer(std::unique_ptr<const uint8_t[]> buffer, size_t length);
-	MemoryDataBuffer(const Exiv2::DataBufRef &dataBuf);
-	virtual void unload();
+	explicit MemoryDataBuffer(const Exiv2::DataBufRef &dataBuf);
+	bool load() override;
+	void unload() override;
 
 private:
 	std::unique_ptr<const uint8_t[]> buffer;

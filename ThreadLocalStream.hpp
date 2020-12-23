@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 class ThreadLocalOStream : public std::basic_streambuf<char, std::char_traits<char>> {
 public:
-	virtual ~ThreadLocalOStream();
+	~ThreadLocalOStream() = default;
 
 	static ThreadLocalOStream instance;
 
@@ -32,7 +32,7 @@ private:
 	ThreadLocalOStream();
 	ThreadLocalOStream& operator=(const ThreadLocalOStream&);
 	ThreadLocalOStream(const ThreadLocalOStream&);
-	virtual int_type overflow(int_type c = traits_type::eof());
+	int_type overflow(int_type c = traits_type::eof()) override;
 
 	static thread_local std::ostringstream buffer;
 
@@ -42,8 +42,8 @@ private:
 
 class ThreadLocalEStream : public std::basic_streambuf<char, std::char_traits<char>> {
 public:
-	virtual ~ThreadLocalEStream();
-	static void perror(std::string msg);
+	~ThreadLocalEStream() = default;
+	static void perror(const std::string &msg);
 
 	static ThreadLocalEStream instance;
 
@@ -51,7 +51,7 @@ private:
 	ThreadLocalEStream();
 	ThreadLocalEStream& operator=(const ThreadLocalEStream&);
 	ThreadLocalEStream(const ThreadLocalEStream&);
-	virtual int_type overflow(int_type c = traits_type::eof());
+	int_type overflow(int_type c = traits_type::eof()) override;
 
 	static thread_local std::ostringstream buffer;
 

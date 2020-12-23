@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -34,22 +34,21 @@ class Image;
 class JpegCodec: public Codec {
 public:
 	JpegCodec();
-	JpegCodec(std::shared_ptr<const Image> image);
-	virtual ~JpegCodec();
-	virtual std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const;
-	virtual int getWidth();
-	virtual int getHeight();
-	virtual Image::Orientation getOrientation();
-	virtual const Image::Properties getProperties();
-	virtual Cairo::RefPtr<Cairo::ImageSurface> getPrimary();
-	virtual Cairo::RefPtr<Cairo::ImageSurface> getThumbnail();
+	explicit JpegCodec(std::shared_ptr<const Image> image);
+	std::unique_ptr<Codec> getInstance(std::shared_ptr<const Image> image) const override;
+	int getWidth() const override;
+	int getHeight() const override;
+	Image::Orientation getOrientation() const override;
+	const Image::Properties getProperties() const override;
+	Cairo::RefPtr<Cairo::ImageSurface> getPrimary() const override;
+	Cairo::RefPtr<Cairo::ImageSurface> getThumbnail() const override;
 
 	static const std::string MIME_TYPE;
 
 private:
 	void initHeader();
 	void initExiv2();
-	std::unique_ptr<Exiv2::Image> getExiv2Data();
+	std::unique_ptr<Exiv2::Image> getExiv2Data() const;
 	void getCanonAF(const Exiv2::ExifData &exif);
 
 	int width;

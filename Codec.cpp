@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -23,42 +23,7 @@
 
 using namespace std;
 
-Codec::Codec() {
-
-}
-
-Codec::~Codec() {
-
-}
-
 Codec::Codec(shared_ptr<const Image> image_) : image(image_) {
 
 }
 
-unique_ptr<Codec> Codec::getInstance(shared_ptr<const Image> image_ __attribute__((unused))) const {
-	return unique_ptr<Codec>();
-}
-
-int Codec::getWidth() {
-	return 0;
-}
-
-int Codec::getHeight() {
-	return 0;
-}
-
-Image::Orientation Codec::getOrientation() {
-	return Image::Orientation(Image::Rotate::ROTATE_NONE, false);
-}
-
-const Image::Properties Codec::getProperties() {
-	return Image::Properties();
-}
-
-Cairo::RefPtr<Cairo::ImageSurface> Codec::getPrimary() {
-	return Cairo::RefPtr<Cairo::ImageSurface>();
-}
-
-Cairo::RefPtr<Cairo::ImageSurface> Codec::getThumbnail() {
-	return Cairo::RefPtr<Cairo::ImageSurface>();
-}

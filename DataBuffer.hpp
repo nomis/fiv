@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -24,19 +24,19 @@
 
 class DataBuffer {
 public:
-	virtual ~DataBuffer();
-	virtual bool load();
-	virtual void unload();
+	virtual ~DataBuffer() = default;
+	virtual bool load() = 0;
+	virtual void unload() = 0;
 	virtual std::string getFilename();
 	const uint8_t *begin() const;
 	const uint8_t *end() const;
 	size_t size() const;
 
 protected:
-	DataBuffer();
+	DataBuffer() = default;
 
-	const uint8_t *data;
-	size_t length;
+	const uint8_t *data = nullptr;
+	size_t length = 0;
 };
 
 #endif /* fiv__DATABUFFER_HPP_ */

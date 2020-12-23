@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -22,12 +22,12 @@
 
 class Image;
 
-class Events:  public std::enable_shared_from_this<Events> {
+class Events: public std::enable_shared_from_this<Events> {
 public:
-	Events();
-	virtual ~Events();
-	virtual void addImage();
-	virtual void loadedImage(std::shared_ptr<Image> image);
+	Events() = default;
+	virtual ~Events() = default;
+	virtual void addImage() = 0;
+	virtual void loadedImage(std::shared_ptr<Image> image) = 0;
 };
 
 #endif /* fiv__EVENTS_HPP_ */

@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -75,10 +75,6 @@ JpegCodec::JpegCodec() {
 	properties = Image::Properties();
 }
 
-JpegCodec::~JpegCodec() {
-
-}
-
 JpegCodec::JpegCodec(shared_ptr<const Image> image_) : Codec(image_) {
 	width = 0;
 	height = 0;
@@ -92,23 +88,23 @@ unique_ptr<Codec> JpegCodec::getInstance(shared_ptr<const Image> image_) const {
 	return make_unique<JpegCodec>(image_);
 }
 
-int JpegCodec::getWidth() {
+int JpegCodec::getWidth() const {
 	return width;
 }
 
-int JpegCodec::getHeight() {
+int JpegCodec::getHeight() const {
 	return height;
 }
 
-Image::Orientation JpegCodec::getOrientation() {
+Image::Orientation JpegCodec::getOrientation() const {
 	return orientation;
 }
 
-const Image::Properties JpegCodec::getProperties() {
+const Image::Properties JpegCodec::getProperties() const {
 	return properties;
 }
 
-Cairo::RefPtr<Cairo::ImageSurface> JpegCodec::getPrimary() {
+Cairo::RefPtr<Cairo::ImageSurface> JpegCodec::getPrimary() const {
 	Cairo::RefPtr<Cairo::ImageSurface> surface;
 	tjhandle tj;
 
@@ -137,7 +133,7 @@ err:
 	return surface;
 }
 
-Cairo::RefPtr<Cairo::ImageSurface> JpegCodec::getThumbnail() {
+Cairo::RefPtr<Cairo::ImageSurface> JpegCodec::getThumbnail() const {
 	unique_ptr<Exiv2::Image> exiv2 = getExiv2Data();
 	if (!exiv2)
 		return Cairo::RefPtr<Cairo::ImageSurface>();
@@ -169,7 +165,7 @@ void JpegCodec::initHeader() {
 	}
 }
 
-unique_ptr<Exiv2::Image> JpegCodec::getExiv2Data() {
+unique_ptr<Exiv2::Image> JpegCodec::getExiv2Data() const {
 	try {
 		unique_ptr<Exiv2::Image> tmp = Exiv2::ImageFactory::open(image->begin(), image->size());
 		if (tmp && tmp->good()) {

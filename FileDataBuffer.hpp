@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -24,15 +24,15 @@
 
 class FileDataBuffer: public DataBuffer {
 public:
-	FileDataBuffer(const std::string &filename);
-	virtual ~FileDataBuffer();
-	virtual bool load();
-	virtual void unload();
-	virtual std::string getFilename();
+	explicit FileDataBuffer(const std::string &filename);
+	~FileDataBuffer() override;
+	bool load() override;
+	void unload() override;
+	std::string getFilename() override;
 
 private:
 	std::string filename;
-	void *mapping;
+	void *mapping = nullptr;
 };
 
 #endif /* fiv__FILEDATABUFFER_HPP_ */

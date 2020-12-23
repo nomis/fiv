@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -50,8 +50,8 @@ private:
 			int &rwidth, int &rheight, double &rscale, double &rx, double &ry);
 	void finalisePosition();
 	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const Gtk::Allocation &allocation);
-	virtual bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr);
-	virtual bool on_scroll_event(GdkEventScroll *scroll);
+	bool on_draw(const Cairo::RefPtr<Cairo::Context> &cr) override;
+	bool on_scroll_event(GdkEventScroll *scroll) override;
 
 	std::shared_ptr<Fiv> images;
 

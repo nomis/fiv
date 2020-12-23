@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 using namespace std;
 
 FileDataBuffer::FileDataBuffer(const string &filename_) : filename(filename_) {
-	mapping = nullptr;
+
 }
 
 FileDataBuffer::~FileDataBuffer() {
@@ -62,7 +62,7 @@ bool FileDataBuffer::load() {
 		close(fd);
 	}
 
-	return DataBuffer::load();
+	return true;
 
 err:
 	ThreadLocalEStream::perror(filename);
@@ -72,8 +72,6 @@ err:
 }
 
 void FileDataBuffer::unload() {
-	DataBuffer::unload();
-
 	if (mapping != nullptr) {
 		munmap(mapping, length);
 

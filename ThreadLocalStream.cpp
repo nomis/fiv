@@ -1,5 +1,5 @@
 /*
- Copyright 2015  Simon Arlott
+ Copyright 2015,2020  Simon Arlott
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -35,10 +35,6 @@ ThreadLocalOStream::ThreadLocalOStream() : output(cout.rdbuf()) {
 
 }
 
-ThreadLocalOStream::~ThreadLocalOStream() {
-
-}
-
 char_traits<char>::int_type ThreadLocalOStream::overflow(char_traits<char>::int_type c) {
 	buffer.put(c);
 	if (c == '\n') {
@@ -54,10 +50,6 @@ ThreadLocalEStream::ThreadLocalEStream() : output(cerr.rdbuf()) {
 
 }
 
-ThreadLocalEStream::~ThreadLocalEStream() {
-
-}
-
 char_traits<char>::int_type ThreadLocalEStream::overflow(char_traits<char>::int_type c) {
 	buffer.put(c);
 	if (c == '\n') {
@@ -69,7 +61,7 @@ char_traits<char>::int_type ThreadLocalEStream::overflow(char_traits<char>::int_
 	return char_traits<char>::not_eof(c);
 }
 
-void ThreadLocalEStream::perror(std::string msg) {
+void ThreadLocalEStream::perror(const std::string &msg) {
 	thread_local char buf[4096];
 	cerr << msg << ": " << strerror_r(errno, buf, sizeof(buf)) << endl;
 }
