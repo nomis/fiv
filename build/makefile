@@ -43,7 +43,7 @@ all: fiv
 fiv: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	${CXX} $(LDFLAGS)  -o "fiv" $(OBJS) $(USER_OBJS) $(LIBS) $(shell pkg-config --libs cairomm-1.0) $(shell pkg-config --libs exiv2) $(shell pkg-config --libs gtkmm-3.0) $(LDLIBS)
+	$(CXX) $(LDFLAGS)  -o "fiv" $(OBJS) $(USER_OBJS) $(LIBS) $(shell pkg-config --libs cairomm-1.0) $(shell pkg-config --libs exiv2) $(shell pkg-config --libs gtkmm-3.0) $(LDLIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -53,6 +53,5 @@ clean:
 	-@echo ' '
 
 .PHONY: all clean dependents
-.SECONDARY:
 
 -include ../makefile.targets
