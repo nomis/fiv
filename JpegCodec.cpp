@@ -28,7 +28,7 @@
 #include <exiv2/properties.hpp>
 #include <exiv2/tags.hpp>
 #include <exiv2/types.hpp>
-#include <exiv2/xmp.hpp>
+#include <exiv2/xmp_exiv2.hpp>
 #include <turbojpeg.h>
 #include <algorithm>
 #include <chrono>
