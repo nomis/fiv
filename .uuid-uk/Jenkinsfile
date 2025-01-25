@@ -1,0 +1,76 @@
+/*
+Copyright 2025  Simon Arlott
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+@Library("uuid")
+import uk.uuid.jenkins.pipeline.Cron
+import uk.uuid.jenkins.pipeline.Email
+
+pipeline {
+	agent {
+		dockerfile {
+			label "Linux && Docker"
+			dir ".uuid-uk"
+			filename "Dockerfile"
+			args "--cap-drop=ALL --security-opt=no-new-privileges=true"
+		}
+	}
+	triggers {
+		cron("${Cron.schedule(this)}")
+	}
+	options {
+		disableConcurrentBuilds()
+	}
+	environment {
+		TMPDIR = "${WORKSPACE_TMP}"
+		DESTDIR = "${WORKSPACE_TMP}/DESTDIR"
+	}
+	stages {
+		stage("Checkout") {
+			steps {
+				sh "git clean -fdx"
+				sh "git fetch --tags"
+			}
+		}
+		stage("Prepare") {
+			steps {
+				dir(DESTDIR) {
+					deleteDir()
+				}
+			}
+		}
+		stage("Build") {
+			steps {
+				sh "make"
+			}
+		}
+		stage("Install") {
+			steps {
+				sh "make install"
+			}
+		}
+	}
+	post {
+		cleanup {
+			cleanWs()
+		}
+		always {
+			script {
+				Email.send(this)
+			}
+		}
+	}
+}
