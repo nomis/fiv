@@ -25,7 +25,7 @@ pipeline {
 			label "Linux && Docker"
 			dir ".uuid-uk"
 			filename "Dockerfile"
-			args "--cap-drop=ALL --security-opt=no-new-privileges=true"
+			args "--mount source=user-cache-debian-trixie-cargo,target=/home/user/.cargo"
 		}
 	}
 	triggers {
@@ -54,7 +54,7 @@ pipeline {
 		}
 		stage("Build") {
 			steps {
-				sh "make"
+				sh "make release"
 			}
 		}
 		stage("Install") {
