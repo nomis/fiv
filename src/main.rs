@@ -19,12 +19,17 @@
 mod fiv;
 mod gui;
 
-use crate::fiv::cmdline::Args;
+use crate::fiv::{CommandLineArgs, Files};
 use clap::Parser;
 use gtk::{glib, prelude::*};
 
 fn main() -> glib::ExitCode {
-	let _args = Args::parse();
+	let args = CommandLineArgs::parse();
+	let mut files = Files::new(&args);
 
-	gui::Application::default().run()
+	if files.start() {
+		gui::Application::default().run()
+	} else {
+		glib::ExitCode::FAILURE
+	}
 }

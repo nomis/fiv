@@ -17,6 +17,7 @@
  */
 
 use clap::Parser;
+use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -31,9 +32,9 @@ pub struct Args {
 
 	/// Location to use to mark images using symlinks
 	#[arg(short, long, value_names = ["PATH"])]
-	pub mark_directory: Option<std::path::PathBuf>,
+	pub mark_directory: Option<PathBuf>,
 
 	/// Image files or directories of image files to display
 	#[arg(value_names = ["FILE"], default_value = ".")]
-	pub files: Vec<std::path::PathBuf>,
+	pub files: Vec<PathBuf>,
 }

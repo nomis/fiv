@@ -1,6 +1,6 @@
 /*
  * fiv - Fast Image Viewer
- * Copyright 2025  Simon Arlott
+ * Copyright 2015,2025  Simon Arlott
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,10 +16,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod cmdline;
-mod files;
-mod image;
+use std::path::{Path, PathBuf};
 
-pub use cmdline::Args as CommandLineArgs;
-pub use files::Files;
-pub use image::Image;
+#[derive(Debug)]
+pub struct Image {
+	pub _filename: PathBuf,
+}
+
+impl Image {
+	pub fn new<P: AsRef<Path>>(filename: P) -> Self {
+		Self {
+			_filename: filename.as_ref().to_path_buf(),
+		}
+	}
+}
