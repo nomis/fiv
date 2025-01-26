@@ -1,6 +1,6 @@
 /*
  * fiv - Fast Image Viewer
- * Copyright 2025  Simon Arlott
+ * Copyright 2015,2018,2025  Simon Arlott
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,15 +16,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod fiv;
-mod gui;
-
-use crate::fiv::cmdline::Args;
 use clap::Parser;
-use gtk::{glib, prelude::*};
 
-fn main() -> glib::ExitCode {
-	let _args = Args::parse();
+#[derive(Debug, Parser)]
+#[command(
+	version,
+	display_name = "Fast Image Viewer",
+	about = "Display image files"
+)]
+pub struct Args {
+	/// Number of images to preload
+	#[arg(short, long, value_names = ["COUNT"], default_value_t = 100)]
+	pub preload: u32,
 
-	gui::Application::default().run()
+	/// Location to use to mark images using symlinks
+	#[arg(short, long, value_names = ["PATH"])]
+	pub mark_directory: Option<std::path::PathBuf>,
+
+	/// Image files or directories of image files to display
+	#[arg(value_names = ["FILE"], default_value = ".")]
+	pub files: Vec<std::path::PathBuf>,
 }

@@ -16,21 +16,4 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod imp;
-
-use gio::ApplicationFlags;
-use gtk::{gio, glib};
-
-glib::wrapper! {
-	pub struct Application(ObjectSubclass<imp::Application>)
-		@extends gio::Application, gtk::Application;
-}
-
-impl Default for Application {
-	fn default() -> Self {
-		glib::Object::builder()
-			.property("application-id", "uk.uuid.fiv")
-			.property("flags", ApplicationFlags::HANDLES_COMMAND_LINE)
-			.build()
-	}
-}
+pub mod cmdline;

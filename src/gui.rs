@@ -16,15 +16,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod fiv;
-mod gui;
+mod app;
 
-use crate::fiv::cmdline::Args;
-use clap::Parser;
-use gtk::{glib, prelude::*};
+use gio::ApplicationFlags;
+use gtk::{gio, glib};
 
-fn main() -> glib::ExitCode {
-	let _args = Args::parse();
+glib::wrapper! {
+	pub struct Application(ObjectSubclass<app::Application>)
+		@extends gio::Application, gtk::Application;
+}
 
-	gui::Application::default().run()
+impl Default for Application {
+	fn default() -> Self {
+		glib::Object::builder()
+			.property("application-id", "uk.uuid.fiv")
+			.property("flags", ApplicationFlags::HANDLES_COMMAND_LINE)
+			.build()
+	}
 }

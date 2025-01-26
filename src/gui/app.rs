@@ -1,6 +1,6 @@
 /*
  * fiv - Fast Image Viewer
- * Copyright 2025  Simon Arlott
+ * Copyright 2015,2018,2025  Simon Arlott
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +31,9 @@ impl ObjectSubclass for Application {
 impl ObjectImpl for Application {}
 
 impl ApplicationImpl for Application {
-	#[allow(clippy::needless_return)]
 	fn command_line(&self, _cmd: &gio::ApplicationCommandLine) -> glib::ExitCode {
 		self.activate();
-		return glib::ExitCode::SUCCESS;
+		glib::ExitCode::SUCCESS
 	}
 
 	fn activate(&self) {
