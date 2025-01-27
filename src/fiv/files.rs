@@ -20,11 +20,12 @@ use super::CommandLineArgs;
 use super::Image;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 #[derive(Debug)]
 pub struct Files<'app> {
 	args: &'app CommandLineArgs,
-	images: Vec<Image>,
+	images: Mutex<Vec<Image>>,
 }
 
 fn file_err<P: AsRef<Path>, E: std::error::Error>(path: P, err: E) {
@@ -55,25 +56,25 @@ impl Files<'_> {
 	pub fn new<'app>(args: &'app CommandLineArgs) -> Files<'app> {
 		Files::<'app> {
 			args,
-			images: Vec::new(),
+			images: Mutex::new(Vec::new()),
 		}
 	}
 
-	pub fn start(&mut self) -> bool {
+	pub fn start(&self) -> bool {
 		for file in &self.args.files {
 			self.load(file, true)
 		}
 
-		!self.images.is_empty()
+		!self.images.lock().unwrap().is_empty()
 	}
 
-	fn load(&mut self, file: &PathBuf, recurse: bool) {
+	fn load(&self, file: &PathBuf, recurse: bool) {
 		match fs::metadata(file) {
 			Err(err) => file_err(file, err),
 
 			Ok(metadata) => {
 				if metadata.is_file() {
-					self.images.push(Image::new(file))
+					self.images.lock().unwrap().push(Image::new(file))
 				} else if recurse && metadata.is_dir() {
 					for file in &sorted_dir_list(file) {
 						self.load(file, false)

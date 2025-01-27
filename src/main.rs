@@ -22,10 +22,11 @@ mod gui;
 use crate::fiv::{CommandLineArgs, Files};
 use clap::Parser;
 use gtk::{glib, prelude::*};
+use std::sync::Arc;
 
 fn main() -> glib::ExitCode {
 	let args = CommandLineArgs::parse();
-	let mut files = Files::new(&args);
+	let files = Arc::new(Files::new(&args));
 
 	if files.start() {
 		gui::Application::default().run()
