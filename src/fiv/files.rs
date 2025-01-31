@@ -20,11 +20,11 @@ use super::CommandLineArgs;
 use super::Image;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
-pub struct Files<'app> {
-	args: &'app CommandLineArgs,
+pub struct Files {
+	args: Arc<CommandLineArgs>,
 	images: Mutex<Vec<Image>>,
 }
 
@@ -52,12 +52,12 @@ fn sorted_dir_list(path: &Path) -> Vec<PathBuf> {
 	}
 }
 
-impl Files<'_> {
-	pub fn new<'app>(args: &'app CommandLineArgs) -> Files<'app> {
-		Files::<'app> {
+impl Files {
+	pub fn new(args: Arc<CommandLineArgs>) -> Arc<Files> {
+		Arc::new(Files {
 			args,
 			images: Mutex::new(Vec::new()),
-		}
+		})
 	}
 
 	pub fn start(&self) -> bool {

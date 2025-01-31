@@ -25,8 +25,8 @@ use gtk::{glib, prelude::*};
 use std::sync::Arc;
 
 fn main() -> glib::ExitCode {
-	let args = CommandLineArgs::parse();
-	let files = Arc::new(Files::new(&args));
+	let args = Arc::new(CommandLineArgs::parse());
+	let files = Files::new(args);
 
 	if files.start() {
 		gui::Application::default().run()
