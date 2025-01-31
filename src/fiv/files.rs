@@ -20,12 +20,16 @@ use super::CommandLineArgs;
 use super::Image;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
 
 #[derive(Debug)]
 pub struct Files {
 	args: Arc<CommandLineArgs>,
 	images: Mutex<Vec<Image>>,
+
+	/// start() has finished or loaded at least one image
+	start_ready: (Mutex<bool>, Condvar),
 }
 
 fn file_err<P: AsRef<Path>, E: std::error::Error>(path: P, err: E) {
@@ -57,27 +61,58 @@ impl Files {
 		Arc::new(Files {
 			args,
 			images: Mutex::new(Vec::new()),
+			start_ready: (Mutex::new(false), Condvar::new()),
 		})
 	}
 
-	pub fn start(&self) -> bool {
-		for file in &self.args.files {
-			self.load(file, true)
-		}
+	pub fn start(self: &Arc<Self>) -> bool {
+		let self_copy = self.clone();
 
+		thread::spawn(move || {
+			for file in &self_copy.args.filenames {
+				self_copy.load(file, true)
+			}
+
+			self_copy.start_set_ready();
+		});
+
+		self.wait_for_start_ready();
 		!self.images.lock().unwrap().is_empty()
 	}
 
-	fn load(&self, file: &PathBuf, recurse: bool) {
-		match fs::metadata(file) {
-			Err(err) => file_err(file, err),
+	fn start_set_ready(&self) {
+		let (lock, cv) = &self.start_ready;
+		let mut result = lock.lock().unwrap();
+
+		*result = true;
+		cv.notify_all();
+	}
+
+	fn wait_for_start_ready(&self) {
+		let (lock, cv) = &self.start_ready;
+		let mut result = lock.lock().unwrap();
+
+		while !*result {
+			result = cv.wait(result).unwrap();
+		}
+	}
+
+	fn load(&self, filename: &PathBuf, recurse: bool) {
+		match fs::metadata(filename) {
+			Err(err) => file_err(filename, err),
 
 			Ok(metadata) => {
 				if metadata.is_file() {
-					self.images.lock().unwrap().push(Image::new(file))
+					let mut images = self.images.lock().unwrap();
+
+					images.push(Image::new(filename));
+
+					if images.len() == 1 {
+						self.start_set_ready();
+					}
 				} else if recurse && metadata.is_dir() {
-					for file in &sorted_dir_list(file) {
-						self.load(file, false)
+					for filename in &sorted_dir_list(filename) {
+						self.load(filename, false);
 					}
 				}
 			}

@@ -36,5 +36,5 @@ pub struct Args {
 
 	/// Image files or directories of image files to display
 	#[arg(value_names = ["FILE"], default_value = ".")]
-	pub files: Vec<PathBuf>,
+	pub filenames: Vec<PathBuf>,
 }
