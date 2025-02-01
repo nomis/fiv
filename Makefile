@@ -16,8 +16,8 @@ release: | target
 
 dev: format clippy
 
-format:
-	rustfmt --verbose src/main.rs
+format: | target
+	cargo fmt --verbose
 
 clippy: | target
 	cargo clippy

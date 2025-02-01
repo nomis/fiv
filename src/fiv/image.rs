@@ -16,17 +16,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use anyhow::Error;
+use image::ImageReader;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Image {
 	pub _filename: PathBuf,
+	pub _width: u32,
+	pub _height: u32,
 }
 
 impl Image {
-	pub fn new<P: AsRef<Path>>(filename: P) -> Result<Self, String> {
-		Ok(Self {
+	pub fn new<P: AsRef<Path>>(filename: P) -> Result<super::Image, Error> {
+		let image = ImageReader::open(&filename)?.with_guessed_format()?;
+		let (width, height) = image.into_dimensions()?;
+
+		Ok(Image {
 			_filename: filename.as_ref().to_path_buf(),
+			_width: width,
+			_height: height,
 		})
 	}
 }
