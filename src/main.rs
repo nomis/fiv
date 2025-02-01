@@ -29,7 +29,7 @@ fn main() -> glib::ExitCode {
 	let files = Files::new(args);
 
 	if files.start() {
-		gui::Application::default().run()
+		gui::Application::new(files).run()
 	} else {
 		glib::ExitCode::FAILURE
 	}

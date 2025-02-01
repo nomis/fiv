@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Image {
-	pub _filename: PathBuf,
+	pub filename: PathBuf,
 	pub _width: u32,
 	pub _height: u32,
 }
@@ -33,7 +33,7 @@ impl Image {
 		let (width, height) = image.into_dimensions()?;
 
 		Ok(Image {
-			_filename: filename.as_ref().to_path_buf(),
+			filename: filename.as_ref().to_path_buf(),
 			_width: width,
 			_height: height,
 		})

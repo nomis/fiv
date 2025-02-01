@@ -16,10 +16,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use super::Files;
+use gtk::glib::once_cell::unsync::OnceCell;
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
+use std::cell::RefCell;
+use std::sync::Arc;
 
-#[derive(Debug, Default)]
-pub struct Application {}
+#[derive(Clone, Debug, Default, glib::Boxed)]
+#[boxed_type(name = "Files")]
+pub struct FilesWrapper {
+	pub files: Arc<Files>,
+}
+
+#[derive(Debug, Default, glib::Properties)]
+#[properties(wrapper_type = super::Application)]
+pub struct Application {
+	app_name: OnceCell<String>,
+	#[property(get, set = Self::set_files)]
+	files_wrapper: RefCell<FilesWrapper>, // Unused
+	files: OnceCell<Arc<Files>>,
+	window: OnceCell<gtk::ApplicationWindow>,
+}
 
 #[glib::object_subclass]
 impl ObjectSubclass for Application {
@@ -28,9 +45,47 @@ impl ObjectSubclass for Application {
 	type ParentType = gtk::Application;
 }
 
+#[glib::derived_properties]
 impl ObjectImpl for Application {}
 
+impl Application {
+	fn set_files(&self, value: FilesWrapper) {
+		self.files.set(value.files).unwrap();
+	}
+
+	pub fn update_title(&self) {
+		let window = self.window.get().unwrap();
+		let files = self.files.get().unwrap();
+		let current = files.current();
+
+		window.set_title(&format!(
+			"{}: {} ({}/{}{})",
+			self.app_name.get().unwrap(),
+			current.filename.display(),
+			current.position,
+			current.total,
+			if current.loading { "+" } else { "" }
+		));
+	}
+}
+
 impl ApplicationImpl for Application {
+	fn startup(&self) {
+		self.parent_startup();
+
+		self.app_name
+			.set(String::from(glib::application_name().unwrap()))
+			.unwrap();
+
+		self.window
+			.set(gtk::ApplicationWindow::new(&*self.obj()))
+			.unwrap();
+		let window = self.window.get().unwrap();
+
+		window.set_default_size(1920 / 2, 1080 / 2);
+	}
+
+	/// The command line is ignored here, see CommandLineArgs::parse()
 	fn command_line(&self, _cmd: &gio::ApplicationCommandLine) -> glib::ExitCode {
 		self.activate();
 		glib::ExitCode::SUCCESS
@@ -39,9 +94,10 @@ impl ApplicationImpl for Application {
 	fn activate(&self) {
 		self.parent_activate();
 
-		let window = gtk::ApplicationWindow::new(&*self.obj());
+		let window = self.window.get().unwrap();
 
-		window.set_default_size(1920 / 2, 1080 / 2);
+		self.update_title();
+
 		window.maximize();
 		window.show_all();
 		window.present();

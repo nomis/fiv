@@ -19,28 +19,50 @@
 use super::{CommandLineArgs, CommandLineFilenames, Image};
 use pariter::IteratorExt;
 use std::fmt::Display;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
 #[derive(Debug)]
 pub struct Files {
 	args: Arc<CommandLineArgs>,
 	images: Mutex<Vec<Image>>,
+	position: AtomicUsize,
 
 	/// start() has finished or loaded at least one image
 	start_ready: (Mutex<bool>, Condvar),
+	start_finished: (Mutex<bool>, Condvar),
+}
+
+#[derive(Debug)]
+pub struct Current {
+	pub filename: PathBuf,
+	pub position: usize,
+	pub total: usize,
+	pub loading: bool,
 }
 
 pub fn file_err<P: AsRef<Path>, E: Display>(path: P, err: E) {
 	eprintln!("{}: {}", path.as_ref().display(), err);
 }
 
+impl Default for Files {
+	fn default() -> Files {
+		Files {
+			args: Arc::new(CommandLineArgs::default()),
+			images: Mutex::new(Vec::new()),
+			position: AtomicUsize::new(0),
+			start_ready: (Mutex::new(false), Condvar::new()),
+			start_finished: (Mutex::new(false), Condvar::new()),
+		}
+	}
+}
+
 impl Files {
 	pub fn new(args: Arc<CommandLineArgs>) -> Arc<Files> {
 		Arc::new(Files {
 			args,
-			images: Mutex::new(Vec::new()),
-			start_ready: (Mutex::new(false), Condvar::new()),
+			..Default::default()
 		})
 	}
 
@@ -62,6 +84,7 @@ impl Files {
 					.for_each(|image| self_copy.load(image));
 
 				self_copy.start_set_ready();
+				self_copy.start_set_finished();
 			})
 			.unwrap();
 		});
@@ -72,6 +95,14 @@ impl Files {
 
 	fn start_set_ready(&self) {
 		let (lock, cv) = &self.start_ready;
+		let mut result = lock.lock().unwrap();
+
+		*result = true;
+		cv.notify_all();
+	}
+
+	fn start_set_finished(&self) {
+		let (lock, cv) = &self.start_finished;
 		let mut result = lock.lock().unwrap();
 
 		*result = true;
@@ -94,6 +125,19 @@ impl Files {
 
 		if images.len() == 1 {
 			self.start_set_ready();
+		}
+	}
+
+	pub fn current(&self) -> Current {
+		let images = self.images.lock().unwrap();
+		let position = self.position.load(Ordering::Acquire);
+		let image = &images[position];
+
+		Current {
+			filename: image.filename.clone(),
+			position: position + 1,
+			total: images.len(),
+			loading: !*self.start_finished.0.lock().unwrap(),
 		}
 	}
 }

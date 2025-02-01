@@ -23,7 +23,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Default, Parser)]
 #[command(
 	version,
 	display_name = "Fast Image Viewer",

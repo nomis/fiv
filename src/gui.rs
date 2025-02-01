@@ -18,19 +18,27 @@
 
 mod app;
 
+use super::Files;
 use gio::ApplicationFlags;
 use gtk::{gio, glib};
+use std::sync::Arc;
 
 glib::wrapper! {
 	pub struct Application(ObjectSubclass<app::Application>)
 		@extends gio::Application, gtk::Application;
 }
 
-impl Default for Application {
-	fn default() -> Self {
-		glib::Object::builder()
+impl Application {
+	pub fn new(files: Arc<Files>) -> Self {
+		let app: Application = glib::Object::builder()
 			.property("application-id", "uk.uuid.fiv")
-			.property("flags", ApplicationFlags::HANDLES_COMMAND_LINE)
-			.build()
+			.property(
+				"flags",
+				ApplicationFlags::HANDLES_COMMAND_LINE | ApplicationFlags::NON_UNIQUE,
+			)
+			.build();
+
+		app.set_files_wrapper(app::FilesWrapper { files });
+		app
 	}
 }
