@@ -21,5 +21,6 @@ mod files;
 mod image;
 
 pub use cmdline::Args as CommandLineArgs;
+pub use cmdline::Filenames as CommandLineFilenames;
 pub use files::Files;
 pub use image::Image;

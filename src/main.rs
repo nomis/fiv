@@ -26,7 +26,8 @@ use std::sync::Arc;
 
 fn main() -> glib::ExitCode {
 	let args = Arc::new(CommandLineArgs::parse());
-	let files = Files::new(args);
+	let pool = Arc::new(rayon::ThreadPoolBuilder::new().build().unwrap());
+	let files = Files::new(pool, args);
 
 	if files.start() {
 		gui::Application::default().run()

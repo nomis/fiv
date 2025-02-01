@@ -16,15 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use super::CommandLineArgs;
-use super::Image;
-use std::fs;
-use std::path::{Path, PathBuf};
+use super::{CommandLineArgs, CommandLineFilenames, Image};
+use rayon::{prelude::*, ThreadPool};
+use std::fmt::Display;
+use std::path::Path;
 use std::sync::{Arc, Condvar, Mutex};
-use std::thread;
 
 #[derive(Debug)]
 pub struct Files {
+	pool: Arc<ThreadPool>,
 	args: Arc<CommandLineArgs>,
 	images: Mutex<Vec<Image>>,
 
@@ -32,33 +32,14 @@ pub struct Files {
 	start_ready: (Mutex<bool>, Condvar),
 }
 
-fn file_err<P: AsRef<Path>, E: std::error::Error>(path: P, err: E) {
+pub fn file_err<P: AsRef<Path>, E: Display>(path: P, err: E) {
 	eprintln!("{}: {}", path.as_ref().display(), err);
 }
 
-fn sorted_dir_list(path: &Path) -> Vec<PathBuf> {
-	match fs::read_dir(path) {
-		Err(err) => {
-			file_err(path, err);
-			Vec::<PathBuf>::new()
-		}
-
-		Ok(dir) => {
-			let mut files: Vec<PathBuf> = dir
-				.flat_map(|res| {
-					res.map(|entry| entry.path().to_path_buf())
-						.map_err(|err| file_err(path, err))
-				})
-				.collect();
-			files.sort();
-			files
-		}
-	}
-}
-
 impl Files {
-	pub fn new(args: Arc<CommandLineArgs>) -> Arc<Files> {
+	pub fn new(pool: Arc<ThreadPool>, args: Arc<CommandLineArgs>) -> Arc<Files> {
 		Arc::new(Files {
+			pool,
 			args,
 			images: Mutex::new(Vec::new()),
 			start_ready: (Mutex::new(false), Condvar::new()),
@@ -68,10 +49,20 @@ impl Files {
 	pub fn start(self: &Arc<Self>) -> bool {
 		let self_copy = self.clone();
 
-		thread::spawn(move || {
-			for file in &self_copy.args.filenames {
-				self_copy.load(file, true)
-			}
+		self.pool.install(move || {
+			let filenames = CommandLineFilenames::new(&self_copy.args);
+
+			filenames
+				.par_bridge()
+				.filter_map(|filename| match Image::new(&filename) {
+					Err(err) => {
+						file_err(filename, err);
+						None
+					}
+
+					Ok(image) => Some(image),
+				})
+				.for_each(|image| self.load(image));
 
 			self_copy.start_set_ready();
 		});
@@ -97,25 +88,13 @@ impl Files {
 		}
 	}
 
-	fn load(&self, filename: &PathBuf, recurse: bool) {
-		match fs::metadata(filename) {
-			Err(err) => file_err(filename, err),
+	fn load(&self, image: Image) {
+		let mut images = self.images.lock().unwrap();
 
-			Ok(metadata) => {
-				if metadata.is_file() {
-					let mut images = self.images.lock().unwrap();
+		images.push(image);
 
-					images.push(Image::new(filename));
-
-					if images.len() == 1 {
-						self.start_set_ready();
-					}
-				} else if recurse && metadata.is_dir() {
-					for filename in &sorted_dir_list(filename) {
-						self.load(filename, false);
-					}
-				}
-			}
+		if images.len() == 1 {
+			self.start_set_ready();
 		}
 	}
 }

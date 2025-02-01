@@ -24,9 +24,9 @@ pub struct Image {
 }
 
 impl Image {
-	pub fn new<P: AsRef<Path>>(filename: P) -> Self {
-		Self {
+	pub fn new<P: AsRef<Path>>(filename: P) -> Result<Self, String> {
+		Ok(Self {
 			_filename: filename.as_ref().to_path_buf(),
-		}
+		})
 	}
 }
