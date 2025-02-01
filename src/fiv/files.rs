@@ -17,14 +17,13 @@
  */
 
 use super::{CommandLineArgs, CommandLineFilenames, Image};
-use rayon::{prelude::*, ThreadPool};
+use pariter::IteratorExt;
 use std::fmt::Display;
 use std::path::Path;
 use std::sync::{Arc, Condvar, Mutex};
 
 #[derive(Debug)]
 pub struct Files {
-	pool: Arc<ThreadPool>,
 	args: Arc<CommandLineArgs>,
 	images: Mutex<Vec<Image>>,
 
@@ -37,9 +36,8 @@ pub fn file_err<P: AsRef<Path>, E: Display>(path: P, err: E) {
 }
 
 impl Files {
-	pub fn new(pool: Arc<ThreadPool>, args: Arc<CommandLineArgs>) -> Arc<Files> {
+	pub fn new(args: Arc<CommandLineArgs>) -> Arc<Files> {
 		Arc::new(Files {
-			pool,
 			args,
 			images: Mutex::new(Vec::new()),
 			start_ready: (Mutex::new(false), Condvar::new()),
@@ -49,22 +47,23 @@ impl Files {
 	pub fn start(self: &Arc<Self>) -> bool {
 		let self_copy = self.clone();
 
-		self.pool.install(move || {
-			let filenames = CommandLineFilenames::new(&self_copy.args);
+		std::thread::spawn(move || {
+			pariter::scope(|scope| {
+				CommandLineFilenames::new(&self_copy.args)
+					.parallel_map_scoped(scope, |filename| match Image::new(&filename) {
+						Err(err) => {
+							file_err(filename, err);
+							None
+						}
 
-			filenames
-				.par_bridge()
-				.filter_map(|filename| match Image::new(&filename) {
-					Err(err) => {
-						file_err(filename, err);
-						None
-					}
+						Ok(image) => Some(image),
+					})
+					.flatten()
+					.for_each(|image| self_copy.load(image));
 
-					Ok(image) => Some(image),
-				})
-				.for_each(|image| self.load(image));
-
-			self_copy.start_set_ready();
+				self_copy.start_set_ready();
+			})
+			.unwrap();
 		});
 
 		self.wait_for_start_ready();
