@@ -16,11 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use super::{CommandLineArgs, CommandLineFilenames, Image};
+use super::{CommandLineArgs, CommandLineFilenames, Image, Waitable};
 use pariter::IteratorExt;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Default)]
 struct State {
@@ -34,8 +34,8 @@ pub struct Files {
 	state: Mutex<State>,
 
 	/// start() has finished or loaded at least one image
-	start_ready: (Mutex<bool>, Condvar),
-	start_finished: (Mutex<bool>, Condvar),
+	start_ready: Waitable<bool>,
+	start_finished: Waitable<bool>,
 }
 
 #[derive(Debug, Default)]
@@ -54,8 +54,8 @@ impl Default for Files {
 		Files {
 			args: Arc::new(CommandLineArgs::default()),
 			state: Mutex::new(State::default()),
-			start_ready: (Mutex::new(false), Condvar::new()),
-			start_finished: (Mutex::new(false), Condvar::new()),
+			start_ready: Waitable::new(false),
+			start_finished: Waitable::new(false),
 		}
 	}
 }
@@ -85,50 +85,25 @@ impl Files {
 					.flatten()
 					.for_each(|image| self_copy.load(image));
 
-				self_copy.start_set_ready();
-				self_copy.start_set_finished();
+				self_copy.start_ready.set(true);
+				self_copy.start_finished.set(true);
 			})
 			.unwrap();
 		});
 
-		self.wait_for_start_ready();
+		self.start_ready.wait(&true);
 		let state = self.state.lock().unwrap();
 		!state.images.is_empty()
 	}
 
-	fn start_set_ready(&self) {
-		let (lock, cv) = &self.start_ready;
-		let mut result = lock.lock().unwrap();
-
-		*result = true;
-		cv.notify_all();
-	}
-
-	fn start_set_finished(&self) {
-		let (lock, cv) = &self.start_finished;
-		let mut result = lock.lock().unwrap();
-
-		*result = true;
-		cv.notify_all();
-	}
-
-	fn wait_for_start_ready(&self) {
-		let (lock, cv) = &self.start_ready;
-		let mut result = lock.lock().unwrap();
-
-		while !*result {
-			result = cv.wait(result).unwrap();
-		}
-	}
-
 	fn load(&self, image: Image) {
 		if self.state.lock().unwrap().add(image) {
-			self.start_set_ready();
+			self.start_ready.set(true);
 		}
 	}
 
 	pub fn is_loading(&self) -> bool {
-		!*self.start_finished.0.lock().unwrap()
+		!self.start_finished.get()
 	}
 
 	pub fn current(&self) -> Current {

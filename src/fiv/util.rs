@@ -16,13 +16,38 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod cmdline;
-mod files;
-mod image;
-mod util;
+use std::sync::{Condvar, Mutex};
 
-pub use cmdline::Args as CommandLineArgs;
-pub use cmdline::Filenames as CommandLineFilenames;
-pub use files::Files;
-pub use image::Image;
-pub use util::Waitable;
+#[derive(Debug)]
+pub struct Waitable<T> {
+	value: Mutex<T>,
+	cv: Condvar,
+}
+
+impl<T: Copy + PartialEq<T>> Waitable<T> {
+	pub fn new(value: T) -> Self {
+		Self {
+			value: Mutex::new(value),
+			cv: Condvar::new(),
+		}
+	}
+
+	pub fn get(&self) -> T {
+		*self.value.lock().unwrap()
+	}
+
+	pub fn set(&self, value: T) {
+		let mut value_mg = self.value.lock().unwrap();
+
+		*value_mg = value;
+		self.cv.notify_all();
+	}
+
+	pub fn wait(&self, expect: &T) {
+		let mut actual = self.value.lock().unwrap();
+
+		while &*actual != expect {
+			actual = self.cv.wait(actual).unwrap();
+		}
+	}
+}
