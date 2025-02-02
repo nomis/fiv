@@ -20,26 +20,29 @@ use super::{CommandLineArgs, CommandLineFilenames, Image};
 use pariter::IteratorExt;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
+
+#[derive(Debug, Default)]
+struct State {
+	images: Vec<Image>,
+	position: usize,
+}
 
 #[derive(Debug)]
 pub struct Files {
 	args: Arc<CommandLineArgs>,
-	images: Mutex<Vec<Image>>,
-	position: AtomicUsize,
+	state: Mutex<State>,
 
 	/// start() has finished or loaded at least one image
 	start_ready: (Mutex<bool>, Condvar),
 	start_finished: (Mutex<bool>, Condvar),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Current {
 	pub filename: PathBuf,
 	pub position: usize,
 	pub total: usize,
-	pub loading: bool,
 }
 
 pub fn file_err<P: AsRef<Path>, E: Display>(path: P, err: E) {
@@ -50,8 +53,7 @@ impl Default for Files {
 	fn default() -> Files {
 		Files {
 			args: Arc::new(CommandLineArgs::default()),
-			images: Mutex::new(Vec::new()),
-			position: AtomicUsize::new(0),
+			state: Mutex::new(State::default()),
 			start_ready: (Mutex::new(false), Condvar::new()),
 			start_finished: (Mutex::new(false), Condvar::new()),
 		}
@@ -90,7 +92,8 @@ impl Files {
 		});
 
 		self.wait_for_start_ready();
-		!self.images.lock().unwrap().is_empty()
+		let state = self.state.lock().unwrap();
+		!state.images.is_empty()
 	}
 
 	fn start_set_ready(&self) {
@@ -119,25 +122,36 @@ impl Files {
 	}
 
 	fn load(&self, image: Image) {
-		let mut images = self.images.lock().unwrap();
-
-		images.push(image);
-
-		if images.len() == 1 {
+		if self.state.lock().unwrap().add(image) {
 			self.start_set_ready();
 		}
 	}
 
-	pub fn current(&self) -> Current {
-		let images = self.images.lock().unwrap();
-		let position = self.position.load(Ordering::Acquire);
-		let image = &images[position];
+	pub fn is_loading(&self) -> bool {
+		!*self.start_finished.0.lock().unwrap()
+	}
 
-		Current {
-			filename: image.filename.clone(),
-			position: position + 1,
-			total: images.len(),
-			loading: !*self.start_finished.0.lock().unwrap(),
+	pub fn current(&self) -> Current {
+		self.state.lock().unwrap().current()
+	}
+}
+
+impl State {
+	/// Returns true if this is the first image
+	pub fn add(&mut self, image: Image) -> bool {
+		self.images.push(image);
+		self.images.len() == 1
+	}
+
+	pub fn current(&self) -> Current {
+		if let Some(image) = self.images.get(self.position) {
+			Current {
+				filename: image.filename.clone(),
+				position: self.position + 1,
+				total: self.images.len(),
+			}
+		} else {
+			Current::default()
 		}
 	}
 }

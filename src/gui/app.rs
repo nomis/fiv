@@ -64,7 +64,7 @@ impl Application {
 			current.filename.display(),
 			current.position,
 			current.total,
-			if current.loading { "+" } else { "" }
+			if files.is_loading() { "+" } else { "" }
 		));
 	}
 }
