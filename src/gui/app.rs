@@ -19,21 +19,11 @@
 use super::Files;
 use gtk::glib::once_cell::unsync::OnceCell;
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
-use std::cell::RefCell;
 use std::sync::Arc;
 
-#[derive(Clone, Debug, Default, glib::Boxed)]
-#[boxed_type(name = "Files")]
-pub struct FilesWrapper {
-	pub files: Arc<Files>,
-}
-
-#[derive(Debug, Default, glib::Properties)]
-#[properties(wrapper_type = super::Application)]
+#[derive(Debug, Default)]
 pub struct Application {
 	app_name: OnceCell<String>,
-	#[property(get, set = Self::set_files)]
-	files_wrapper: RefCell<FilesWrapper>, // Unused
 	files: OnceCell<Arc<Files>>,
 	window: OnceCell<gtk::ApplicationWindow>,
 }
@@ -45,12 +35,11 @@ impl ObjectSubclass for Application {
 	type ParentType = gtk::Application;
 }
 
-#[glib::derived_properties]
 impl ObjectImpl for Application {}
 
 impl Application {
-	fn set_files(&self, value: FilesWrapper) {
-		self.files.set(value.files).unwrap();
+	pub fn set_files(&self, files: Arc<Files>) {
+		self.files.set(files).unwrap();
 	}
 
 	pub fn update_title(&self) {

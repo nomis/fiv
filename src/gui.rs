@@ -20,7 +20,7 @@ mod app;
 
 use super::Files;
 use gio::ApplicationFlags;
-use gtk::{gio, glib};
+use gtk::{gio, glib, subclass::prelude::*};
 use std::sync::Arc;
 
 glib::wrapper! {
@@ -38,7 +38,7 @@ impl Application {
 			)
 			.build();
 
-		app.set_files_wrapper(app::FilesWrapper { files });
+		app.imp().set_files(files);
 		app
 	}
 }
