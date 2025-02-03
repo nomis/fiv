@@ -17,21 +17,17 @@
  */
 
 use super::{CommandLineArgs, CommandLineFilenames, Image, Waitable};
+use async_notify::Notify;
 use pariter::IteratorExt;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-#[derive(Debug, Default)]
-struct State {
-	images: Vec<Image>,
-	position: usize,
-}
-
 #[derive(Debug)]
 pub struct Files {
 	args: Arc<CommandLineArgs>,
 	state: Mutex<State>,
+	notify: Notify,
 
 	/// start() has finished or loaded at least one image
 	start_ready: Waitable<bool>,
@@ -49,22 +45,14 @@ pub fn file_err<P: AsRef<Path>, E: Display>(path: P, err: E) {
 	eprintln!("{}: {}", path.as_ref().display(), err);
 }
 
-impl Default for Files {
-	fn default() -> Files {
-		Files {
-			args: Arc::new(CommandLineArgs::default()),
-			state: Mutex::new(State::default()),
-			start_ready: Waitable::new(false),
-			start_finished: Waitable::new(false),
-		}
-	}
-}
-
 impl Files {
 	pub fn new(args: Arc<CommandLineArgs>) -> Arc<Files> {
 		Arc::new(Files {
 			args,
-			..Default::default()
+			state: Mutex::new(State::default()),
+			notify: Notify::new(),
+			start_ready: Waitable::new(false),
+			start_finished: Waitable::new(false),
 		})
 	}
 
@@ -87,6 +75,7 @@ impl Files {
 
 				self_copy.start_ready.set(true);
 				self_copy.start_finished.set(true);
+				self_copy.update_ui();
 			})
 			.unwrap();
 		});
@@ -100,15 +89,30 @@ impl Files {
 		if self.state.lock().unwrap().add(image) {
 			self.start_ready.set(true);
 		}
+		self.update_ui();
 	}
 
 	pub fn is_loading(&self) -> bool {
 		!self.start_finished.get()
 	}
 
+	pub async fn ui_wait(&self) {
+		self.notify.notified().await;
+	}
+
+	pub fn update_ui(&self) {
+		self.notify.notify();
+	}
+
 	pub fn current(&self) -> Current {
 		self.state.lock().unwrap().current()
 	}
+}
+
+#[derive(Debug, Default)]
+struct State {
+	images: Vec<Image>,
+	position: usize,
 }
 
 impl State {

@@ -38,8 +38,25 @@ impl ObjectSubclass for Application {
 impl ObjectImpl for Application {}
 
 impl Application {
-	pub fn set_files(&self, files: Arc<Files>) {
+	pub fn init(&self, files: Arc<Files>) {
 		self.files.set(files).unwrap();
+
+		let self_ref = self.downgrade();
+
+		glib::MainContext::default().spawn_local(async move {
+			if let Some(app) = self_ref.upgrade() {
+				let files = app.files.get().unwrap();
+
+				loop {
+					files.ui_wait().await;
+					app.refresh();
+				}
+			}
+		});
+	}
+
+	pub fn refresh(&self) {
+		self.update_title();
 	}
 
 	pub fn update_title(&self) {
@@ -67,11 +84,14 @@ impl ApplicationImpl for Application {
 			.unwrap();
 
 		self.window
-			.set(gtk::ApplicationWindow::new(&*self.obj()))
+			.set(
+				gtk::ApplicationWindow::builder()
+					.application(&*self.obj())
+					.default_width(1920 / 2)
+					.default_height(1080 / 2)
+					.build(),
+			)
 			.unwrap();
-		let window = self.window.get().unwrap();
-
-		window.set_default_size(1920 / 2, 1080 / 2);
 	}
 
 	/// The command line is ignored here, see CommandLineArgs::parse()

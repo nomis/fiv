@@ -38,7 +38,7 @@ impl Application {
 			)
 			.build();
 
-		app.imp().set_files(files);
+		app.imp().init(files);
 		app
 	}
 }
