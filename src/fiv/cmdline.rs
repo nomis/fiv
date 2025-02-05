@@ -41,6 +41,10 @@ pub struct Args {
 	/// Image files or directories of image files to display
 	#[arg(value_names = ["FILE"], default_value = ".")]
 	pub filenames: Vec<PathBuf>,
+
+	/// Debug logging
+	#[arg(short, long, action = clap::ArgAction::Count)]
+	pub verbose: u8,
 }
 
 pub struct Filenames<'a> {

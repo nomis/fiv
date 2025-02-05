@@ -11,4 +11,6 @@ async-notify = "0.3.0"
 clap = { version = "4.5.27", features = ["derive", "wrap_help"] }
 gtk = "0.18.2"
 image = "0.25.5"
+log = "0.4.25"
 pariter = "0.5.1"
+stderrlog = "0.6.0"

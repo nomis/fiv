@@ -18,10 +18,12 @@
 
 use super::{CommandLineArgs, CommandLineFilenames, Image, Waitable};
 use async_notify::Notify;
+use log::debug;
 use pariter::IteratorExt;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 #[derive(Debug)]
 pub struct Files {
@@ -58,6 +60,7 @@ impl Files {
 
 	pub fn start(self: &Arc<Self>) -> bool {
 		let self_copy = self.clone();
+		self.state.lock().unwrap().start_begin = Instant::now();
 
 		std::thread::spawn(move || {
 			pariter::scope(|scope| {
@@ -73,6 +76,11 @@ impl Files {
 					.flatten()
 					.for_each(|image| self_copy.load(image));
 
+				debug!(
+					"Files loaded from command line in {:?}",
+					self_copy.state.lock().unwrap().start_begin.elapsed()
+				);
+
 				self_copy.start_ready.set(true);
 				self_copy.start_finished.set(true);
 				self_copy.update_ui();
@@ -86,7 +94,10 @@ impl Files {
 	}
 
 	fn load(&self, image: Image) {
-		if self.state.lock().unwrap().add(image) {
+		let mut state = self.state.lock().unwrap();
+		if state.add(image) {
+			debug!("First image loaded after {:?}", state.start_begin.elapsed());
+
 			self.start_ready.set(true);
 		}
 		self.update_ui();
@@ -109,10 +120,21 @@ impl Files {
 	}
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct State {
+	start_begin: Instant,
 	images: Vec<Image>,
 	position: usize,
+}
+
+impl Default for State {
+	fn default() -> Self {
+		Self {
+			start_begin: Instant::now(),
+			images: Vec::new(),
+			position: 0,
+		}
+	}
 }
 
 impl State {

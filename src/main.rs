@@ -26,6 +26,13 @@ use std::sync::Arc;
 
 fn main() -> glib::ExitCode {
 	let args = Arc::new(CommandLineArgs::parse());
+
+	stderrlog::new()
+		.module(module_path!())
+		.verbosity(usize::from(args.verbose) + 2)
+		.init()
+		.unwrap();
+
 	let files = Files::new(args);
 
 	if files.start() {

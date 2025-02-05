@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <climits>
 #include <condition_variable>
 #include <cstdbool>
@@ -52,6 +53,10 @@
 #include "ThreadLocalStream.hpp"
 
 using namespace std;
+
+using std::chrono::duration_cast;
+using std::chrono::nanoseconds;
+using std::chrono::steady_clock;
 
 const string Fiv::appName = "fiv";
 
@@ -156,6 +161,8 @@ bool Fiv::processBackgroundInitImages(deque<future<shared_ptr<Image>>> &bgImages
 void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
 	deque<future<shared_ptr<Image>>> bgImages;
 
+	start_begin = std::chrono::steady_clock::now();
+
 	for (auto filename : *filenames) {
 		struct stat st;
 
@@ -189,6 +196,11 @@ void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
 		goto stop;
 
 stop:
+	auto end = steady_clock::now();
+	std::cout << "Files loaded from command line in "
+		<< duration_cast<nanoseconds>(end - start_begin).count() / 1000000.0
+		<< "ms" << endl;
+
 	unique_lock<mutex> lckImages(mtxImages);
 	initImagesComplete = true;
 	imageAdded.notify_all();
@@ -257,6 +269,12 @@ bool Fiv::addImage(shared_ptr<Image> image) {
 
 	if (image) {
 		images.push_back(image);
+		if (images.size() == 1) {
+			auto end = steady_clock::now();
+			std::cout << "First image loaded after "
+				<< duration_cast<nanoseconds>(end - start_begin).count() / 1000000.0
+				<< "ms" << endl;
+		}
 		preloadImages(true);
 		imageAdded.notify_all();
 
@@ -628,4 +646,3 @@ void Fiv::runLoader(weak_ptr<Fiv> wSelf) {
 			listener->loadedImage(image);
 	}
 }
-
