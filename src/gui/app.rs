@@ -17,15 +17,23 @@
  */
 
 use super::Files;
+use gio::Menu;
+use gtk::gio::SimpleAction;
 use gtk::glib::once_cell::unsync::OnceCell;
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Default)]
 pub struct Application {
 	app_name: OnceCell<String>,
 	files: OnceCell<Arc<Files>>,
 	window: OnceCell<gtk::ApplicationWindow>,
+	state: Arc<Mutex<State>>,
+}
+
+#[derive(Debug, Default)]
+struct State {
+	full_screen: bool,
 }
 
 #[glib::object_subclass]
@@ -36,6 +44,70 @@ impl ObjectSubclass for Application {
 }
 
 impl ObjectImpl for Application {}
+
+#[derive(strum::AsRefStr)]
+#[strum(prefix = "app.")]
+enum AppAction {
+	Quit,
+}
+
+#[derive(strum::AsRefStr)]
+#[strum(prefix = "win.")]
+enum WinAction {
+	ViewFullScreen,
+}
+
+trait ApplicationExtActionEnum {
+	fn add_action_ext<F: Fn(&SimpleAction, Option<&glib::Variant>) + 'static>(
+		&self,
+		name: AppAction,
+		f: F,
+	);
+}
+
+impl ApplicationExtActionEnum for gtk::Application {
+	fn add_action_ext<F: Fn(&SimpleAction, Option<&glib::Variant>) + 'static>(
+		&self,
+		name: AppAction,
+		f: F,
+	) {
+		let action = SimpleAction::new(
+			name.as_ref()
+				.split_once('.')
+				.expect("Enum str values are prefixed with \"app.\"")
+				.1,
+			None,
+		);
+		action.connect_activate(f);
+		self.add_action(&action);
+	}
+}
+
+trait ApplicationWindowExtActionEnum {
+	fn add_action_ext<F: Fn(&SimpleAction, Option<&glib::Variant>) + 'static>(
+		&self,
+		name: WinAction,
+		f: F,
+	);
+}
+
+impl ApplicationWindowExtActionEnum for gtk::ApplicationWindow {
+	fn add_action_ext<F: Fn(&SimpleAction, Option<&glib::Variant>) + 'static>(
+		&self,
+		name: WinAction,
+		f: F,
+	) {
+		let action = SimpleAction::new(
+			name.as_ref()
+				.split_once('.')
+				.expect("Enum str values are prefixed with \"win.\"")
+				.1,
+			None,
+		);
+		action.connect_activate(f);
+		self.add_action(&action);
+	}
+}
 
 impl Application {
 	pub fn init(&self, files: Arc<Files>) {
@@ -55,11 +127,54 @@ impl Application {
 		});
 	}
 
-	pub fn refresh(&self) {
-		self.update_title();
+	fn build_menu(&self) {
+		let obj = self.obj();
+		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
+		let window = self.window.get().unwrap();
+		let menu_bar = Menu::new();
+		let image_menu = Menu::new();
+
+		image_menu.append(
+			Some("F_ull Screen"),
+			Some(WinAction::ViewFullScreen.as_ref()),
+		);
+		app.set_accels_for_action(WinAction::ViewFullScreen.as_ref(), &["F11"]);
+
+		image_menu.append(Some("_Quit"), Some(AppAction::Quit.as_ref()));
+		app.set_accels_for_action(AppAction::Quit.as_ref(), &["<Primary>q", "q", "<Alt>F4"]);
+
+		menu_bar.append_submenu(Some("_Image"), &image_menu);
+
+		app.set_menubar(Some(&menu_bar));
+
+		let state_copy = self.state.clone();
+
+		window.add_action_ext(
+			WinAction::ViewFullScreen,
+			glib::clone!(@weak window => move |_, _| {
+				let mut state = state_copy.lock().unwrap();
+
+				if state.full_screen {
+					window.set_show_menubar(true);
+					window.unfullscreen();
+					state.full_screen = false;
+				} else {
+					window.fullscreen();
+					window.set_show_menubar(false);
+					state.full_screen = true;
+				}
+			}),
+		);
+
+		app.add_action_ext(
+			AppAction::Quit,
+			glib::clone!(@weak app => move |_, _| {
+				app.quit();
+			}),
+		);
 	}
 
-	pub fn update_title(&self) {
+	pub fn refresh(&self) {
 		let window = self.window.get().unwrap();
 		let files = self.files.get().unwrap();
 		let current = files.current();
@@ -92,6 +207,8 @@ impl ApplicationImpl for Application {
 					.build(),
 			)
 			.unwrap();
+
+		self.build_menu();
 	}
 
 	/// The command line is ignored here, see CommandLineArgs::parse()
@@ -105,7 +222,7 @@ impl ApplicationImpl for Application {
 
 		let window = self.window.get().unwrap();
 
-		self.update_title();
+		self.refresh();
 
 		window.maximize();
 		window.show_all();
