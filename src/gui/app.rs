@@ -57,6 +57,38 @@ enum WinAction {
 	ViewFullScreen,
 }
 
+trait MenuExtActionEnum<T> {
+	fn append_ext(&self, label: &str, action: T);
+}
+
+impl MenuExtActionEnum<AppAction> for Menu {
+	fn append_ext(&self, label: &str, action: AppAction) {
+		self.append(Some(label), Some(action.as_ref()));
+	}
+}
+
+impl MenuExtActionEnum<WinAction> for Menu {
+	fn append_ext(&self, label: &str, action: WinAction) {
+		self.append(Some(label), Some(action.as_ref()));
+	}
+}
+
+trait ApplicationExtActionEnumAccels<T> {
+	fn set_accels_ext(&self, name: T, accels: &[&str]);
+}
+
+impl ApplicationExtActionEnumAccels<AppAction> for gtk::Application {
+	fn set_accels_ext(&self, name: AppAction, accels: &[&str]) {
+		self.set_accels_for_action(name.as_ref(), accels);
+	}
+}
+
+impl ApplicationExtActionEnumAccels<WinAction> for gtk::Application {
+	fn set_accels_ext(&self, name: WinAction, accels: &[&str]) {
+		self.set_accels_for_action(name.as_ref(), accels);
+	}
+}
+
 trait ApplicationExtActionEnum {
 	fn add_action_ext<F: Fn(&SimpleAction, Option<&glib::Variant>) + 'static>(
 		&self,
@@ -133,17 +165,18 @@ impl Application {
 		let window = self.window.get().unwrap();
 		let menu_bar = Menu::new();
 		let image_menu = Menu::new();
+		let edit_menu = Menu::new();
+		let view_menu = Menu::new();
 
-		image_menu.append(
-			Some("F_ull Screen"),
-			Some(WinAction::ViewFullScreen.as_ref()),
-		);
-		app.set_accels_for_action(WinAction::ViewFullScreen.as_ref(), &["F11"]);
-
-		image_menu.append(Some("_Quit"), Some(AppAction::Quit.as_ref()));
-		app.set_accels_for_action(AppAction::Quit.as_ref(), &["<Primary>q", "q", "<Alt>F4"]);
-
+		image_menu.append_ext("_Quit", AppAction::Quit);
+		app.set_accels_ext(AppAction::Quit, &["<Primary>q", "q", "<Alt>F4"]);
 		menu_bar.append_submenu(Some("_Image"), &image_menu);
+
+		menu_bar.append_submenu(Some("_Edit"), &edit_menu);
+
+		view_menu.append_ext("F_ull Screen", WinAction::ViewFullScreen);
+		app.set_accels_ext(WinAction::ViewFullScreen, &["F11"]);
+		menu_bar.append_submenu(Some("_View"), &view_menu);
 
 		app.set_menubar(Some(&menu_bar));
 
