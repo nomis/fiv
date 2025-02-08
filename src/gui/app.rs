@@ -17,6 +17,7 @@
  */
 
 use super::Files;
+use crate::fiv::Navigate;
 use gio::Menu;
 use gtk::gio::SimpleAction;
 use gtk::glib::once_cell::unsync::OnceCell;
@@ -45,15 +46,20 @@ impl ObjectSubclass for Application {
 
 impl ObjectImpl for Application {}
 
-#[derive(strum::AsRefStr)]
+#[derive(Copy, Clone, Debug, strum::AsRefStr)]
 #[strum(prefix = "app.")]
 enum AppAction {
 	Quit,
 }
 
-#[derive(strum::AsRefStr)]
+#[derive(Copy, Clone, Debug, strum::AsRefStr)]
 #[strum(prefix = "win.")]
+#[allow(clippy::enum_variant_names)]
 enum WinAction {
+	ViewFirst,
+	ViewPrevious,
+	ViewNext,
+	ViewLast,
 	ViewFullScreen,
 }
 
@@ -73,36 +79,12 @@ impl MenuExtActionEnum<WinAction> for Menu {
 	}
 }
 
-trait ApplicationExtActionEnumAccels<T> {
-	fn set_accels_ext(&self, name: T, accels: &[&str]);
+trait ApplicationAction<T> {
+	fn add_action(&self, name: T, f: fn(&Self, T), accels: &[&str]);
 }
 
-impl ApplicationExtActionEnumAccels<AppAction> for gtk::Application {
-	fn set_accels_ext(&self, name: AppAction, accels: &[&str]) {
-		self.set_accels_for_action(name.as_ref(), accels);
-	}
-}
-
-impl ApplicationExtActionEnumAccels<WinAction> for gtk::Application {
-	fn set_accels_ext(&self, name: WinAction, accels: &[&str]) {
-		self.set_accels_for_action(name.as_ref(), accels);
-	}
-}
-
-trait ApplicationExtActionEnum {
-	fn add_action_ext<F: Fn(&SimpleAction, Option<&glib::Variant>) + 'static>(
-		&self,
-		name: AppAction,
-		f: F,
-	);
-}
-
-impl ApplicationExtActionEnum for gtk::Application {
-	fn add_action_ext<F: Fn(&SimpleAction, Option<&glib::Variant>) + 'static>(
-		&self,
-		name: AppAction,
-		f: F,
-	) {
+impl ApplicationAction<AppAction> for Application {
+	fn add_action(&self, name: AppAction, f: fn(&Self, AppAction), accels: &[&str]) {
 		let action = SimpleAction::new(
 			name.as_ref()
 				.split_once('.')
@@ -110,25 +92,23 @@ impl ApplicationExtActionEnum for gtk::Application {
 				.1,
 			None,
 		);
-		action.connect_activate(f);
-		self.add_action(&action);
+
+		let self_ref = self.downgrade();
+		action.connect_activate(move |_, _| {
+			if let Some(app) = self_ref.upgrade() {
+				f(&app, name);
+			}
+		});
+
+		let obj = self.obj();
+		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
+		app.set_accels_for_action(name.as_ref(), accels);
+		app.add_action(&action);
 	}
 }
 
-trait ApplicationWindowExtActionEnum {
-	fn add_action_ext<F: Fn(&SimpleAction, Option<&glib::Variant>) + 'static>(
-		&self,
-		name: WinAction,
-		f: F,
-	);
-}
-
-impl ApplicationWindowExtActionEnum for gtk::ApplicationWindow {
-	fn add_action_ext<F: Fn(&SimpleAction, Option<&glib::Variant>) + 'static>(
-		&self,
-		name: WinAction,
-		f: F,
-	) {
+impl ApplicationAction<WinAction> for Application {
+	fn add_action(&self, name: WinAction, f: fn(&Self, WinAction), accels: &[&str]) {
 		let action = SimpleAction::new(
 			name.as_ref()
 				.split_once('.')
@@ -136,8 +116,20 @@ impl ApplicationWindowExtActionEnum for gtk::ApplicationWindow {
 				.1,
 			None,
 		);
-		action.connect_activate(f);
-		self.add_action(&action);
+
+		let self_ref = self.downgrade();
+		action.connect_activate(move |_, _| {
+			if let Some(app) = self_ref.upgrade() {
+				f(&app, name);
+			}
+		});
+
+		let obj = self.obj();
+		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
+		app.set_accels_for_action(name.as_ref(), accels);
+
+		let window = self.window.get().unwrap();
+		window.add_action(&action);
 	}
 }
 
@@ -162,49 +154,41 @@ impl Application {
 	fn build_menu(&self) {
 		let obj = self.obj();
 		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
-		let window = self.window.get().unwrap();
 		let menu_bar = Menu::new();
 		let image_menu = Menu::new();
+		let image_menu_app = Menu::new();
 		let edit_menu = Menu::new();
 		let view_menu = Menu::new();
+		let view_menu_nav = Menu::new();
+		let view_menu_win = Menu::new();
 
-		image_menu.append_ext("_Quit", AppAction::Quit);
-		app.set_accels_ext(AppAction::Quit, &["<Primary>q", "q", "<Alt>F4"]);
+		image_menu_app.append_ext("_Quit", AppAction::Quit);
+		self.add_action(AppAction::Quit, Self::quit, &["<Primary>q", "q", "<Alt>F4"]);
+		image_menu.append_section(None, &image_menu_app);
 		menu_bar.append_submenu(Some("_Image"), &image_menu);
 
 		menu_bar.append_submenu(Some("_Edit"), &edit_menu);
 
-		view_menu.append_ext("F_ull Screen", WinAction::ViewFullScreen);
-		app.set_accels_ext(WinAction::ViewFullScreen, &["F11"]);
+		view_menu_nav.append_ext("_Previous", WinAction::ViewPrevious);
+		self.add_action(WinAction::ViewPrevious, Self::view_navigate, &["Left"]);
+		view_menu_nav.append_ext("_Next", WinAction::ViewNext);
+		self.add_action(
+			WinAction::ViewNext,
+			Self::view_navigate,
+			&["Right", "Return"],
+		);
+		view_menu_nav.append_ext("_First", WinAction::ViewFirst);
+		self.add_action(WinAction::ViewFirst, Self::view_navigate, &["Home"]);
+		view_menu_nav.append_ext("_Last", WinAction::ViewLast);
+		self.add_action(WinAction::ViewLast, Self::view_navigate, &["End"]);
+		view_menu.append_section(None, &view_menu_nav);
+
+		view_menu_win.append_ext("F_ull Screen", WinAction::ViewFullScreen);
+		self.add_action(WinAction::ViewFullScreen, Self::view_fullscreen, &["F11"]);
+		view_menu.append_section(None, &view_menu_win);
 		menu_bar.append_submenu(Some("_View"), &view_menu);
 
 		app.set_menubar(Some(&menu_bar));
-
-		let state_copy = self.state.clone();
-
-		window.add_action_ext(
-			WinAction::ViewFullScreen,
-			glib::clone!(@weak window => move |_, _| {
-				let mut state = state_copy.lock().unwrap();
-
-				if state.full_screen {
-					window.set_show_menubar(true);
-					window.unfullscreen();
-					state.full_screen = false;
-				} else {
-					window.fullscreen();
-					window.set_show_menubar(false);
-					state.full_screen = true;
-				}
-			}),
-		);
-
-		app.add_action_ext(
-			AppAction::Quit,
-			glib::clone!(@weak app => move |_, _| {
-				app.quit();
-			}),
-		);
 	}
 
 	pub fn refresh(&self) {
@@ -220,6 +204,39 @@ impl Application {
 			current.total,
 			if files.is_loading() { "+" } else { "" }
 		));
+	}
+
+	fn view_navigate(&self, action: WinAction) {
+		let files = self.files.get().unwrap();
+
+		match action {
+			WinAction::ViewFirst => files.navigate(Navigate::First),
+			WinAction::ViewPrevious => files.navigate(Navigate::Previous),
+			WinAction::ViewNext => files.navigate(Navigate::Next),
+			WinAction::ViewLast => files.navigate(Navigate::Last),
+			_ => {}
+		}
+	}
+
+	fn view_fullscreen(&self, _action: WinAction) {
+		let window = self.window.get().unwrap();
+		let mut state = self.state.lock().unwrap();
+
+		if state.full_screen {
+			window.set_show_menubar(true);
+			window.unfullscreen();
+			state.full_screen = false;
+		} else {
+			window.fullscreen();
+			window.set_show_menubar(false);
+			state.full_screen = true;
+		}
+	}
+
+	fn quit(&self, _action: AppAction) {
+		let obj = self.obj();
+		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
+		app.quit();
 	}
 }
 

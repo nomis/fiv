@@ -43,6 +43,14 @@ pub struct Current {
 	pub total: usize,
 }
 
+#[derive(Debug)]
+pub enum Navigate {
+	First,
+	Previous,
+	Next,
+	Last,
+}
+
 pub fn file_err<P: AsRef<Path>, E: Display>(path: P, err: E) {
 	eprintln!("{}: {}", path.as_ref().display(), err);
 }
@@ -117,6 +125,36 @@ impl Files {
 
 	pub fn current(&self) -> Current {
 		self.state.lock().unwrap().current()
+	}
+
+	pub fn navigate(&self, action: Navigate) {
+		let mut state = self.state.lock().unwrap();
+
+		match action {
+			Navigate::First => {
+				state.position = 0;
+			}
+
+			Navigate::Previous => {
+				if state.position > 0 {
+					state.position -= 1;
+				}
+			}
+
+			Navigate::Next => {
+				if !state.images.is_empty() && state.position < state.images.len() - 1 {
+					state.position += 1;
+				}
+			}
+
+			Navigate::Last => {
+				if !state.images.is_empty() {
+					state.position = state.images.len() - 1;
+				}
+			}
+		}
+
+		self.update_ui();
 	}
 }
 

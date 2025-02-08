@@ -23,6 +23,6 @@ mod util;
 
 pub use cmdline::Args as CommandLineArgs;
 pub use cmdline::Filenames as CommandLineFilenames;
-pub use files::Files;
+pub use files::{Files, Navigate};
 pub use image::Image;
 pub use util::Waitable;
