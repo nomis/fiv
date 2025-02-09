@@ -13,6 +13,8 @@ gtk = "0.18.2"
 image = "0.25.5"
 log = "0.4.25"
 pariter = "0.5.1"
+pathdiff = "0.2.3"
 stderrlog = "0.6.0"
 strum = { version = "0.26.3", features = ["derive"] }
 strum_macros = "0.26.4"
+threadpool = "1.8.1"

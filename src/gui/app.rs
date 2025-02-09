@@ -17,7 +17,7 @@
  */
 
 use super::Files;
-use crate::fiv::Navigate;
+use crate::fiv::{Mark, Navigate};
 use gio::Menu;
 use gtk::gio::SimpleAction;
 use gtk::glib::once_cell::unsync::OnceCell;
@@ -54,8 +54,10 @@ enum AppAction {
 
 #[derive(Copy, Clone, Debug, strum::AsRefStr)]
 #[strum(prefix = "win.")]
-#[allow(clippy::enum_variant_names)]
 enum WinAction {
+	EditMark,
+	EditToggleMark,
+	EditUnmark,
 	ViewFirst,
 	ViewPrevious,
 	ViewNext,
@@ -154,10 +156,12 @@ impl Application {
 	fn build_menu(&self) {
 		let obj = self.obj();
 		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
+		let files = self.files.get().unwrap();
 		let menu_bar = Menu::new();
 		let image_menu = Menu::new();
 		let image_menu_app = Menu::new();
 		let edit_menu = Menu::new();
+		let edit_menu_mark = Menu::new();
 		let view_menu = Menu::new();
 		let view_menu_nav = Menu::new();
 		let view_menu_win = Menu::new();
@@ -167,20 +171,29 @@ impl Application {
 		image_menu.append_section(None, &image_menu_app);
 		menu_bar.append_submenu(Some("_Image"), &image_menu);
 
-		menu_bar.append_submenu(Some("_Edit"), &edit_menu);
+		if files.mark_supported() {
+			edit_menu_mark.append_ext("_Mark", WinAction::EditMark);
+			self.add_action(WinAction::EditMark, Self::files_action, &["Insert"]);
+			edit_menu_mark.append_ext("_Toggle mark", WinAction::EditToggleMark);
+			self.add_action(WinAction::EditToggleMark, Self::files_action, &["Tab"]);
+			edit_menu_mark.append_ext("_Unmark", WinAction::EditUnmark);
+			self.add_action(WinAction::EditUnmark, Self::files_action, &["Delete"]);
+			edit_menu.append_section(None, &edit_menu_mark);
+			menu_bar.append_submenu(Some("_Edit"), &edit_menu);
+		}
 
 		view_menu_nav.append_ext("_Previous", WinAction::ViewPrevious);
-		self.add_action(WinAction::ViewPrevious, Self::view_navigate, &["Left"]);
+		self.add_action(WinAction::ViewPrevious, Self::files_action, &["Left"]);
 		view_menu_nav.append_ext("_Next", WinAction::ViewNext);
 		self.add_action(
 			WinAction::ViewNext,
-			Self::view_navigate,
+			Self::files_action,
 			&["Right", "Return"],
 		);
 		view_menu_nav.append_ext("_First", WinAction::ViewFirst);
-		self.add_action(WinAction::ViewFirst, Self::view_navigate, &["Home"]);
+		self.add_action(WinAction::ViewFirst, Self::files_action, &["Home"]);
 		view_menu_nav.append_ext("_Last", WinAction::ViewLast);
-		self.add_action(WinAction::ViewLast, Self::view_navigate, &["End"]);
+		self.add_action(WinAction::ViewLast, Self::files_action, &["End"]);
 		view_menu.append_section(None, &view_menu_nav);
 
 		view_menu_win.append_ext("F_ull Screen", WinAction::ViewFullScreen);
@@ -197,19 +210,31 @@ impl Application {
 		let current = files.current();
 
 		window.set_title(&format!(
-			"{}: {} ({}/{}{})",
+			"{}: {}{} ({}/{}{})",
 			self.app_name.get().unwrap(),
 			current.filename.display(),
+			if files.mark_supported() {
+				match current.mark {
+					Some(true) => " ☑",
+					Some(false) => " ☐",
+					None => " ◌",
+				}
+			} else {
+				""
+			},
 			current.position,
 			current.total,
 			if files.is_loading() { "+" } else { "" }
 		));
 	}
 
-	fn view_navigate(&self, action: WinAction) {
+	fn files_action(&self, action: WinAction) {
 		let files = self.files.get().unwrap();
 
 		match action {
+			WinAction::EditMark => files.mark(Mark::Set),
+			WinAction::EditToggleMark => files.mark(Mark::Toggle),
+			WinAction::EditUnmark => files.mark(Mark::Unset),
 			WinAction::ViewFirst => files.navigate(Navigate::First),
 			WinAction::ViewPrevious => files.navigate(Navigate::Previous),
 			WinAction::ViewNext => files.navigate(Navigate::Next),
