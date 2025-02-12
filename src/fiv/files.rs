@@ -149,6 +149,7 @@ impl Files {
 		self.state.lock().unwrap().position()
 	}
 
+	/// Run a long task sequentially in the background (for file I/O)
 	fn seq_execute<F: FnOnce(&Image) + Send + 'static>(
 		self: &Arc<Self>,
 		current: Current,
@@ -158,10 +159,15 @@ impl Files {
 		let self_copy = self.clone();
 
 		self.seq_pool.execute(move || {
+			// To avoid wasting resources doing something that is no longer
+			// needed, check that we're still on the same image, unless this
+			// task must always be run
 			if always || current.position == self_copy.position() {
 				if let Some(image) = current.image {
 					f(&image);
 
+					// After running the task, if we're still on the same image
+					// then the UI for it needs to be updated
 					if current.position == self_copy.position() {
 						self_copy.update_ui();
 					}
