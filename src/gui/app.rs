@@ -143,14 +143,18 @@ impl Application {
 
 		glib::MainContext::default().spawn_local(async move {
 			if let Some(app) = self_ref.upgrade() {
-				let files = app.files.get().unwrap();
-
-				loop {
-					files.ui_wait().await;
-					app.refresh();
-				}
+				app.process_events().await;
 			}
 		});
+	}
+
+	async fn process_events(&self) {
+		let files = self.files.get().unwrap();
+
+		loop {
+			files.ui_wait().await;
+			self.refresh();
+		}
 	}
 
 	fn build_menu(&self) {

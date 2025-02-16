@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#![warn(clippy::shadow_unrelated)]
 mod fiv;
 mod gui;
 
