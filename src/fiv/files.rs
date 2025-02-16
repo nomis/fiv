@@ -154,7 +154,7 @@ impl Files {
 		self: &Arc<Self>,
 		current: Current,
 		always: bool,
-		f: F,
+		func: F,
 	) {
 		let self_copy = self.clone();
 
@@ -164,7 +164,7 @@ impl Files {
 			// task must always be run
 			if always || current.position == self_copy.position() {
 				if let Some(image) = current.image {
-					f(&image);
+					func(&image);
 
 					// After running the task, if we're still on the same image
 					// then the UI for it needs to be updated

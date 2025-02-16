@@ -82,11 +82,11 @@ impl MenuExtActionEnum<WinAction> for Menu {
 }
 
 trait ApplicationAction<T> {
-	fn add_action(&self, name: T, f: fn(&Self, T), accels: &[&str]);
+	fn add_action(&self, name: T, func: fn(&Self, T), accels: &[&str]);
 }
 
 impl ApplicationAction<AppAction> for Application {
-	fn add_action(&self, name: AppAction, f: fn(&Self, AppAction), accels: &[&str]) {
+	fn add_action(&self, name: AppAction, func: fn(&Self, AppAction), accels: &[&str]) {
 		let action = SimpleAction::new(
 			name.as_ref()
 				.split_once('.')
@@ -98,7 +98,7 @@ impl ApplicationAction<AppAction> for Application {
 		let self_ref = self.downgrade();
 		action.connect_activate(move |_, _| {
 			if let Some(app) = self_ref.upgrade() {
-				f(&app, name);
+				func(&app, name);
 			}
 		});
 
@@ -110,7 +110,7 @@ impl ApplicationAction<AppAction> for Application {
 }
 
 impl ApplicationAction<WinAction> for Application {
-	fn add_action(&self, name: WinAction, f: fn(&Self, WinAction), accels: &[&str]) {
+	fn add_action(&self, name: WinAction, func: fn(&Self, WinAction), accels: &[&str]) {
 		let action = SimpleAction::new(
 			name.as_ref()
 				.split_once('.')
@@ -122,7 +122,7 @@ impl ApplicationAction<WinAction> for Application {
 		let self_ref = self.downgrade();
 		action.connect_activate(move |_, _| {
 			if let Some(app) = self_ref.upgrade() {
-				f(&app, name);
+				func(&app, name);
 			}
 		});
 
