@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use super::draw::Draw;
 use super::Files;
 use crate::fiv::{Mark, Navigate};
 use gio::Menu;
@@ -29,7 +30,8 @@ pub struct Application {
 	app_name: OnceCell<String>,
 	files: OnceCell<Arc<Files>>,
 	window: OnceCell<gtk::ApplicationWindow>,
-	state: Arc<Mutex<State>>,
+	state: Mutex<State>,
+	draw: OnceCell<Draw>,
 }
 
 #[derive(Debug, Default)]
@@ -210,6 +212,7 @@ impl Application {
 
 	pub fn refresh(&self) {
 		let window = self.window.get().unwrap();
+		let draw = self.draw.get().unwrap();
 		let files = self.files.get().unwrap();
 		let current = files.current();
 
@@ -230,6 +233,10 @@ impl Application {
 			current.total,
 			if files.is_loading() { "+" } else { "" }
 		));
+
+		if let Some(image) = current.image {
+			draw.refresh(image);
+		}
 	}
 
 	fn files_action(&self, action: WinAction) {
@@ -288,6 +295,10 @@ impl ApplicationImpl for Application {
 			.unwrap();
 
 		self.build_menu();
+
+		let window = self.window.get().unwrap();
+
+		self.draw.set(Draw::new(|area| window.add(area))).unwrap();
 	}
 
 	/// The command line is ignored here, see CommandLineArgs::parse()

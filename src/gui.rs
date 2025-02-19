@@ -17,6 +17,7 @@
  */
 
 mod app;
+mod draw;
 
 use super::Files;
 use gio::ApplicationFlags;
