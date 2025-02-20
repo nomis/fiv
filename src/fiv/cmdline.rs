@@ -98,12 +98,9 @@ impl Iterator for Filenames<'_> {
 
 				Ok(metadata) => {
 					if metadata.is_file() {
-						return Some(filename.to_path_buf());
+						return Some(filename.clone());
 					} else if metadata.is_dir() && recurse {
 						self.dir_filenames = Some(sorted_dir_list(filename));
-						continue;
-					} else {
-						continue;
 					}
 				}
 			}
@@ -121,7 +118,7 @@ fn sorted_dir_list(path: &Path) -> VecDeque<PathBuf> {
 		Ok(dir) => {
 			let mut files: VecDeque<PathBuf> = dir
 				.flat_map(|res| {
-					res.map(|entry| entry.path().to_path_buf())
+					res.map(|entry| entry.path())
 						.map_err(|err| file_err(path, err))
 				})
 				.collect();

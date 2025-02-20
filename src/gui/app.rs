@@ -48,13 +48,13 @@ impl ObjectSubclass for Application {
 
 impl ObjectImpl for Application {}
 
-#[derive(Copy, Clone, Debug, strum::AsRefStr)]
+#[derive(Debug, Copy, Clone, strum::AsRefStr)]
 #[strum(prefix = "app.")]
 enum AppAction {
 	Quit,
 }
 
-#[derive(Copy, Clone, Debug, strum::AsRefStr)]
+#[derive(Debug, Copy, Clone, strum::AsRefStr)]
 #[strum(prefix = "win.")]
 enum WinAction {
 	EditMark,
@@ -301,7 +301,7 @@ impl ApplicationImpl for Application {
 		self.draw.set(Draw::new(|area| window.add(area))).unwrap();
 	}
 
-	/// The command line is ignored here, see CommandLineArgs::parse()
+	/// The command line is ignored here, see `CommandLineArgs::parse()`
 	fn command_line(&self, _cmd: &gio::ApplicationCommandLine) -> glib::ExitCode {
 		self.activate();
 		glib::ExitCode::SUCCESS

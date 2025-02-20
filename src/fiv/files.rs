@@ -33,7 +33,7 @@ pub struct Files {
 	notify: Notify,
 	seq_pool: ThreadPool,
 
-	/// start() has finished or loaded at least one image
+	/// `start()` has finished or loaded at least one image
 	start_ready: Waitable<bool>,
 	start_finished: Waitable<bool>,
 }
@@ -47,7 +47,7 @@ pub struct Current {
 	pub mark: Option<bool>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Navigate {
 	First,
 	Previous,
@@ -91,7 +91,7 @@ impl Files {
 
 				CommandLineFilenames::new(&self_copy.args)
 					.parallel_map_scoped(scope, move |filename| {
-						Image::new(&canonical_mark_directory, &filename)
+						Image::new(canonical_mark_directory.as_ref(), &filename)
 							.map_err(|err| file_err(&filename, err))
 							.ok()
 					})
@@ -182,7 +182,7 @@ impl Files {
 		state.navigate(action);
 
 		if self.args.mark_directory.is_some() {
-			self.seq_execute(state.current(), false, |image| image.refresh_mark());
+			self.seq_execute(state.current(), false, Image::refresh_mark);
 		}
 		self.update_ui();
 	}
@@ -190,7 +190,7 @@ impl Files {
 	pub fn mark(self: &Arc<Self>, mark: Mark) {
 		if self.args.mark_directory.is_some() {
 			self.seq_execute(self.state.lock().unwrap().current(), true, move |image| {
-				image.mark(mark)
+				image.mark(mark);
 			});
 		}
 	}

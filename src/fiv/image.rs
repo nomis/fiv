@@ -79,12 +79,12 @@ pub enum Rotate {
 
 impl Image {
 	pub fn new<P: AsRef<Path>>(
-		canonical_mark_directory: &Option<PathBuf>,
+		canonical_mark_directory: Option<&PathBuf>,
 		filename: P,
 	) -> Result<super::Image, Error> {
 		let reader = ImageReader::open(&filename)?.with_guessed_format()?;
 		let path = filename.as_ref().to_path_buf();
-		let mark_link = mark_link(&canonical_mark_directory, &path);
+		let mark_link = mark_link(canonical_mark_directory, &path);
 		let (width, height) = reader.into_dimensions()?;
 		let image = Image {
 			filename: path,
@@ -150,13 +150,13 @@ impl Image {
 			if mark {
 				symlink(&link.target, &link.name).unwrap_or_else(|err| {
 					if err.kind() != io::ErrorKind::AlreadyExists || !suppress_error {
-						file_err(&link.name, err)
+						file_err(&link.name, err);
 					}
 				});
 			} else {
 				remove_file(&link.name).unwrap_or_else(|err| {
 					if err.kind() != io::ErrorKind::NotFound {
-						file_err(&link.name, err)
+						file_err(&link.name, err);
 					}
 				});
 			}
@@ -181,21 +181,19 @@ impl Image {
 	}
 }
 
-fn mark_link(mark_directory: &Option<PathBuf>, filename: &PathBuf) -> Option<Link> {
-	if let Some(mut directory) = mark_directory.clone() {
+fn mark_link(mark_directory: Option<&PathBuf>, filename: &PathBuf) -> Option<Link> {
+	if let Some(directory) = mark_directory {
 		match filename.canonicalize() {
 			Ok(abs_filename) => {
 				if let Some(basename) = filename.file_name() {
-					if let Some(target) = diff_paths(abs_filename, &directory) {
-						directory.push(basename);
-						Some(Link {
-							name: directory,
-							target,
-						})
-					} else {
-						// One of the arguments is not absolute, which can't happen
-						None
-					}
+					diff_paths(abs_filename, directory).map(|target| Link {
+						name: {
+							let mut directory = directory.clone();
+							directory.push(basename);
+							directory
+						},
+						target,
+					})
 				} else {
 					// Image filename ends in "..", which can't happen
 					None
@@ -238,16 +236,16 @@ fn mark_link(mark_directory: &Option<PathBuf>, filename: &PathBuf) -> Option<Lin
 
 impl ImageData {
 	pub fn new(format: cairo::Format, width: u32, height: u32) -> Self {
-		assert!(width <= i32::MAX as u32);
-		assert!(height <= i32::MAX as u32);
-		let stride = format.stride_for_width(width).unwrap();
+		assert!(i32::try_from(width).is_ok());
+		assert!(i32::try_from(height).is_ok());
+		let stride = u32::try_from(format.stride_for_width(width).unwrap()).unwrap();
 
 		Self {
 			data: Some(vec![0; stride as usize * height as usize].into()),
 			format,
 			width: width.try_into().unwrap(),
 			height: height.try_into().unwrap(),
-			stride,
+			stride: stride.try_into().unwrap(),
 		}
 	}
 
@@ -283,7 +281,7 @@ impl ImageData {
 
 				func(&surface, true);
 
-				// Now the surface will be destroyed and the pixels are stored in the return_location
+				// Now the surface will be destroyed and the pixels are stored in the return location
 			}
 
 			// Move the pixels back again
@@ -300,7 +298,7 @@ impl ImageData {
 }
 
 /// Helper struct that allows passing the pixels to the Cairo image surface and once the
-/// image surface is destroyed the pixels will be stored in the return_location.
+/// image surface is destroyed the pixels will be stored in the `return_location`.
 ///
 /// This allows us to give temporary ownership of the pixels to the Cairo surface and later
 /// retrieve them back in a safe way while ensuring that nothing else still has access to
@@ -319,8 +317,8 @@ impl ImageHolder {
 	}
 }
 
-/// This stores the pixels back into the return_location as now nothing
-/// references the pixels anymore
+/// This stores the pixels back into the `return_location` as now nothing
+/// references the pixels
 impl Drop for ImageHolder {
 	fn drop(&mut self) {
 		*self.return_location.borrow_mut() = Some(self.image.take().expect("Holding no image"));

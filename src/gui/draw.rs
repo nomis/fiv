@@ -149,23 +149,23 @@ impl ImageDraw {
 						Rotate::Rotate0 => {}
 
 						Rotate::Rotate90 => {
-							context.translate(image.height as f64, 0.0);
+							context.translate(f64::from(image.height), 0.0);
 							context.rotate(90.0);
 						}
 
 						Rotate::Rotate180 => {
-							context.translate(image.width as f64, image.height as f64);
+							context.translate(f64::from(image.width), f64::from(image.height));
 							context.rotate(180.0);
 						}
 
 						Rotate::Rotate270 => {
-							context.translate(0.0, image.width as f64);
+							context.translate(0.0, f64::from(image.width));
 							context.rotate(270.0);
 						}
 					};
 
 					if self.orientation.horizontal_flip {
-						context.translate(image.width as f64, 0.0);
+						context.translate(f64::from(image.width), 0.0);
 						context.scale(-1.0, 1.0);
 					}
 
@@ -189,17 +189,17 @@ impl ImageDraw {
 		}
 	}
 
-	fn calc_position(
-		&self,
-		allocation: &gtk::Rectangle,
-		image: &Arc<Image>,
-	) -> Render {
-		let output_width = allocation.width() as f64;
-		let output_height = allocation.height() as f64;
+	fn calc_position(&self, allocation: &gtk::Rectangle, image: &Arc<Image>) -> Render {
+		let output_width = f64::from(allocation.width());
+		let output_height = f64::from(allocation.height());
 
 		let (width, height) = match self.orientation.rotate {
-			Rotate::Rotate0 | Rotate::Rotate180 => (image.width as f64, image.height as f64),
-			Rotate::Rotate90 | Rotate::Rotate270 => (image.height as f64, image.width as f64),
+			Rotate::Rotate0 | Rotate::Rotate180 => {
+				(f64::from(image.width), f64::from(image.height))
+			}
+			Rotate::Rotate90 | Rotate::Rotate270 => {
+				(f64::from(image.height), f64::from(image.width))
+			}
 		};
 
 		let (x, y, scale) = if self.position.zoom.is_nan() {
