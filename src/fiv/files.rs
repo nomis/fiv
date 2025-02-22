@@ -20,8 +20,7 @@ use super::{CommandLineArgs, CommandLineFilenames, Image, Mark, Waitable};
 use async_notify::Notify;
 use log::{debug, error};
 use pariter::IteratorExt;
-use std::fmt::Display;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use threadpool::ThreadPool;
@@ -55,10 +54,6 @@ pub enum Navigate {
 	Last,
 }
 
-pub fn file_err<P: AsRef<Path>, E: Display>(path: P, err: E) {
-	error!("{}: {}", path.as_ref().display(), err);
-}
-
 impl Files {
 	pub fn new(args: Arc<CommandLineArgs>) -> Arc<Files> {
 		Arc::new(Files {
@@ -85,14 +80,14 @@ impl Files {
 						.and_then(|directory| {
 							directory
 								.canonicalize()
-								.map_err(|err| file_err(directory, err))
+								.map_err(|err| error!("{}: {err}", directory.display()))
 								.ok()
 						});
 
 				CommandLineFilenames::new(&self_copy.args)
 					.parallel_map_scoped(scope, move |filename| {
 						Image::new(canonical_mark_directory.as_ref(), &filename)
-							.map_err(|err| file_err(&filename, err))
+							.map_err(|err| error!("{}: {err}", filename.display()))
 							.ok()
 					})
 					.flatten()

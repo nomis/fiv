@@ -17,11 +17,10 @@
  */
 
 use super::codecs::{Codec, Codecs, Generic};
-use super::files::file_err;
 use anyhow::Error;
 use bytemuck::{cast_slice, cast_slice_mut};
 use gtk::cairo;
-use log::trace;
+use log::{error, trace};
 use pathdiff::diff_paths;
 use std::cell::RefCell;
 use std::fs::{read_link, remove_file};
@@ -153,7 +152,7 @@ impl Image {
 					if err.kind() == io::ErrorKind::NotFound {
 						Some(false)
 					} else {
-						file_err(&link.name, err);
+						error!("{}: {err}", link.name.display());
 						None
 					}
 				}
@@ -173,13 +172,13 @@ impl Image {
 			if mark {
 				symlink(&link.target, &link.name).unwrap_or_else(|err| {
 					if err.kind() != io::ErrorKind::AlreadyExists || !suppress_error {
-						file_err(&link.name, err);
+						error!("{}: {err}", link.name.display());
 					}
 				});
 			} else {
 				remove_file(&link.name).unwrap_or_else(|err| {
 					if err.kind() != io::ErrorKind::NotFound {
-						file_err(&link.name, err);
+						error!("{}: {err}", link.name.display());
 					}
 				});
 			}
@@ -194,7 +193,7 @@ impl Image {
 			match self.codec.primary(&self.filename, self.width, self.height) {
 				Ok(primary) => primary.image_data,
 				Err(err) => {
-					file_err(&self.filename, err);
+					error!("{}: {err}", self.filename.display());
 					ImageData::failed()
 				}
 			},
@@ -230,7 +229,7 @@ impl Image {
 	}
 }
 
-fn mark_link(mark_directory: Option<&PathBuf>, filename: &PathBuf) -> Option<Link> {
+fn mark_link(mark_directory: Option<&PathBuf>, filename: &Path) -> Option<Link> {
 	if let Some(directory) = mark_directory {
 		match filename.canonicalize() {
 			Ok(abs_filename) => {
@@ -250,7 +249,7 @@ fn mark_link(mark_directory: Option<&PathBuf>, filename: &PathBuf) -> Option<Lin
 			}
 
 			Err(err) => {
-				file_err(filename, err);
+				error!("{}: {err}", filename.display());
 				None
 			}
 		}

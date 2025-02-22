@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use super::files::file_err;
 use clap::Parser;
+use log::error;
 use std::collections::VecDeque;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -92,7 +92,7 @@ impl Iterator for Filenames<'_> {
 
 			match fs::metadata(filename) {
 				Err(err) => {
-					file_err(filename, err);
+					error!("{}: {err}", filename.display());
 					continue;
 				}
 
@@ -111,7 +111,7 @@ impl Iterator for Filenames<'_> {
 fn sorted_dir_list(path: &Path) -> VecDeque<PathBuf> {
 	match fs::read_dir(path) {
 		Err(err) => {
-			file_err(path, err);
+			error!("{}: {err}", path.display());
 			VecDeque::<PathBuf>::new()
 		}
 
@@ -119,7 +119,7 @@ fn sorted_dir_list(path: &Path) -> VecDeque<PathBuf> {
 			let mut files: VecDeque<PathBuf> = dir
 				.flat_map(|res| {
 					res.map(|entry| entry.path())
-						.map_err(|err| file_err(path, err))
+						.map_err(|err| error!("{}: {err}", path.display()))
 				})
 				.collect();
 			files.make_contiguous().sort();
