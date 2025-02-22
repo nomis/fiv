@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use super::{CommandLineArgs, CommandLineFilenames, Image, Mark, Waitable};
+use super::{CommandLineArgs, CommandLineFilenames, Image, Mark, Orientation, Rotate, Waitable};
 use async_notify::Notify;
 use log::{debug, error};
 use pariter::IteratorExt;
@@ -182,6 +182,13 @@ impl Files {
 		self.update_ui();
 	}
 
+	pub fn orientation(self: &Arc<Self>, rotate: Rotate, horizontal_flip: bool) {
+		let mut state = self.state.lock().unwrap();
+
+		state.orientation(Orientation::new(rotate, horizontal_flip));
+		self.update_ui();
+	}
+
 	pub fn mark(self: &Arc<Self>, mark: Mark) {
 		if self.args.mark_directory.is_some() {
 			self.seq_execute(self.state.lock().unwrap().current(), true, move |image| {
@@ -258,6 +265,12 @@ impl State {
 					self.position = self.images.len() - 1;
 				}
 			}
+		}
+	}
+
+	pub fn orientation(&mut self, add: Orientation) {
+		if let Some(image) = self.images.get(self.position) {
+			image.add_orientation(add);
 		}
 	}
 }

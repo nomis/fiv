@@ -43,7 +43,7 @@ impl Codec for Generic {
 
 		let dimensions = decoder.dimensions();
 
-		if width != dimensions.0 || height != dimensions.1 {
+		if dimensions != (width, height) {
 			Err(anyhow!(
 				"Image dimensions have changed: {}x{} != {}x{}",
 				dimensions.0,

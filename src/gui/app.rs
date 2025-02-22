@@ -18,7 +18,7 @@
 
 use super::draw::Draw;
 use super::Files;
-use crate::fiv::{Mark, Navigate};
+use crate::fiv::{Mark, Navigate, Rotate};
 use gio::Menu;
 use gtk::gio::SimpleAction;
 use gtk::glib::once_cell::unsync::OnceCell;
@@ -57,6 +57,10 @@ enum AppAction {
 #[derive(Debug, Copy, Clone, strum::AsRefStr)]
 #[strum(prefix = "win.")]
 enum WinAction {
+	ImageRotateLeft,
+	ImageRotateRight,
+	ImageFlipHorizontal,
+	ImageFlipVertical,
 	EditMark,
 	EditToggleMark,
 	EditUnmark,
@@ -165,12 +169,26 @@ impl Application {
 		let files = self.files.get().unwrap();
 		let menu_bar = Menu::new();
 		let image_menu = Menu::new();
+		let image_menu_rotate = Menu::new();
+		let image_menu_flip = Menu::new();
 		let image_menu_app = Menu::new();
 		let edit_menu = Menu::new();
 		let edit_menu_mark = Menu::new();
 		let view_menu = Menu::new();
 		let view_menu_nav = Menu::new();
 		let view_menu_win = Menu::new();
+
+		image_menu_rotate.append_ext("Rotate _Left", WinAction::ImageRotateLeft);
+		self.add_action(WinAction::ImageRotateLeft, Self::files_action, &["l"]);
+		image_menu_rotate.append_ext("Rotate _Right", WinAction::ImageRotateRight);
+		self.add_action(WinAction::ImageRotateRight, Self::files_action, &["r"]);
+		image_menu.append_section(None, &image_menu_rotate);
+
+		image_menu_flip.append_ext("Flip _Horizontal", WinAction::ImageFlipHorizontal);
+		self.add_action(WinAction::ImageFlipHorizontal, Self::files_action, &["h"]);
+		image_menu_flip.append_ext("Flip _Vertical", WinAction::ImageFlipVertical);
+		self.add_action(WinAction::ImageFlipVertical, Self::files_action, &["v"]);
+		image_menu.append_section(None, &image_menu_flip);
 
 		image_menu_app.append_ext("_Quit", AppAction::Quit);
 		self.add_action(AppAction::Quit, Self::quit, &["<Primary>q", "q", "<Alt>F4"]);
@@ -243,6 +261,10 @@ impl Application {
 		let files = self.files.get().unwrap();
 
 		match action {
+			WinAction::ImageRotateLeft => files.orientation(Rotate::Rotate270, false),
+			WinAction::ImageRotateRight => files.orientation(Rotate::Rotate90, false),
+			WinAction::ImageFlipHorizontal => files.orientation(Rotate::Rotate0, true),
+			WinAction::ImageFlipVertical => files.orientation(Rotate::Rotate180, true),
 			WinAction::EditMark => files.mark(Mark::Set),
 			WinAction::EditToggleMark => files.mark(Mark::Toggle),
 			WinAction::EditUnmark => files.mark(Mark::Unset),

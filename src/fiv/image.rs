@@ -25,6 +25,7 @@ use pathdiff::diff_paths;
 use std::cell::RefCell;
 use std::fs::{read_link, remove_file};
 use std::io;
+use std::ops::AddAssign;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -218,6 +219,13 @@ impl Image {
 		*self.orientation.lock().unwrap()
 	}
 
+	pub fn add_orientation(&self, add: Orientation) -> Orientation {
+		let mut orientation = self.orientation.lock().unwrap();
+
+		*orientation += add;
+		*orientation
+	}
+
 	/// Blocks other accesses to image data and load/unload/loaded state
 	pub fn with_surface<F: FnOnce(Option<&cairo::ImageSurface>, bool)>(&self, func: F) {
 		let mut data = self.data.lock().unwrap();
@@ -264,6 +272,37 @@ impl Orientation {
 			rotate,
 			horizontal_flip,
 		}
+	}
+}
+
+impl AddAssign<Orientation> for Orientation {
+	fn add_assign(&mut self, rhs: Orientation) {
+		self.rotate += rhs.rotate;
+		self.horizontal_flip ^= rhs.horizontal_flip;
+	}
+}
+
+impl AddAssign<Rotate> for Rotate {
+	fn add_assign(&mut self, rhs: Rotate) {
+		*self = match (*self, rhs) {
+			(Rotate::Rotate180, Rotate::Rotate180)
+			| (Rotate::Rotate90, Rotate::Rotate270)
+			| (Rotate::Rotate270, Rotate::Rotate90) => Rotate::Rotate0,
+
+			(Rotate::Rotate0, Rotate::Rotate90)
+			| (Rotate::Rotate180, Rotate::Rotate270)
+			| (Rotate::Rotate270, Rotate::Rotate180) => Rotate::Rotate90,
+
+			(Rotate::Rotate0, Rotate::Rotate180)
+			| (Rotate::Rotate90, Rotate::Rotate90)
+			| (Rotate::Rotate270, Rotate::Rotate270) => Rotate::Rotate180,
+
+			(Rotate::Rotate0, Rotate::Rotate270)
+			| (Rotate::Rotate90, Rotate::Rotate180)
+			| (Rotate::Rotate180, Rotate::Rotate90) => Rotate::Rotate270,
+
+			(_, Rotate::Rotate0) => *self,
+		};
 	}
 }
 
