@@ -87,12 +87,40 @@ impl Draw {
 		}
 	}
 
+	pub fn zoom_actual(&self) {
+		let mut image_draw = self.image_draw.lock().unwrap();
+
+		if image_draw.zoom_actual(&self.area.allocation(), self.pointer()) {
+			self.redraw();
+		}
+	}
+
+	pub fn zoom_fit(&self) {
+		if self.image_draw.lock().unwrap().zoom_fit() {
+			self.redraw();
+		}
+	}
+
 	fn redraw(&self) {
 		if self.area.is_visible() {
 			self.area.queue_draw();
 		} else {
 			self.area.show();
 		}
+	}
+
+	fn pointer(&self) -> (i32, i32) {
+		let window = self.area.window().unwrap();
+		let seat = self.area.display().default_seat().unwrap();
+		let position = window.device_position(&seat.pointer().unwrap());
+
+		// Co-ordinates are relative to the `gdk::Window` (excluding the
+		// menu bar) and should be adjusted for the `gtk::DrawingArea`
+		// position but that includes the menu bar!
+		//
+		// Do nothing because the drawing area is currently at the top
+		// left of the window.
+		(position.1, position.2)
 	}
 }
 
@@ -111,6 +139,36 @@ impl ImageDraw {
 			true
 		} else {
 			self.waiting && image.loaded() || self.orientation != image.orientation()
+		}
+	}
+
+	pub fn zoom_actual(&mut self, allocation: &gtk::Allocation, pointer: (i32, i32)) -> bool {
+		self.zoom(allocation, pointer, f64::NAN);
+		self.image.is_some()
+	}
+
+	pub fn zoom_fit(&mut self) -> bool {
+		self.position.zoom = f64::NAN;
+		self.image.is_some()
+	}
+
+	fn zoom(&mut self, allocation: &gtk::Allocation, pointer: (i32, i32), scale: f64) {
+		if let Some(image) = &self.image {
+			let (pointer_x, pointer_y) = (f64::from(pointer.0), f64::from(pointer.1));
+			let render = self.calc_render(allocation, image);
+
+			self.position.zoom = if f64::is_nan(scale) {
+				1.0
+			} else {
+				render.scale * scale
+			};
+
+			self.position.x = pointer_x
+				- ((pointer_x - render.x) / render.scale * self.position.zoom)
+				- self.position.drag_offset_x;
+			self.position.y = pointer_y
+				- ((pointer_y - render.y) / render.scale * self.position.zoom)
+				- self.position.drag_offset_y;
 		}
 	}
 
@@ -148,10 +206,10 @@ impl ImageDraw {
 		if let Some(image) = &self.image {
 			self.orientation = image.orientation();
 
-			let position = self.calc_position(allocation, image);
+			let render = self.calc_render(allocation, image);
 
-			context.translate(position.x, position.y);
-			context.scale(position.scale, position.scale);
+			context.translate(render.x, render.y);
+			context.scale(render.scale, render.scale);
 
 			image.with_surface(|surface, loaded| {
 				self.waiting = surface.is_none();
@@ -196,7 +254,7 @@ impl ImageDraw {
 					} else {
 						context.set_source_rgb(0.5, 0.75, 0.5);
 					}
-					context.rectangle(0.0, 0.0, position.width, position.height);
+					context.rectangle(0.0, 0.0, render.width, render.height);
 					context.clip();
 					context.paint().unwrap();
 				}
@@ -204,7 +262,7 @@ impl ImageDraw {
 		}
 	}
 
-	fn calc_position(&self, allocation: &gtk::Rectangle, image: &Arc<Image>) -> Render {
+	fn calc_render(&self, allocation: &gtk::Rectangle, image: &Arc<Image>) -> Render {
 		let output_width = f64::from(allocation.width());
 		let output_height = f64::from(allocation.height());
 

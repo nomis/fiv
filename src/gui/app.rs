@@ -68,6 +68,8 @@ enum WinAction {
 	ViewPrevious,
 	ViewNext,
 	ViewLast,
+	ViewZoomActual,
+	ViewZoomFit,
 	ViewFullScreen,
 }
 
@@ -175,6 +177,7 @@ impl Application {
 		let edit_menu = Menu::new();
 		let edit_menu_mark = Menu::new();
 		let view_menu = Menu::new();
+		let view_menu_zoom = Menu::new();
 		let view_menu_nav = Menu::new();
 		let view_menu_win = Menu::new();
 
@@ -219,6 +222,12 @@ impl Application {
 		view_menu_nav.append_ext("_Last", WinAction::ViewLast);
 		self.add_action(WinAction::ViewLast, Self::files_action, &["End"]);
 		view_menu.append_section(None, &view_menu_nav);
+
+		view_menu_zoom.append_ext("Norm_al Size", WinAction::ViewZoomActual);
+		self.add_action(WinAction::ViewZoomActual, Self::zoom_action, &["a", "1"]);
+		view_menu_zoom.append_ext("Best _Fit", WinAction::ViewZoomFit);
+		self.add_action(WinAction::ViewZoomFit, Self::zoom_action, &["f"]);
+		view_menu.append_section(None, &view_menu_zoom);
 
 		view_menu_win.append_ext("F_ull Screen", WinAction::ViewFullScreen);
 		self.add_action(WinAction::ViewFullScreen, Self::view_fullscreen, &["F11"]);
@@ -272,7 +281,17 @@ impl Application {
 			WinAction::ViewPrevious => files.navigate(Navigate::Previous),
 			WinAction::ViewNext => files.navigate(Navigate::Next),
 			WinAction::ViewLast => files.navigate(Navigate::Last),
-			_ => {}
+			_ => (),
+		}
+	}
+
+	fn zoom_action(&self, action: WinAction) {
+		let draw = self.draw.get().unwrap();
+
+		match action {
+			WinAction::ViewZoomActual => draw.zoom_actual(),
+			WinAction::ViewZoomFit => draw.zoom_fit(),
+			_ => (),
 		}
 	}
 
