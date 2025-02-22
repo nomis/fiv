@@ -122,7 +122,7 @@ impl ImageDraw {
 		);
 		let context2 = cairo::Context::new(surface.as_ref().unwrap()).unwrap();
 
-		copy_cairo_clip(context, &context2);
+		Self::copy_cairo_clip(context, &context2);
 
 		self.draw_image(allocation, &context2);
 
@@ -130,6 +130,18 @@ impl ImageDraw {
 			.set_source_surface(surface.as_ref().unwrap(), 0.0, 0.0)
 			.unwrap();
 		context.paint().unwrap();
+	}
+
+	fn copy_cairo_clip(src: &cairo::Context, dst: &cairo::Context) {
+		if let Ok(rects) = src.copy_clip_rectangle_list() {
+			for rect in rects.iter() {
+				dst.rectangle(rect.x(), rect.y(), rect.width(), rect.height());
+			}
+			dst.clip();
+		} else if let Ok((x, y, width, height)) = src.clip_extents() {
+			dst.rectangle(x, y, width - x, height - y);
+			dst.clip();
+		}
 	}
 
 	fn draw_image(&mut self, allocation: &gtk::Rectangle, context: &cairo::Context) {
@@ -174,6 +186,9 @@ impl ImageDraw {
 					context.set_source(pattern).unwrap();
 					context.paint().unwrap();
 
+					// Release the `surface` after using it, before this closure
+					// returns otherwise `context` will still have a reference
+					// to it
 					context.set_source_rgb(0.0, 0.0, 0.0);
 				} else {
 					if loaded {
@@ -204,40 +219,47 @@ impl ImageDraw {
 
 		let (x, y, scale) = if self.position.zoom.is_nan() {
 			let scale = f64::min(output_width / width, output_height / height);
+			let x;
+			let y;
 
 			if output_width / width >= output_height / height {
-				((output_width - scale * width) / 2.0, 0.0, scale)
+				x = (output_width - scale * width) / 2.0;
+				y = 0.0;
 			} else {
-				(0.0, (output_height - scale * height) / 2.0, scale)
+				x = 0.0;
+				y = (output_height - scale * height) / 2.0;
 			}
+
+			(x, y, scale)
 		} else {
 			let scale = self.position.zoom;
-			let mut rx = self.position.x + self.position.drag_offset_x;
-			let mut ry = self.position.y + self.position.drag_offset_y;
+			let constrain = |length, output_length, position| {
+				if length * scale < output_length {
+					// Image too small, centre
+					(output_length - scale * length) / 2.0
+				} else if position > 0.0 {
+					// Gap before the image, move to the start edge
+					0.0
+				} else if position + length * scale < output_length {
+					// Gap after the image, move to the end edge
+					output_length - length * scale
+				} else {
+					position
+				}
+			};
 
-			if width * scale < output_width {
-				// Image width too small, centre horizontally
-				rx = (output_width - scale * width) / 2.0;
-			} else if rx > 0.0 {
-				// Gap at the left of the image, move to the left edge
-				rx = 0.0;
-			} else if rx + width * scale < output_width {
-				// Gap at the right of the image, move to the right edge
-				rx = output_width - width * scale;
-			}
+			let x = constrain(
+				width,
+				output_width,
+				self.position.x + self.position.drag_offset_x,
+			);
+			let y = constrain(
+				width,
+				output_width,
+				self.position.y + self.position.drag_offset_y,
+			);
 
-			if height * scale < output_height {
-				// Image height too small, centre vertically
-				ry = (output_height - scale * height) / 2.0;
-			} else if ry > 0.0 {
-				// Gap at the top of the image, move to the top edge
-				ry = 0.0;
-			} else if ry + height * scale < output_height {
-				// Gap at the bottom of the image, move to the bottom edge
-				ry = output_height - height * scale;
-			}
-
-			(rx, ry, scale)
+			(x, y, scale)
 		};
 
 		Render {
@@ -247,17 +269,5 @@ impl ImageDraw {
 			width,
 			height,
 		}
-	}
-}
-
-fn copy_cairo_clip(src: &cairo::Context, dst: &cairo::Context) {
-	if let Ok(rects) = src.copy_clip_rectangle_list() {
-		for rect in rects.iter() {
-			dst.rectangle(rect.x(), rect.y(), rect.width(), rect.height());
-		}
-		dst.clip();
-	} else if let Ok((x, y, width, height)) = src.clip_extents() {
-		dst.rectangle(x, y, width - x, height - y);
-		dst.clip();
 	}
 }
