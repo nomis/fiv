@@ -16,10 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use super::codecs::{Codec, Codecs, Generic};
 use super::files::file_err;
 use anyhow::Error;
+use bytemuck::{cast_slice, cast_slice_mut};
 use gtk::cairo;
-use image::ImageReader;
+use log::trace;
 use pathdiff::diff_paths;
 use std::cell::RefCell;
 use std::fs::{read_link, remove_file};
@@ -28,21 +30,36 @@ use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Mutex;
+use std::time::Instant;
 
 #[derive(Debug)]
 pub struct Image {
 	pub filename: PathBuf,
 	pub width: u32,
 	pub height: u32,
+	codec: Codecs,
 	mark_link: Option<Link>,
 	marked: Mutex<Option<bool>>,
 	data: Mutex<Option<ImageData>>,
 	orientation: Mutex<Orientation>,
 }
 
-#[derive(Debug)]
+type Pixel = u32;
+
+#[derive(derive_more::Debug)]
 pub struct ImageData {
-	data: Option<Box<[u8]>>,
+	#[debug("{:?}", data.as_ref().map(|x| Some(x.len())))]
+	data: Option<Box<[Pixel]>>,
+	format: cairo::Format,
+	width: i32,
+	height: i32,
+	stride: i32,
+}
+
+#[derive(derive_more::Debug)]
+pub struct ImageDataBuilder {
+	#[debug("{}", buffer.len())]
+	pub buffer: Box<[Pixel]>,
 	format: cairo::Format,
 	width: i32,
 	height: i32,
@@ -78,28 +95,31 @@ pub enum Rotate {
 }
 
 impl Image {
+	/// Blocking on CPU, I/O
 	pub fn new<P: AsRef<Path>>(
 		canonical_mark_directory: Option<&PathBuf>,
 		filename: P,
 	) -> Result<super::Image, Error> {
-		let reader = ImageReader::open(&filename)?.with_guessed_format()?;
+		let codec = Codecs::from(Generic::default());
+		let metadata = codec.metadata(filename.as_ref())?;
 		let path = filename.as_ref().to_path_buf();
 		let mark_link = mark_link(canonical_mark_directory, &path);
-		let (width, height) = reader.into_dimensions()?;
 		let image = Image {
 			filename: path,
-			width,
-			height,
+			width: metadata.width,
+			height: metadata.height,
+			codec,
 			mark_link,
 			marked: Mutex::new(None),
 			data: Mutex::new(None),
-			orientation: Mutex::new(Orientation::default()),
+			orientation: Mutex::new(metadata.orientation),
 		};
 
 		image.refresh_mark();
 		Ok(image)
 	}
 
+	/// Blocking on I/O
 	pub fn refresh_mark(&self) {
 		*self.marked.lock().unwrap() = self.read_mark_link();
 	}
@@ -108,6 +128,7 @@ impl Image {
 		*self.marked.lock().unwrap()
 	}
 
+	/// Blocking on I/O
 	pub fn mark(&self, mark: Mark) {
 		let mut marked = self.marked.lock().unwrap();
 
@@ -123,6 +144,7 @@ impl Image {
 		*marked = self.read_mark_link();
 	}
 
+	/// Blocking on I/O
 	fn read_mark_link(&self) -> Option<bool> {
 		self.mark_link
 			.as_ref()
@@ -145,6 +167,7 @@ impl Image {
 			})
 	}
 
+	/// Blocking on I/O
 	fn write_mark_link(&self, mark: bool, suppress_error: bool) {
 		if let Some(link) = &self.mark_link {
 			if mark {
@@ -163,20 +186,46 @@ impl Image {
 		}
 	}
 
+	/// Blocking on CPU, I/O
+	pub fn load(&self) {
+		let begin = Instant::now();
+
+		*self.data.lock().unwrap() = Some(
+			match self.codec.primary(&self.filename, self.width, self.height) {
+				Ok(primary) => primary.image_data,
+				Err(err) => {
+					file_err(&self.filename, err);
+					ImageData::failed()
+				}
+			},
+		);
+
+		trace!(
+			"{}: loaded in {:?}",
+			self.filename.display(),
+			begin.elapsed()
+		);
+	}
+
 	pub fn loaded(&self) -> bool {
 		self.data.lock().unwrap().is_some()
+	}
+
+	pub fn unload(&self) {
+		*self.data.lock().unwrap() = None;
 	}
 
 	pub fn orientation(&self) -> Orientation {
 		*self.orientation.lock().unwrap()
 	}
 
-	pub fn with_surface<F: FnOnce(&Option<cairo::ImageSurface>, bool)>(&self, func: F) {
+	/// Blocks other accesses to image data and load/unload/loaded state
+	pub fn with_surface<F: FnOnce(Option<&cairo::ImageSurface>, bool)>(&self, func: F) {
 		let mut data = self.data.lock().unwrap();
 
 		match &mut *data {
 			Some(data) => data.with_surface(func),
-			None => func(&None, false),
+			None => func(None, false),
 		}
 	}
 }
@@ -210,6 +259,32 @@ fn mark_link(mark_directory: Option<&PathBuf>, filename: &PathBuf) -> Option<Lin
 	}
 }
 
+impl Orientation {
+	pub fn new(rotate: Rotate, horizontal_flip: bool) -> Self {
+		Self {
+			rotate,
+			horizontal_flip,
+		}
+	}
+}
+
+impl From<image::metadata::Orientation> for Orientation {
+	fn from(orientation: image::metadata::Orientation) -> Self {
+		match orientation {
+			image::metadata::Orientation::NoTransforms => Orientation::new(Rotate::Rotate0, false),
+			image::metadata::Orientation::Rotate90 => Orientation::new(Rotate::Rotate90, false),
+			image::metadata::Orientation::Rotate180 => Orientation::new(Rotate::Rotate180, false),
+			image::metadata::Orientation::Rotate270 => Orientation::new(Rotate::Rotate270, false),
+			image::metadata::Orientation::FlipHorizontal => Orientation::new(Rotate::Rotate0, true),
+			image::metadata::Orientation::FlipVertical => Orientation::new(Rotate::Rotate180, true),
+			image::metadata::Orientation::Rotate90FlipH => Orientation::new(Rotate::Rotate90, true),
+			image::metadata::Orientation::Rotate270FlipH => {
+				Orientation::new(Rotate::Rotate270, true)
+			}
+		}
+	}
+}
+
 /*
  * ImageData, ImageHolder based on https://github.com/gtk-rs/gtk3-rs/examples/cairo_threads/image/
  *
@@ -234,14 +309,30 @@ fn mark_link(mark_directory: Option<&PathBuf>, filename: &PathBuf) -> Option<Lin
  * SOFTWARE.
  */
 
+impl From<ImageDataBuilder> for ImageData {
+	fn from(builder: ImageDataBuilder) -> Self {
+		Self {
+			data: Some(builder.buffer),
+			format: builder.format,
+			width: builder.width,
+			height: builder.height,
+			stride: builder.stride,
+		}
+	}
+}
+
 impl ImageData {
-	pub fn new(format: cairo::Format, width: u32, height: u32) -> Self {
+	pub fn builder(width: u32, height: u32) -> ImageDataBuilder {
 		assert!(i32::try_from(width).is_ok());
 		assert!(i32::try_from(height).is_ok());
+		let format = cairo::Format::Rgb24;
 		let stride = u32::try_from(format.stride_for_width(width).unwrap()).unwrap();
 
-		Self {
-			data: Some(vec![0; stride as usize * height as usize].into()),
+		assert!(stride as usize == width as usize * size_of::<Pixel>());
+		let elements = stride as usize / size_of::<Pixel>() * height as usize;
+
+		ImageDataBuilder {
+			buffer: vec![0; elements].into(),
 			format,
 			width: width.try_into().unwrap(),
 			height: height.try_into().unwrap(),
@@ -261,25 +352,23 @@ impl ImageData {
 
 	/// Calls the given closure with a temporary Cairo image surface. After the closure has returned
 	/// there must be no further references to the surface.
-	pub fn with_surface<F: FnOnce(&Option<cairo::ImageSurface>, bool)>(&mut self, func: F) {
+	pub fn with_surface<F: FnOnce(Option<&cairo::ImageSurface>, bool)>(&mut self, func: F) {
 		// Temporarily move out the pixels
 		if let Some(image) = self.data.take() {
 			// A new return location that is then passed to our helper struct below
 			let return_location = Rc::new(RefCell::new(None));
 			{
 				let holder = ImageHolder::new(Some(image), return_location.clone());
-				let surface = Some(
-					cairo::ImageSurface::create_for_data(
-						holder,
-						self.format,
-						self.width,
-						self.height,
-						self.stride,
-					)
-					.expect("Can't create surface"),
-				);
+				let surface = cairo::ImageSurface::create_for_data(
+					holder,
+					self.format,
+					self.width,
+					self.height,
+					self.stride,
+				)
+				.expect("Can't create surface");
 
-				func(&surface, true);
+				func(Some(&surface), true);
 
 				// Now the surface will be destroyed and the pixels are stored in the return location
 			}
@@ -292,7 +381,7 @@ impl ImageData {
 					.expect("Image not returned"),
 			);
 		} else {
-			func(&None, true);
+			func(None, true);
 		}
 	}
 }
@@ -304,12 +393,15 @@ impl ImageData {
 /// retrieve them back in a safe way while ensuring that nothing else still has access to
 /// it.
 pub struct ImageHolder {
-	image: Option<Box<[u8]>>,
-	return_location: Rc<RefCell<Option<Box<[u8]>>>>,
+	image: Option<Box<[Pixel]>>,
+	return_location: Rc<RefCell<Option<Box<[Pixel]>>>>,
 }
 
 impl ImageHolder {
-	pub fn new(image: Option<Box<[u8]>>, return_location: Rc<RefCell<Option<Box<[u8]>>>>) -> Self {
+	pub fn new(
+		image: Option<Box<[Pixel]>>,
+		return_location: Rc<RefCell<Option<Box<[Pixel]>>>>,
+	) -> Self {
 		Self {
 			image,
 			return_location,
@@ -327,13 +419,13 @@ impl Drop for ImageHolder {
 
 impl AsRef<[u8]> for ImageHolder {
 	fn as_ref(&self) -> &[u8] {
-		self.image.as_ref().expect("Holding no image").as_ref()
+		cast_slice::<Pixel, u8>(self.image.as_ref().expect("Holding no image").as_ref())
 	}
 }
 
 /// Needed for `cairo::ImageSurface::create_for_data()` to be able to access the pixels
 impl AsMut<[u8]> for ImageHolder {
 	fn as_mut(&mut self) -> &mut [u8] {
-		self.image.as_mut().expect("Holding no image").as_mut()
+		cast_slice_mut::<Pixel, u8>(self.image.as_mut().expect("Holding no image").as_mut())
 	}
 }

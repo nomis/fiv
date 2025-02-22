@@ -1,6 +1,6 @@
 /*
  * fiv - Fast Image Viewer
- * Copyright 2025  Simon Arlott
+ * Copyright 2015,2025  Simon Arlott
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,14 +16,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod cmdline;
-mod codecs;
-mod files;
-mod image;
-mod util;
+mod generic;
 
-pub use cmdline::Args as CommandLineArgs;
-pub use cmdline::Filenames as CommandLineFilenames;
-pub use files::{Files, Navigate};
-pub use image::{Image, Mark, Orientation, Rotate};
-pub use util::Waitable;
+use super::{image::ImageData, Orientation};
+use anyhow::Error;
+use enum_dispatch::enum_dispatch;
+use std::path::Path;
+
+#[enum_dispatch]
+pub trait Codec {
+	fn metadata(&self, filename: &Path) -> Result<CodecMetadata, Error>;
+	fn primary(&self, filename: &Path, width: u32, height: u32) -> Result<CodecPrimary, Error>;
+}
+
+#[derive(Debug)]
+pub struct CodecMetadata {
+	pub width: u32,
+	pub height: u32,
+	pub orientation: Orientation,
+}
+
+#[derive(Debug)]
+pub struct CodecPrimary {
+	pub image_data: ImageData,
+}
+
+#[derive(Debug)]
+#[enum_dispatch(Codec)]
+pub enum Codecs {
+	Generic,
+}
+
+#[derive(Debug, Default)]
+pub struct Generic {}
