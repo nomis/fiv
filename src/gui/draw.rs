@@ -312,8 +312,8 @@ impl ImageDraw {
 				self.position.x + self.position.drag_offset_x,
 			);
 			let y = constrain(
-				width,
-				output_width,
+				height,
+				output_height,
 				self.position.y + self.position.drag_offset_y,
 			);
 
