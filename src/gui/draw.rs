@@ -162,17 +162,17 @@ impl ImageDraw {
 
 						Rotate::Rotate90 => {
 							context.translate(f64::from(image.height), 0.0);
-							context.rotate(90.0);
+							context.rotate(std::f64::consts::PI * 0.5);
 						}
 
 						Rotate::Rotate180 => {
 							context.translate(f64::from(image.width), f64::from(image.height));
-							context.rotate(180.0);
+							context.rotate(std::f64::consts::PI);
 						}
 
 						Rotate::Rotate270 => {
 							context.translate(0.0, f64::from(image.width));
-							context.rotate(270.0);
+							context.rotate(std::f64::consts::PI * 1.5);
 						}
 					};
 
