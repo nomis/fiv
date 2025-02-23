@@ -1,13 +1,13 @@
-## Debian 13
-FROM debian:trixie
+## Debian Unstable
+FROM debian:sid
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN rm /etc/apt/apt.conf.d/docker-clean
 RUN echo 'APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/keep-downloaded-packages
 
 RUN \
-	--mount=type=cache,sharing=locked,target=/var/cache/apt,id=debian-trixie-var-cache-apt \
-	--mount=type=cache,sharing=locked,target=/var/lib/apt,id=debian-trixie-var-lib-apt \
+	--mount=type=cache,sharing=locked,target=/var/cache/apt,id=debian-sid-var-cache-apt \
+	--mount=type=cache,sharing=locked,target=/var/lib/apt,id=debian-sid-var-lib-apt \
 	apt-get update && apt-get install -y \
 		build-essential rustc cargo git \
 		libcairomm-1.0-dev \

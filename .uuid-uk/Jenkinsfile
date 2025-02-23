@@ -47,6 +47,8 @@ pipeline {
 		}
 		stage("Prepare") {
 			steps {
+				sh "cargo --version"
+				sh "rustc --version"
 				dir(DESTDIR) {
 					deleteDir()
 				}

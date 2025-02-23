@@ -1,7 +1,7 @@
 [package]
 name = "fiv"
 version = "2.0.0"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -19,6 +19,6 @@ nutype = "0.6.1"
 pariter = "0.5.1"
 pathdiff = "0.2.3"
 stderrlog = "0.6.0"
-strum = { version = "0.26.3", features = ["derive"] }
-strum_macros = "0.26.4"
+strum = { version = "0.27.1", features = ["derive"] }
+strum_macros = "0.27.1"
 threadpool = "1.8.1"
