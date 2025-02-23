@@ -112,15 +112,18 @@ impl Draw {
 	fn pointer(&self) -> (i32, i32) {
 		let window = self.area.window().unwrap();
 		let seat = self.area.display().default_seat().unwrap();
-		let position = window.device_position(&seat.pointer().unwrap());
+		let device_position = window.device_position(&seat.pointer().unwrap());
+		let window_position = window.position();
 
-		// Co-ordinates are relative to the `gdk::Window` (excluding the
-		// menu bar) and should be adjusted for the `gtk::DrawingArea`
-		// position but that includes the menu bar!
-		//
-		// Do nothing because the drawing area is currently at the top
-		// left of the window.
-		(position.1, position.2)
+		self.area
+			.toplevel()
+			.unwrap()
+			.translate_coordinates(
+				&self.area,
+				device_position.1 + window_position.0,
+				device_position.2 + window_position.1,
+			)
+			.unwrap()
 	}
 }
 
