@@ -174,7 +174,8 @@ impl ImageDraw {
 	}
 
 	pub fn zoom_actual(&mut self, allocation: &gtk::Allocation, pointer: PointI32) -> bool {
-		self.zoom(allocation, pointer, None)
+		self.zoom(allocation, pointer, None);
+		self.image.is_some()
 	}
 
 	pub fn zoom_adjust(
@@ -183,7 +184,8 @@ impl ImageDraw {
 		pointer: PointI32,
 		scale: Sf64,
 	) -> bool {
-		self.zoom(allocation, pointer, Some(scale))
+		self.zoom(allocation, pointer, Some(scale));
+		self.image.is_some()
 	}
 
 	pub fn zoom_fit(&mut self) -> bool {
@@ -191,12 +193,7 @@ impl ImageDraw {
 		self.image.is_some()
 	}
 
-	fn zoom(
-		&mut self,
-		allocation: &gtk::Allocation,
-		pointer: PointI32,
-		scale: Option<Sf64>,
-	) -> bool {
+	fn zoom(&mut self, allocation: &gtk::Allocation, pointer: PointI32, scale: Option<Sf64>) {
 		if let Some(image) = &self.image {
 			let pointer: PointF64 = pointer.into();
 			let render = self.calc_render(allocation, image);
@@ -206,10 +203,6 @@ impl ImageDraw {
 			self.zoom.position = pointer
 				- ((pointer - render.position) / render.scale * scale)
 				- self.zoom.drag_offset;
-
-			true
-		} else {
-			false
 		}
 	}
 
