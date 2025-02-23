@@ -23,6 +23,7 @@ use gio::Menu;
 use gtk::gio::SimpleAction;
 use gtk::glib::once_cell::unsync::OnceCell;
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Default)]
@@ -31,7 +32,7 @@ pub struct Application {
 	files: OnceCell<Arc<Files>>,
 	window: OnceCell<gtk::ApplicationWindow>,
 	state: Mutex<State>,
-	draw: OnceCell<Draw>,
+	draw: OnceCell<Rc<Draw>>,
 }
 
 #[derive(Debug, Default)]

@@ -93,7 +93,60 @@ macro_rules! derive_numeric_ops_apply {
 	($custom:ty, $primitive:ty, $custom_other:ty) => {
 		derive_numeric_op!($custom_other, $custom, $custom, $primitive, ops::Mul<$custom>, mul, *);
 		derive_numeric_op!($custom, $custom_other, $custom, $primitive, ops::Mul<$custom_other>, mul, *);
+		derive_numeric_op!($custom_other, $custom, $custom, $primitive, ops::Div<$custom>, div, /);
 		derive_numeric_op!($custom, $custom_other, $custom, $primitive, ops::Div<$custom_other>, div, /);
+	}
+}
+
+macro_rules! derive_numeric_op_point {
+	($custom:ty, $trait:ty, $func:ident, $op:tt) => {
+		impl $trait for $custom {
+			type Output = $custom;
+
+			fn $func(self, rhs: $custom) -> Self::Output {
+				Self::Output::new(self.x $op rhs.x, self.y $op rhs.y)
+			}
+		}
+	}
+}
+
+macro_rules! derive_numeric_op_xy_apply_lhs {
+	($custom_lhs:ty, $custom_rhs:ty, $custom_output:ty, $x:ident, $y:ident, $trait:ty, $func:ident, $op:tt) => {
+		impl $trait for $custom_lhs {
+			type Output = $custom_output;
+
+			fn $func(self, rhs: $custom_rhs) -> Self::Output {
+				Self::Output::new(self $op rhs.$x, self $op rhs.$y)
+			}
+		}
+	}
+}
+
+macro_rules! derive_numeric_op_xy_apply_rhs {
+	($custom_lhs:ty, $custom_rhs:ty, $custom_output:ty, $x:ident, $y:ident, $trait:ty, $func:ident, $op:tt) => {
+		impl $trait for $custom_lhs {
+			type Output = $custom_output;
+
+			fn $func(self, rhs: $custom_rhs) -> Self::Output {
+				Self::Output::new(self.$x $op rhs, self.$y $op rhs)
+			}
+		}
+	}
+}
+
+macro_rules! derive_numeric_ops_point {
+	($custom:ty) => {
+		derive_numeric_op_point!($custom, ops::Add<$custom>, add, +);
+		derive_numeric_op_point!($custom, ops::Sub<$custom>, sub, -);
+	}
+}
+
+macro_rules! derive_numeric_ops_xy_apply {
+	($custom:ty, $x:ident, $y:ident, $custom_other:ty) => {
+		derive_numeric_op_xy_apply_lhs!($custom_other, $custom, $custom, $x, $y, ops::Mul<$custom>, mul, *);
+		derive_numeric_op_xy_apply_rhs!($custom, $custom_other, $custom, $x, $y, ops::Mul<$custom_other>, mul, *);
+		derive_numeric_op_xy_apply_lhs!($custom_other, $custom, $custom, $x, $y, ops::Div<$custom>, div, /);
+		derive_numeric_op_xy_apply_rhs!($custom, $custom_other, $custom, $x, $y, ops::Div<$custom_other>, div, /);
 	}
 }
 
@@ -254,11 +307,14 @@ pub struct PointI32 {
 	pub y: Yi32,
 }
 
-impl ops::Add<PointI32> for PointI32 {
-	type Output = PointI32;
+derive_numeric_ops_point!(PointI32);
 
-	fn add(self, rhs: PointI32) -> Self::Output {
-		Self::new(self.x + rhs.x, self.y + rhs.y)
+impl Default for PointI32 {
+	fn default() -> Self {
+		Self {
+			x: 0.into(),
+			y: 0.into(),
+		}
 	}
 }
 
@@ -278,6 +334,18 @@ impl fmt::Display for PointI32 {
 pub struct PointF64 {
 	pub x: Xf64,
 	pub y: Yf64,
+}
+
+derive_numeric_ops_point!(PointF64);
+derive_numeric_ops_xy_apply!(PointF64, x, y, Sf64);
+
+impl Default for PointF64 {
+	fn default() -> Self {
+		Self {
+			x: Xf64::zero(),
+			y: Yf64::zero(),
+		}
+	}
 }
 
 impl From<PointI32> for PointF64 {
@@ -325,17 +393,13 @@ impl fmt::Display for DimensionsU32 {
 	}
 }
 
-#[derive(Debug, Copy, Clone, derive_more::Constructor)]
+#[derive(Debug, Copy, Clone, PartialEq, derive_more::Constructor)]
 pub struct DimensionsF64 {
 	pub width: Xf64,
 	pub height: Yf64,
 }
 
-impl fmt::Display for DimensionsF64 {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "{}x{}", self.width, self.height)
-	}
-}
+derive_numeric_ops_xy_apply!(DimensionsF64, width, height, Sf64);
 
 impl From<DimensionsU32> for DimensionsF64 {
 	fn from(value: DimensionsU32) -> Self {
@@ -346,5 +410,11 @@ impl From<DimensionsU32> for DimensionsF64 {
 impl From<&gtk::Allocation> for DimensionsF64 {
 	fn from(allocation: &gtk::Allocation) -> Self {
 		DimensionsU32::from(allocation).into()
+	}
+}
+
+impl fmt::Display for DimensionsF64 {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "{}x{}", self.width, self.height)
 	}
 }
