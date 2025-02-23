@@ -26,9 +26,10 @@ use std::{
 	sync::{Arc, Mutex},
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Draw {
 	area: gtk::DrawingArea,
+	zoom_gesture: gtk::GestureZoom,
 	image_draw: Rc<Mutex<ImageDraw>>,
 }
 
@@ -56,28 +57,47 @@ struct Render {
 
 impl Draw {
 	pub fn new<F: FnOnce(&gtk::DrawingArea)>(f: F) -> Rc<Self> {
-		let draw = Rc::new(Self::default());
-		let draw_ref = Rc::downgrade(&draw);
-		let draw_image_ref = Rc::downgrade(&draw.image_draw);
+		let area = gtk::DrawingArea::default();
+		let zoom_gesture = gtk::GestureZoom::new(&area);
+		let draw = Rc::new(Self {
+			area,
+			zoom_gesture,
+			image_draw: Rc::new(Mutex::new(ImageDraw::default())),
+		});
 
-		draw.area
-			.connect_draw(move |area, context| -> glib::Propagation {
-				if let Some(draw_image) = draw_image_ref.upgrade() {
-					draw_image.lock().unwrap().draw(&area.allocation(), context);
-				}
+		{
+			let draw_image_ref = Rc::downgrade(&draw.image_draw);
+			draw.area
+				.connect_draw(move |area, context| -> glib::Propagation {
+					if let Some(draw_image) = draw_image_ref.upgrade() {
+						draw_image.lock().unwrap().draw(&area.allocation(), context);
+					}
 
-				glib::Propagation::Proceed
-			});
+					glib::Propagation::Proceed
+				});
+		}
 
-		draw.area
-			.connect_scroll_event(move |_, event| -> glib::Propagation {
+		{
+			let draw_ref = Rc::downgrade(&draw);
+			draw.area
+				.connect_scroll_event(move |_, event| -> glib::Propagation {
+					if let Some(draw_copy) = draw_ref.upgrade() {
+						draw_copy.scroll(event);
+					}
+
+					glib::Propagation::Proceed
+				});
+			draw.area.add_events(gdk::EventMask::SCROLL_MASK);
+		}
+
+		{
+			let draw_ref = Rc::downgrade(&draw);
+			draw.zoom_gesture.connect_scale_changed(move |_, scale| {
 				if let Some(draw_copy) = draw_ref.upgrade() {
-					draw_copy.scroll(event);
+					draw_copy.zoom_adjust(Sf64::try_from(scale).unwrap());
 				}
-
-				glib::Propagation::Proceed
 			});
-		draw.area.add_events(gdk::EventMask::SCROLL_MASK);
+		}
 
 		f(&draw.area);
 		draw
@@ -89,8 +109,8 @@ impl Draw {
 		}
 	}
 
-	pub fn scroll(&self, event: &gdk::EventScroll) {
-		let zoom_factor: Sf64 = Sf64::try_from(1.10).unwrap();
+	fn scroll(&self, event: &gdk::EventScroll) {
+		let zoom_factor = Sf64::try_from(1.10).unwrap();
 
 		match event.direction() {
 			gdk::ScrollDirection::Up => {
