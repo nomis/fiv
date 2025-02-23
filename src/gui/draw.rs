@@ -18,7 +18,7 @@
 
 use crate::fiv::{
 	Image, Orientation, Rotate,
-	numeric::{DimensionsF64, PointF64, PointI32, Sf64, Xf64, Yf64, Zero},
+	numeric::{DimensionsF64, PointF64, PointI32, Sf64, XYf64, Xf64, Yf64, Zero},
 };
 use gtk::{cairo, gdk, glib, prelude::*};
 use std::{
@@ -29,6 +29,7 @@ use std::{
 #[derive(Debug)]
 pub struct Draw {
 	area: gtk::DrawingArea,
+	drag_gesture: gtk::GestureDrag,
 	zoom_gesture: gtk::GestureZoom,
 	image_draw: Rc<Mutex<ImageDraw>>,
 }
@@ -58,9 +59,11 @@ struct Render {
 impl Draw {
 	pub fn new<F: FnOnce(&gtk::DrawingArea)>(f: F) -> Rc<Self> {
 		let area = gtk::DrawingArea::default();
+		let drag_gesture = gtk::GestureDrag::new(&area);
 		let zoom_gesture = gtk::GestureZoom::new(&area);
 		let draw = Rc::new(Self {
 			area,
+			drag_gesture,
 			zoom_gesture,
 			image_draw: Rc::new(Mutex::new(ImageDraw::default())),
 		});
@@ -99,12 +102,69 @@ impl Draw {
 			});
 		}
 
+		{
+			let draw_ref = Rc::downgrade(&draw);
+			draw.drag_gesture
+				.connect_drag_begin(move |_, start_x, start_y| {
+					if let Some(draw_copy) = draw_ref.upgrade() {
+						draw_copy.drag_begin((start_x, start_y).into());
+					}
+				});
+		}
+
+		{
+			let draw_ref = Rc::downgrade(&draw);
+			draw.drag_gesture
+				.connect_drag_update(move |_, offset_x, offset_y| {
+					if let Some(draw_copy) = draw_ref.upgrade() {
+						draw_copy.drag_update((offset_x, offset_y).into());
+					}
+				});
+		}
+
+		{
+			let draw_ref = Rc::downgrade(&draw);
+			draw.drag_gesture
+				.connect_drag_end(move |_, offset_x, offset_y| {
+					if let Some(draw_copy) = draw_ref.upgrade() {
+						draw_copy.drag_end((offset_x, offset_y).into());
+					}
+				});
+		}
+
 		f(&draw.area);
 		draw
 	}
 
 	pub fn refresh(&self, image: Arc<Image>) {
 		if self.image_draw.lock().unwrap().refresh(image) {
+			self.redraw();
+		}
+	}
+
+	pub fn drag_begin(&self, start: PointF64) {
+		let mut image_draw = self.image_draw.lock().unwrap();
+		let window = self.area.window().unwrap();
+		let display = window.display();
+
+		window.set_cursor(gdk::Cursor::for_display(&display, gdk::CursorType::Fleur).as_ref());
+		image_draw.drag_begin(&self.area.allocation(), start);
+	}
+
+	pub fn drag_update(&self, offset: PointF64) {
+		let mut image_draw = self.image_draw.lock().unwrap();
+
+		if image_draw.drag_update(&self.area.allocation(), offset) {
+			self.redraw();
+		}
+	}
+
+	pub fn drag_end(&self, offset: PointF64) {
+		let mut image_draw = self.image_draw.lock().unwrap();
+		let window = self.area.window().unwrap();
+
+		window.set_cursor(None);
+		if image_draw.drag_end(&self.area.allocation(), offset) {
 			self.redraw();
 		}
 	}
@@ -190,6 +250,30 @@ impl ImageDraw {
 			true
 		} else {
 			self.waiting && image.loaded() || self.orientation != image.orientation()
+		}
+	}
+
+	pub fn drag_begin(&mut self, _allocation: &gtk::Allocation, _start: PointF64) -> bool {
+		false
+	}
+
+	pub fn drag_update(&mut self, _allocation: &gtk::Allocation, offset: PointF64) -> bool {
+		self.zoom.drag_offset = offset;
+		self.image.is_some()
+	}
+
+	pub fn drag_end(&mut self, allocation: &gtk::Allocation, offset: PointF64) -> bool {
+		self.zoom.drag_offset = offset;
+		self.drag_finalise(allocation);
+		self.image.is_some()
+	}
+
+	fn drag_finalise(&mut self, allocation: &gtk::Allocation) {
+		if let Some(image) = &self.image {
+			let render = self.calc_render(allocation, image);
+
+			self.zoom.position = render.position;
+			self.zoom.drag_offset = PointF64::default();
 		}
 	}
 
@@ -329,12 +413,29 @@ impl ImageDraw {
 		};
 
 		let (scale, position) = if let Some(scale) = self.zoom.scale {
+			fn constrain<T: XYf64<T>>(input_length: T, output_length: T, position: T) -> T {
+				if input_length < output_length {
+					// Image too small, centre
+					(output_length - input_length) / 2.0
+				} else if position > T::zero() {
+					// Gap before the image, move to the start edge
+					T::zero()
+				} else if position + input_length < output_length {
+					// Gap after the image, move to the end edge
+					output_length - input_length
+				} else {
+					position
+				}
+			}
+
 			let input = input * scale;
-			let position = if input < output {
-				output.centre() - input.centre()
-			} else {
-				self.zoom.position + self.zoom.drag_offset
-			};
+			let mut position = self.zoom.position + self.zoom.drag_offset;
+
+			// TODO: Allow zooming in without changing position, but still
+			// constrain drag operations so that they can't move further away
+			// from the centre
+			position.x = constrain(input.width, output.width, position.x);
+			position.y = constrain(input.height, output.height, position.y);
 
 			(scale, position)
 		} else {

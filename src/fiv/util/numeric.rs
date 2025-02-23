@@ -348,6 +348,15 @@ impl Default for PointF64 {
 	}
 }
 
+impl From<(f64, f64)> for PointF64 {
+	fn from(value: (f64, f64)) -> Self {
+		Self::new(
+			Xf64::try_from(value.0).unwrap(),
+			Yf64::try_from(value.1).unwrap(),
+		)
+	}
+}
+
 impl From<PointI32> for PointF64 {
 	fn from(value: PointI32) -> Self {
 		Self::new(value.x.into(), value.y.into())
