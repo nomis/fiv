@@ -17,7 +17,7 @@
  */
 
 use crate::fiv::{
-	numeric::{DimensionsF64, PointF64, PointI32, Sf64, XYf64, Xf64, Yf64, Zero},
+	numeric::{DimensionsF64, PointF64, PointI32, Sf64, Xf64, Yf64, Zero},
 	Image, Orientation, Rotate,
 };
 use gtk::{cairo, gdk, glib, prelude::*};
@@ -316,26 +316,12 @@ impl ImageDraw {
 		};
 
 		let (scale, position) = if let Some(scale) = self.zoom.scale {
-			fn constrain<T: XYf64<T>>(input_length: T, output_length: T, position: T) -> T {
-				if input_length < output_length {
-					// Image too small, centre
-					(output_length - input_length) / 2.0
-				} else if position > T::zero() {
-					// Gap before the image, move to the start edge
-					T::zero()
-				} else if position + input_length < output_length {
-					// Gap after the image, move to the end edge
-					output_length - input_length
-				} else {
-					position
-				}
-			}
-
 			let input = input * scale;
-			let mut position = self.zoom.position + self.zoom.drag_offset;
-
-			position.x = constrain(input.width, output.width, position.x);
-			position.y = constrain(input.height, output.height, position.y);
+			let position = if input < output {
+				output.centre() - input.centre()
+			} else {
+				self.zoom.position + self.zoom.drag_offset
+			};
 
 			(scale, position)
 		} else {

@@ -401,6 +401,12 @@ pub struct DimensionsF64 {
 
 derive_numeric_ops_xy_apply!(DimensionsF64, width, height, Sf64);
 
+impl DimensionsF64 {
+	pub fn centre(&self) -> PointF64 {
+		PointF64::new(self.width / 2.0, self.height / 2.0)
+	}
+}
+
 impl From<DimensionsU32> for DimensionsF64 {
 	fn from(value: DimensionsU32) -> Self {
 		Self::new(value.width.into(), value.height.into())
@@ -416,5 +422,19 @@ impl From<&gtk::Allocation> for DimensionsF64 {
 impl fmt::Display for DimensionsF64 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(f, "{}x{}", self.width, self.height)
+	}
+}
+
+impl cmp::PartialOrd for DimensionsF64 {
+	fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+		if self == other {
+			Some(cmp::Ordering::Equal)
+		} else if self.width < other.width && self.height < other.height {
+			Some(cmp::Ordering::Less)
+		} else if self.width > other.width && self.height > other.height {
+			Some(cmp::Ordering::Greater)
+		} else {
+			None
+		}
 	}
 }
