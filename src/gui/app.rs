@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use super::draw::Draw;
 use super::Files;
+use super::draw::Draw;
 use crate::fiv::{Mark, Navigate, Rotate};
 use gio::Menu;
 use gtk::gio::SimpleAction;

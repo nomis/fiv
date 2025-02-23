@@ -18,7 +18,7 @@
 
 mod generic;
 
-use super::{image::ImageData, numeric::DimensionsU32, Orientation};
+use super::{Orientation, image::ImageData, numeric::DimensionsU32};
 use anyhow::Error;
 use enum_dispatch::enum_dispatch;
 use std::path::Path;

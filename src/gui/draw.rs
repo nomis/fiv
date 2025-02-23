@@ -17,8 +17,8 @@
  */
 
 use crate::fiv::{
-	numeric::{DimensionsF64, PointF64, PointI32, Sf64, Xf64, Yf64, Zero},
 	Image, Orientation, Rotate,
+	numeric::{DimensionsF64, PointF64, PointI32, Sf64, Xf64, Yf64, Zero},
 };
 use gtk::{cairo, gdk, glib, prelude::*};
 use std::{

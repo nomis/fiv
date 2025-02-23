@@ -18,7 +18,7 @@
 
 use super::{Codec, CodecMetadata, CodecPrimary, Generic, ImageData};
 use crate::fiv::numeric::DimensionsU32;
-use anyhow::{anyhow, Error};
+use anyhow::{Error, anyhow};
 use image::{DynamicImage, ImageDecoder, ImageReader};
 use std::path::Path;
 
