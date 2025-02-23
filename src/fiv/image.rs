@@ -79,7 +79,7 @@ pub enum Mark {
 	Unset,
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, derive_more::Constructor)]
 pub struct Orientation {
 	pub rotate: Rotate,
 	pub horizontal_flip: bool,
@@ -266,15 +266,6 @@ fn mark_link(mark_directory: Option<&PathBuf>, filename: &Path) -> Option<Link> 
 	}
 }
 
-impl Orientation {
-	pub fn new(rotate: Rotate, horizontal_flip: bool) -> Self {
-		Self {
-			rotate,
-			horizontal_flip,
-		}
-	}
-}
-
 impl AddAssign<Orientation> for Orientation {
 	fn add_assign(&mut self, rhs: Orientation) {
 		self.rotate += rhs.rotate;
@@ -430,21 +421,10 @@ impl ImageData {
 /// This allows us to give temporary ownership of the pixels to the Cairo surface and later
 /// retrieve them back in a safe way while ensuring that nothing else still has access to
 /// it.
+#[derive(derive_more::Constructor)]
 pub struct ImageHolder {
 	image: Option<Box<[Pixel]>>,
 	return_location: Rc<RefCell<Option<Box<[Pixel]>>>>,
-}
-
-impl ImageHolder {
-	pub fn new(
-		image: Option<Box<[Pixel]>>,
-		return_location: Rc<RefCell<Option<Box<[Pixel]>>>>,
-	) -> Self {
-		Self {
-			image,
-			return_location,
-		}
-	}
 }
 
 /// This stores the pixels back into the `return_location` as now nothing
