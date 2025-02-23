@@ -16,7 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use super::codecs::{Codec, Codecs, Generic};
+use super::codecs::{Codec, CodecMetadata, Codecs, Generic};
+use super::numeric::{DimensionsU32, Xi32, Xu32, Yi32, Yu32};
 use anyhow::Error;
 use bytemuck::{cast_slice, cast_slice_mut};
 use gtk::cairo;
@@ -35,8 +36,7 @@ use std::time::Instant;
 #[derive(Debug)]
 pub struct Image {
 	pub filename: PathBuf,
-	pub width: u32,
-	pub height: u32,
+	pub metadata: CodecMetadata,
 	codec: Codecs,
 	mark_link: Option<Link>,
 	marked: Mutex<Option<bool>>,
@@ -51,8 +51,8 @@ pub struct ImageData {
 	#[debug("{:?}", data.as_ref().map(|x| Some(x.len())))]
 	data: Option<Box<[Pixel]>>,
 	format: cairo::Format,
-	width: i32,
-	height: i32,
+	width: Xi32,
+	height: Yi32,
 	stride: i32,
 }
 
@@ -61,8 +61,8 @@ pub struct ImageDataBuilder {
 	#[debug("{}", buffer.len())]
 	pub buffer: Box<[Pixel]>,
 	format: cairo::Format,
-	width: i32,
-	height: i32,
+	width: Xi32,
+	height: Yi32,
 	stride: i32,
 }
 
@@ -102,21 +102,29 @@ impl Image {
 	) -> Result<super::Image, Error> {
 		let codec = Codecs::from(Generic::default());
 		let metadata = codec.metadata(filename.as_ref())?;
+		let orientation = metadata.orientation;
 		let path = filename.as_ref().to_path_buf();
 		let mark_link = mark_link(canonical_mark_directory, &path);
 		let image = Image {
 			filename: path,
-			width: metadata.width,
-			height: metadata.height,
+			metadata,
 			codec,
 			mark_link,
 			marked: Mutex::new(None),
 			data: Mutex::new(None),
-			orientation: Mutex::new(metadata.orientation),
+			orientation: Mutex::new(orientation),
 		};
 
 		image.refresh_mark();
 		Ok(image)
+	}
+
+	pub fn width(&self) -> Xu32 {
+		self.metadata.dimensions.width
+	}
+
+	pub fn height(&self) -> Yu32 {
+		self.metadata.dimensions.height
 	}
 
 	/// Blocking on I/O
@@ -190,15 +198,14 @@ impl Image {
 	pub fn load(&self) {
 		let begin = Instant::now();
 
-		*self.data.lock().unwrap() = Some(
-			match self.codec.primary(&self.filename, self.width, self.height) {
+		*self.data.lock().unwrap() =
+			Some(match self.codec.primary(&self.filename, &self.metadata) {
 				Ok(primary) => primary.image_data,
 				Err(err) => {
 					error!("{}: {err}", self.filename.display());
 					ImageData::failed()
 				}
-			},
-		);
+			});
 
 		trace!(
 			"{}: loaded in {:?}",
@@ -351,14 +358,16 @@ impl From<ImageDataBuilder> for ImageData {
 }
 
 impl ImageData {
-	pub fn builder(width: u32, height: u32) -> ImageDataBuilder {
-		assert!(i32::try_from(width).is_ok());
-		assert!(i32::try_from(height).is_ok());
+	pub fn builder(dimensions: DimensionsU32) -> ImageDataBuilder {
+		let width = dimensions.width;
+		let height = dimensions.height;
+		assert!(i32::try_from(u32::from(width)).is_ok());
+		assert!(i32::try_from(u32::from(height)).is_ok());
 		let format = cairo::Format::Rgb24;
-		let stride = u32::try_from(format.stride_for_width(width).unwrap()).unwrap();
+		let stride = u32::try_from(format.stride_for_width(width.into()).unwrap()).unwrap();
 
-		assert!(stride as usize == width as usize * size_of::<Pixel>());
-		let elements = stride as usize / size_of::<Pixel>() * height as usize;
+		assert!(stride as usize == u32::from(width) as usize * size_of::<Pixel>());
+		let elements = stride as usize / size_of::<Pixel>() * u32::from(height) as usize;
 
 		ImageDataBuilder {
 			buffer: vec![0; elements].into(),
@@ -373,8 +382,8 @@ impl ImageData {
 		Self {
 			data: None,
 			format: cairo::Format::Invalid,
-			width: -1,
-			height: -1,
+			width: Xi32::from(-1),
+			height: Yi32::from(-1),
 			stride: -1,
 		}
 	}
@@ -391,8 +400,8 @@ impl ImageData {
 				let surface = cairo::ImageSurface::create_for_data(
 					holder,
 					self.format,
-					self.width,
-					self.height,
+					self.width.into(),
+					self.height.into(),
 					self.stride,
 				)
 				.expect("Can't create surface");

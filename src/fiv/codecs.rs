@@ -18,7 +18,7 @@
 
 mod generic;
 
-use super::{image::ImageData, Orientation};
+use super::{image::ImageData, numeric::DimensionsU32, Orientation};
 use anyhow::Error;
 use enum_dispatch::enum_dispatch;
 use std::path::Path;
@@ -26,13 +26,12 @@ use std::path::Path;
 #[enum_dispatch]
 pub trait Codec {
 	fn metadata(&self, filename: &Path) -> Result<CodecMetadata, Error>;
-	fn primary(&self, filename: &Path, width: u32, height: u32) -> Result<CodecPrimary, Error>;
+	fn primary(&self, filename: &Path, metadata: &CodecMetadata) -> Result<CodecPrimary, Error>;
 }
 
 #[derive(Debug)]
 pub struct CodecMetadata {
-	pub width: u32,
-	pub height: u32,
+	pub dimensions: DimensionsU32,
 	pub orientation: Orientation,
 }
 

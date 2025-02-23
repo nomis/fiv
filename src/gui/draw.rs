@@ -16,7 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use crate::fiv::{Image, Orientation, Rotate};
+use crate::fiv::{
+	numeric::{DimensionsF64, PointF64, PointI32, Sf64, XYf64, Xf64, Yf64, Zero},
+	Image, Orientation, Rotate,
+};
 use gtk::{cairo, glib, prelude::*};
 use std::sync::{Arc, Mutex};
 
@@ -36,30 +39,30 @@ struct ImageDraw {
 
 #[derive(Debug)]
 pub struct Position {
-	x: f64,
-	y: f64,
-	zoom: f64,
-	drag_offset_x: f64,
-	drag_offset_y: f64,
+	x: Xf64,
+	y: Yf64,
+	zoom: Option<Sf64>,
+	drag_offset_x: Xf64,
+	drag_offset_y: Yf64,
 }
 
 #[derive(Debug)]
 struct Render {
-	x: f64,
-	y: f64,
-	scale: f64,
-	width: f64,
-	height: f64,
+	x: Xf64,
+	y: Yf64,
+	scale: Sf64,
+	width: Xf64,
+	height: Yf64,
 }
 
 impl Default for Position {
 	fn default() -> Self {
 		Self {
-			x: 0.0,
-			y: 0.0,
-			zoom: f64::NAN,
-			drag_offset_x: 0.0,
-			drag_offset_y: 0.0,
+			x: Xf64::zero(),
+			y: Yf64::zero(),
+			zoom: None,
+			drag_offset_x: Xf64::zero(),
+			drag_offset_y: Yf64::zero(),
 		}
 	}
 }
@@ -109,21 +112,23 @@ impl Draw {
 		}
 	}
 
-	fn pointer(&self) -> (i32, i32) {
+	fn pointer(&self) -> PointI32 {
 		let window = self.area.window().unwrap();
 		let seat = self.area.display().default_seat().unwrap();
 		let device_position = window.device_position(&seat.pointer().unwrap());
-		let window_position = window.position();
+		let device_position = PointI32::new(device_position.1.into(), device_position.2.into());
+		let window_position = device_position + window.position().into();
 
 		self.area
 			.toplevel()
 			.unwrap()
 			.translate_coordinates(
 				&self.area,
-				device_position.1 + window_position.0,
-				device_position.2 + window_position.1,
+				window_position.x.into(),
+				window_position.y.into(),
 			)
 			.unwrap()
+			.into()
 	}
 }
 
@@ -145,33 +150,29 @@ impl ImageDraw {
 		}
 	}
 
-	pub fn zoom_actual(&mut self, allocation: &gtk::Allocation, pointer: (i32, i32)) -> bool {
-		self.zoom(allocation, pointer, f64::NAN);
+	pub fn zoom_actual(&mut self, allocation: &gtk::Allocation, pointer: PointI32) -> bool {
+		self.zoom(allocation, pointer, None);
 		self.image.is_some()
 	}
 
 	pub fn zoom_fit(&mut self) -> bool {
-		self.position.zoom = f64::NAN;
+		self.position.zoom = None;
 		self.image.is_some()
 	}
 
-	fn zoom(&mut self, allocation: &gtk::Allocation, pointer: (i32, i32), scale: f64) {
+	fn zoom(&mut self, allocation: &gtk::Allocation, pointer: PointI32, scale: Option<f64>) {
 		if let Some(image) = &self.image {
-			let (pointer_x, pointer_y) = (f64::from(pointer.0), f64::from(pointer.1));
+			let pointer: PointF64 = pointer.into();
 			let render = self.calc_render(allocation, image);
 
-			self.position.zoom = if f64::is_nan(scale) {
-				1.0
-			} else {
-				render.scale * scale
-			};
-
-			self.position.x = pointer_x
-				- ((pointer_x - render.x) / render.scale * self.position.zoom)
+			let zoom = scale.map_or(Sf64::actual(), |value| render.scale * value);
+			self.position.x = pointer.x
+				- ((pointer.x - render.x) / (render.scale * zoom))
 				- self.position.drag_offset_x;
-			self.position.y = pointer_y
-				- ((pointer_y - render.y) / render.scale * self.position.zoom)
+			self.position.y = pointer.y
+				- ((pointer.y - render.y) / (render.scale * zoom))
 				- self.position.drag_offset_y;
+			self.position.zoom = Some(zoom);
 		}
 	}
 
@@ -211,8 +212,8 @@ impl ImageDraw {
 
 			let render = self.calc_render(allocation, image);
 
-			context.translate(render.x, render.y);
-			context.scale(render.scale, render.scale);
+			context.translate(render.x.into(), render.y.into());
+			context.scale(render.scale.into(), render.scale.into());
 
 			image.with_surface(|surface, loaded| {
 				self.waiting = surface.is_none();
@@ -222,23 +223,23 @@ impl ImageDraw {
 						Rotate::Rotate0 => {}
 
 						Rotate::Rotate90 => {
-							context.translate(f64::from(image.height), 0.0);
+							context.translate(image.height().into(), 0.0);
 							context.rotate(std::f64::consts::PI * 0.5);
 						}
 
 						Rotate::Rotate180 => {
-							context.translate(f64::from(image.width), f64::from(image.height));
+							context.translate(image.width().into(), image.height().into());
 							context.rotate(std::f64::consts::PI);
 						}
 
 						Rotate::Rotate270 => {
-							context.translate(0.0, f64::from(image.width));
+							context.translate(0.0, image.width().into());
 							context.rotate(std::f64::consts::PI * 1.5);
 						}
 					};
 
 					if self.orientation.horizontal_flip {
-						context.translate(f64::from(image.width), 0.0);
+						context.translate(image.width().into(), 0.0);
 						context.scale(-1.0, 1.0);
 					}
 
@@ -257,7 +258,7 @@ impl ImageDraw {
 					} else {
 						context.set_source_rgb(0.5, 0.75, 0.5);
 					}
-					context.rectangle(0.0, 0.0, render.width, render.height);
+					context.rectangle(0.0, 0.0, render.width.into(), render.height.into());
 					context.clip();
 					context.paint().unwrap();
 				}
@@ -266,59 +267,62 @@ impl ImageDraw {
 	}
 
 	fn calc_render(&self, allocation: &gtk::Rectangle, image: &Arc<Image>) -> Render {
-		let output_width = f64::from(allocation.width());
-		let output_height = f64::from(allocation.height());
+		let output: DimensionsF64 = allocation.into();
 
-		let (width, height) = match self.orientation.rotate {
-			Rotate::Rotate0 | Rotate::Rotate180 => {
-				(f64::from(image.width), f64::from(image.height))
-			}
-			Rotate::Rotate90 | Rotate::Rotate270 => {
-				(f64::from(image.height), f64::from(image.width))
-			}
+		let input: DimensionsF64 = match self.orientation.rotate {
+			Rotate::Rotate0 | Rotate::Rotate180 => image.metadata.dimensions.into(),
+			Rotate::Rotate90 | Rotate::Rotate270 => image.metadata.dimensions.rotate90().into(),
 		};
 
-		let (x, y, scale) = if self.position.zoom.is_nan() {
-			let scale = f64::min(output_width / width, output_height / height);
-			let x;
-			let y;
-
-			if output_width / width >= output_height / height {
-				x = (output_width - scale * width) / 2.0;
-				y = 0.0;
-			} else {
-				x = 0.0;
-				y = (output_height - scale * height) / 2.0;
-			}
-
-			(x, y, scale)
-		} else {
-			let scale = self.position.zoom;
-			let constrain = |length, output_length, position| {
-				if length * scale < output_length {
+		let (x, y, scale) = if let Some(scale) = self.position.zoom {
+			fn constrain<T: XYf64<T>>(
+				input_length: T,
+				output_length: T,
+				scale: Sf64,
+				position: T,
+			) -> T {
+				if input_length * scale < output_length {
 					// Image too small, centre
-					(output_length - scale * length) / 2.0
-				} else if position > 0.0 {
+					(output_length - input_length * scale) / 2.0
+				} else if position > T::zero() {
 					// Gap before the image, move to the start edge
-					0.0
-				} else if position + length * scale < output_length {
+					T::zero()
+				} else if position + input_length * scale < output_length {
 					// Gap after the image, move to the end edge
-					output_length - length * scale
+					output_length - input_length * scale
 				} else {
 					position
 				}
-			};
+			}
 
 			let x = constrain(
-				width,
-				output_width,
+				input.width,
+				output.width,
+				scale,
 				self.position.x + self.position.drag_offset_x,
 			);
 			let y = constrain(
-				height,
-				output_height,
+				input.height,
+				output.height,
+				scale,
 				self.position.y + self.position.drag_offset_y,
 			);
+
+			(x, y, scale)
+		} else {
+			let width_ratio = Sf64::ratio(output.width, input.width);
+			let height_ratio = Sf64::ratio(output.height, input.height);
+			let scale = Sf64::min(width_ratio, height_ratio);
+			let x: Xf64;
+			let y: Yf64;
+
+			if width_ratio >= height_ratio {
+				x = (output.width - input.width * scale) / 2.0;
+				y = Yf64::zero();
+			} else {
+				x = Xf64::zero();
+				y = (output.height - input.height * scale) / 2.0;
+			};
 
 			(x, y, scale)
 		};
@@ -327,8 +331,8 @@ impl ImageDraw {
 			x,
 			y,
 			scale,
-			width,
-			height,
+			width: input.width,
+			height: input.height,
 		}
 	}
 }

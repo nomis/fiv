@@ -17,6 +17,7 @@
  */
 
 use super::{Codec, CodecMetadata, CodecPrimary, Generic, ImageData};
+use crate::fiv::numeric::DimensionsU32;
 use anyhow::{anyhow, Error};
 use image::{DynamicImage, ImageDecoder, ImageReader};
 use std::path::Path;
@@ -26,36 +27,31 @@ impl Codec for Generic {
 		let mut decoder = ImageReader::open(filename)?
 			.with_guessed_format()?
 			.into_decoder()?;
-		let (width, height) = decoder.dimensions();
-		let orientation = decoder.orientation().unwrap().into();
 
 		Ok(CodecMetadata {
-			width,
-			height,
-			orientation,
+			dimensions: decoder.dimensions().into(),
+			orientation: decoder.orientation().unwrap().into(),
 		})
 	}
 
-	fn primary(&self, filename: &Path, width: u32, height: u32) -> Result<CodecPrimary, Error> {
+	fn primary(&self, filename: &Path, metadata: &CodecMetadata) -> Result<CodecPrimary, Error> {
 		let decoder = ImageReader::open(filename)?
 			.with_guessed_format()?
 			.into_decoder()?;
 
-		let dimensions = decoder.dimensions();
+		let dimensions: DimensionsU32 = decoder.dimensions().into();
 
-		if dimensions != (width, height) {
+		if dimensions != metadata.dimensions {
 			Err(anyhow!(
-				"Image dimensions have changed: {}x{} != {}x{}",
-				dimensions.0,
-				dimensions.1,
-				width,
-				height
+				"Image dimensions have changed: {} != {}",
+				dimensions,
+				metadata.dimensions,
 			))?;
 		}
 
 		let image = DynamicImage::from_decoder(decoder)?.into_rgb8();
 		let samples = image.as_flat_samples().samples;
-		let mut image_data = ImageData::builder(width, height);
+		let mut image_data = ImageData::builder(dimensions);
 
 		for (src, dst) in samples.chunks_exact(3).zip(image_data.buffer.iter_mut()) {
 			*dst = (u32::from(src[0]) << 16) | (u32::from(src[1]) << 8) | u32::from(src[2]);
