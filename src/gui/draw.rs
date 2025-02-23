@@ -275,36 +275,29 @@ impl ImageDraw {
 		};
 
 		let (x, y, scale) = if let Some(scale) = self.position.zoom {
-			fn constrain<T: XYf64<T>>(
-				input_length: T,
-				output_length: T,
-				scale: Sf64,
-				position: T,
-			) -> T {
-				if input_length * scale < output_length {
+			fn constrain<T: XYf64<T>>(input_length: T, output_length: T, position: T) -> T {
+				if input_length < output_length {
 					// Image too small, centre
-					(output_length - input_length * scale) / 2.0
+					(output_length - input_length) / 2.0
 				} else if position > T::zero() {
 					// Gap before the image, move to the start edge
 					T::zero()
-				} else if position + input_length * scale < output_length {
+				} else if position + input_length < output_length {
 					// Gap after the image, move to the end edge
-					output_length - input_length * scale
+					output_length - input_length
 				} else {
 					position
 				}
 			}
 
 			let x = constrain(
-				input.width,
+				input.width * scale,
 				output.width,
-				scale,
 				self.position.x + self.position.drag_offset_x,
 			);
 			let y = constrain(
-				input.height,
+				input.height * scale,
 				output.height,
-				scale,
 				self.position.y + self.position.drag_offset_y,
 			);
 
