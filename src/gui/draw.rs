@@ -26,6 +26,7 @@ use std::{
 	sync::{Arc, Mutex},
 };
 
+#[allow(clippy::struct_field_names)]
 #[derive(Debug)]
 pub struct Draw {
 	area: gtk::DrawingArea,
@@ -51,10 +52,10 @@ pub struct Zoom {
 }
 
 #[derive(Debug)]
-struct RenderAt {
-	scale: Sf64,
-	position: PointF64,
+struct DrawAt {
 	dimensions: DimensionsF64,
+	position: PointF64,
+	scale: Sf64,
 }
 
 impl Draw {
@@ -260,8 +261,8 @@ impl ImageDraw {
 	pub fn drag_begin(&mut self, allocation: &gtk::Allocation, _start: PointF64) -> bool {
 		self.zoom.drag_offset = PointF64::default();
 
-		if let Some(render) = self.calc_render(allocation, true) {
-			self.zoom.position = render.position;
+		if let Some(draw_at) = self.calc_draw_position(allocation, true) {
+			self.zoom.position = draw_at.position;
 		}
 
 		false
@@ -270,15 +271,15 @@ impl ImageDraw {
 	pub fn drag_update(&mut self, allocation: &gtk::Allocation, offset: PointF64) -> bool {
 		self.zoom.drag_offset = offset;
 
-		self.calc_render(allocation, true);
+		self.calc_draw_position(allocation, true);
 		self.image.is_some()
 	}
 
 	pub fn drag_end(&mut self, allocation: &gtk::Allocation, offset: PointF64) -> bool {
 		self.zoom.drag_offset = offset;
 
-		if let Some(render) = self.calc_render(allocation, true) {
-			self.zoom.position = render.position;
+		if let Some(draw_at) = self.calc_draw_position(allocation, true) {
+			self.zoom.position = draw_at.position;
 		}
 
 		self.zoom.drag_offset = PointF64::default();
@@ -306,16 +307,16 @@ impl ImageDraw {
 	}
 
 	fn zoom(&mut self, allocation: &gtk::Allocation, pointer: PointI32, scale: Option<Sf64>) {
-		if let Some(render) = self.calc_render(allocation, true) {
+		if let Some(draw_at) = self.calc_draw_position(allocation, true) {
 			let pointer: PointF64 = pointer.into();
-			let scale = scale.map_or(Sf64::actual(), |value| render.scale * value);
+			let scale = scale.map_or(Sf64::actual(), |value| draw_at.scale * value);
 
 			self.zoom.scale = Some(scale);
 			self.zoom.position = pointer
-				- ((pointer - render.position) / render.scale * scale)
+				- ((pointer - draw_at.position) / draw_at.scale * scale)
 				- self.zoom.drag_offset;
 
-			self.calc_render(allocation, false);
+			self.calc_draw_position(allocation, false);
 		}
 	}
 
@@ -350,7 +351,7 @@ impl ImageDraw {
 	}
 
 	fn draw_image(&mut self, allocation: &gtk::Rectangle, context: &cairo::Context) {
-		let Some(render) = self.calc_render(allocation, true) else {
+		let Some(draw_at) = self.calc_draw_position(allocation, true) else {
 			return;
 		};
 
@@ -360,8 +361,8 @@ impl ImageDraw {
 
 		self.orientation = image.orientation();
 
-		context.translate(render.position.x.into(), render.position.y.into());
-		context.scale(render.scale.into(), render.scale.into());
+		context.translate(draw_at.position.x.into(), draw_at.position.y.into());
+		context.scale(draw_at.scale.into(), draw_at.scale.into());
 
 		image.with_surface(|surface, loaded| {
 			self.waiting = surface.is_none();
@@ -408,8 +409,8 @@ impl ImageDraw {
 				context.rectangle(
 					0.0,
 					0.0,
-					render.dimensions.width.into(),
-					render.dimensions.height.into(),
+					draw_at.dimensions.width.into(),
+					draw_at.dimensions.height.into(),
 				);
 				context.clip();
 				context.paint().unwrap();
@@ -417,7 +418,11 @@ impl ImageDraw {
 		});
 	}
 
-	fn calc_render(&mut self, allocation: &gtk::Rectangle, restricted: bool) -> Option<RenderAt> {
+	fn calc_draw_position(
+		&mut self,
+		allocation: &gtk::Rectangle,
+		restricted: bool,
+	) -> Option<DrawAt> {
 		let Some(image) = &self.image else {
 			return None;
 		};
@@ -529,10 +534,10 @@ impl ImageDraw {
 
 		self.zoom.tolerance = position - target_position;
 
-		Some(RenderAt {
-			scale,
-			position,
+		Some(DrawAt {
 			dimensions: input,
+			position,
+			scale,
 		})
 	}
 }
