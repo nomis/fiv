@@ -26,7 +26,7 @@ use std::{
 	sync::{Arc, Mutex},
 };
 
-#[allow(clippy::struct_field_names)]
+#[expect(clippy::struct_field_names, reason = "Naming things is hard")]
 #[derive(Debug)]
 pub struct Draw {
 	area: gtk::DrawingArea,

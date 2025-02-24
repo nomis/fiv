@@ -51,7 +51,7 @@ impl Codec for Generic {
 
 		let image = DynamicImage::from_decoder(decoder)?.into_rgb8();
 		let samples = image.as_flat_samples().samples;
-		let mut image_data = ImageData::builder(dimensions);
+		let mut image_data = ImageData::builder(dimensions)?;
 
 		for (src, dst) in samples.chunks_exact(3).zip(image_data.buffer.iter_mut()) {
 			*dst = (u32::from(src[0]) << 16) | (u32::from(src[1]) << 8) | u32::from(src[2]);

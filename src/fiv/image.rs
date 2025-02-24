@@ -18,7 +18,7 @@
 
 use super::codecs::{Codec, CodecMetadata, Codecs, Generic};
 use super::numeric::{DimensionsU32, Xi32, Xu32, Yi32, Yu32};
-use anyhow::Error;
+use anyhow::{Error, ensure};
 use bytemuck::{cast_slice, cast_slice_mut};
 use gtk::cairo;
 use log::{error, trace};
@@ -208,7 +208,7 @@ impl Image {
 			});
 
 		trace!(
-			"{}: loaded in {:?}",
+			"{}: Loaded in {:?}",
 			self.filename.display(),
 			begin.elapsed()
 		);
@@ -358,24 +358,44 @@ impl From<ImageDataBuilder> for ImageData {
 }
 
 impl ImageData {
-	pub fn builder(dimensions: DimensionsU32) -> ImageDataBuilder {
+	pub fn builder(dimensions: DimensionsU32) -> Result<ImageDataBuilder, Error> {
 		let width = dimensions.width;
 		let height = dimensions.height;
-		assert!(i32::try_from(u32::from(width)).is_ok());
-		assert!(i32::try_from(u32::from(height)).is_ok());
+
+		ensure!(
+			i32::try_from(u32::from(width)).is_ok(),
+			"Image is too wide: {dimensions}"
+		);
+		ensure!(
+			i32::try_from(u32::from(height)).is_ok(),
+			"Image is too tall: {dimensions}"
+		);
+		ensure!(
+			(u32::from(width) as usize) <= (usize::MAX / size_of::<Pixel>()),
+			"Image is too wide: {dimensions}"
+		);
+
 		let format = cairo::Format::Rgb24;
 		let stride = u32::try_from(format.stride_for_width(width.into()).unwrap()).unwrap();
 
-		assert!(stride as usize == u32::from(width) as usize * size_of::<Pixel>());
+		ensure!(
+			(u32::from(height) as usize) <= (usize::MAX / stride as usize),
+			"Image is too large: {dimensions}"
+		);
+		ensure!(
+			stride as usize == (u32::from(width) as usize * size_of::<Pixel>()),
+			"Unexpected cairo stride {stride} for {dimensions} image"
+		);
+
 		let elements = stride as usize / size_of::<Pixel>() * u32::from(height) as usize;
 
-		ImageDataBuilder {
+		Ok(ImageDataBuilder {
 			buffer: vec![0; elements].into(),
 			format,
 			width: width.try_into().unwrap(),
 			height: height.try_into().unwrap(),
 			stride: stride.try_into().unwrap(),
-		}
+		})
 	}
 
 	pub fn failed() -> Self {
