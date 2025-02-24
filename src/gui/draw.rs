@@ -16,15 +16,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use crate::fiv::{
-	Image, Orientation, Rotate,
-	numeric::{DimensionsF64, PointF64, PointI32, Sf64, XYf64, Xf64, Yf64, Zero},
+use crate::{
+	fiv::{
+		Image, Orientation, Rotate,
+		numeric::{DimensionsF64, PointF64, PointI32, Sf64, XYf64, Xf64, Yf64, Zero},
+	},
+	nutype_const,
 };
 use gtk::{cairo, gdk, glib, prelude::*};
 use std::{
 	rc::Rc,
 	sync::{Arc, Mutex},
 };
+
+// Don't allow zooming too far in/out, it'll cause errors in cairo, and
+// subnormal numbers are considered non-finite
+nutype_const!(MIN_ZOOM, Sf64, 1.0 / u32::MAX as f64);
+nutype_const!(MAX_ZOOM, Sf64, u32::MAX as f64);
 
 #[expect(clippy::struct_field_names, reason = "Naming things is hard")]
 #[derive(Debug)]
@@ -309,7 +317,9 @@ impl ImageDraw {
 	fn zoom(&mut self, allocation: &gtk::Allocation, pointer: PointI32, scale: Option<Sf64>) {
 		if let Some(draw_at) = self.calc_draw_position(allocation, true) {
 			let pointer: PointF64 = pointer.into();
-			let scale = scale.map_or(Sf64::actual(), |value| draw_at.scale * value);
+			let scale = scale.map_or(Sf64::actual(), |value| {
+				(draw_at.scale * value).clamp(MIN_ZOOM, MAX_ZOOM)
+			});
 
 			self.zoom.scale = Some(scale);
 			self.zoom.position = pointer

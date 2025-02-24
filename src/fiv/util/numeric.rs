@@ -19,6 +19,16 @@
 use nutype::nutype;
 use std::{cmp, fmt, ops};
 
+#[macro_export]
+macro_rules! nutype_const {
+	($name:ident, $ty:ty, $value:expr) => {
+		const $name: $ty = match <$ty>::try_new($value) {
+			Ok(value) => value,
+			Err(_) => panic!("Invalid value"),
+		};
+	};
+}
+
 macro_rules! derive_try_into {
 	($custom_from:ty, $primitive_from:ty, $custom_output:ty, $primitive_to:ty) => {
 		impl TryInto<$custom_output> for $custom_from {
@@ -150,13 +160,19 @@ macro_rules! derive_numeric_ops_xy_apply {
 	}
 }
 
-#[nutype(derive(
-	Debug, Copy, Clone, Display, From, Into, PartialEq, Eq, PartialOrd, Ord
-))]
+#[nutype(
+	const_fn,
+	derive(
+		Debug, Copy, Clone, Display, From, Into, PartialEq, Eq, PartialOrd, Ord
+	)
+)]
 pub struct Xi32(i32);
-#[nutype(derive(
-	Debug, Copy, Clone, Display, From, Into, PartialEq, Eq, PartialOrd, Ord
-))]
+#[nutype(
+	const_fn,
+	derive(
+		Debug, Copy, Clone, Display, From, Into, PartialEq, Eq, PartialOrd, Ord
+	)
+)]
 pub struct Yi32(i32);
 
 derive_numeric_ops_primitive!(Xi32, i32);
@@ -165,13 +181,19 @@ derive_numeric_ops_primitive!(Yi32, i32);
 derive_try_into!(Xi32, i32, Xu32, u32);
 derive_try_into!(Yi32, i32, Yu32, u32);
 
-#[nutype(derive(
-	Debug, Copy, Clone, Display, From, Into, PartialEq, Eq, PartialOrd, Ord
-))]
+#[nutype(
+	const_fn,
+	derive(
+		Debug, Copy, Clone, Display, From, Into, PartialEq, Eq, PartialOrd, Ord
+	)
+)]
 pub struct Xu32(u32);
-#[nutype(derive(
-	Debug, Copy, Clone, Display, From, Into, PartialEq, Eq, PartialOrd, Ord
-))]
+#[nutype(
+	const_fn,
+	derive(
+		Debug, Copy, Clone, Display, From, Into, PartialEq, Eq, PartialOrd, Ord
+	)
+)]
 pub struct Yu32(u32);
 
 derive_numeric_ops_primitive!(Xu32, u32);
@@ -193,11 +215,13 @@ impl From<Yu32> for f64 {
 }
 
 #[nutype(
+	const_fn,
 	validate(finite),
 	derive(Debug, Copy, Clone, TryFrom, Into, PartialEq, Eq, PartialOrd, Ord)
 )]
 pub struct Xf64(f64);
 #[nutype(
+	const_fn,
 	validate(finite),
 	derive(Debug, Copy, Clone, TryFrom, Into, PartialEq, Eq, PartialOrd, Ord)
 )]
@@ -289,6 +313,7 @@ impl Zero for Yf64 {
 }
 
 #[nutype(
+	const_fn,
 	validate(finite),
 	derive(
 		Debug, Copy, Clone, Display, TryFrom, Into, PartialEq, Eq, PartialOrd, Ord
