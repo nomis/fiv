@@ -1,5 +1,11 @@
-Canon rating indicator
+# Now
+Image loading
+Use tree_magic, turbojpeg and check performance
+Test performance of memmap2
 Canon focus points
+
+# Later
+Canon rating indicator
 Photo properties:
 	Date/Time
 	ISO speed
