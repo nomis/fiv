@@ -194,16 +194,12 @@ impl From<Yu32> for f64 {
 
 #[nutype(
 	validate(finite),
-	derive(
-		Debug, Copy, Clone, Display, TryFrom, Into, PartialEq, Eq, PartialOrd, Ord
-	)
+	derive(Debug, Copy, Clone, TryFrom, Into, PartialEq, Eq, PartialOrd, Ord)
 )]
 pub struct Xf64(f64);
 #[nutype(
 	validate(finite),
-	derive(
-		Debug, Copy, Clone, Display, TryFrom, Into, PartialEq, Eq, PartialOrd, Ord
-	)
+	derive(Debug, Copy, Clone, TryFrom, Into, PartialEq, Eq, PartialOrd, Ord)
 )]
 pub struct Yf64(f64);
 
@@ -234,6 +230,18 @@ impl From<Yu32> for Yf64 {
 	}
 }
 
+impl fmt::Display for Xf64 {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "{:.2}", self.into_inner())
+	}
+}
+
+impl fmt::Display for Yf64 {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "{:.2}", self.into_inner())
+	}
+}
+
 /// "Everything" trait for Xf64 and Yf64, so that either type can be used as
 /// a generic type parameter
 pub trait XYf64<T>:
@@ -256,6 +264,7 @@ pub trait XYf64<T>:
 	+ cmp::Eq
 	+ cmp::PartialOrd<T>
 	+ cmp::Ord
+	+ fmt::Display
 {
 }
 
@@ -326,7 +335,7 @@ impl From<(i32, i32)> for PointI32 {
 
 impl fmt::Display for PointI32 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "{},{}", self.x, self.y)
+		write!(f, "{:.2},{:.2}", self.x.into_inner(), self.y.into_inner())
 	}
 }
 
@@ -365,7 +374,7 @@ impl From<PointI32> for PointF64 {
 
 impl fmt::Display for PointF64 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "{},{}", self.x, self.y)
+		write!(f, "{:.2},{:.2}", self.x.into_inner(), self.y.into_inner())
 	}
 }
 
@@ -398,7 +407,12 @@ impl From<&gtk::Allocation> for DimensionsU32 {
 
 impl fmt::Display for DimensionsU32 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "{}x{}", self.width, self.height)
+		write!(
+			f,
+			"{:.2}x{:.2}",
+			self.width.into_inner(),
+			self.height.into_inner()
+		)
 	}
 }
 
@@ -430,7 +444,12 @@ impl From<&gtk::Allocation> for DimensionsF64 {
 
 impl fmt::Display for DimensionsF64 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "{}x{}", self.width, self.height)
+		write!(
+			f,
+			"{:.2}x{:.2}",
+			self.width.into_inner(),
+			self.height.into_inner()
+		)
 	}
 }
 

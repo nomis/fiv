@@ -47,10 +47,11 @@ pub struct Zoom {
 	scale: Option<Sf64>,
 	position: PointF64,
 	drag_offset: PointF64,
+	tolerance: PointF64,
 }
 
 #[derive(Debug)]
-struct Render {
+struct RenderAt {
 	scale: Sf64,
 	position: PointF64,
 	dimensions: DimensionsF64,
@@ -58,15 +59,18 @@ struct Render {
 
 impl Draw {
 	pub fn new<F: FnOnce(&gtk::DrawingArea)>(f: F) -> Rc<Self> {
-		let area = gtk::DrawingArea::default();
-		let drag_gesture = gtk::GestureDrag::new(&area);
-		let zoom_gesture = gtk::GestureZoom::new(&area);
-		let draw = Rc::new(Self {
-			area,
-			drag_gesture,
-			zoom_gesture,
-			image_draw: Rc::new(Mutex::new(ImageDraw::default())),
-		});
+		let draw = {
+			let area = gtk::DrawingArea::default();
+			let drag_gesture = gtk::GestureDrag::new(&area);
+			let zoom_gesture = gtk::GestureZoom::new(&area);
+
+			Rc::new(Self {
+				area,
+				drag_gesture,
+				zoom_gesture,
+				image_draw: Rc::new(Mutex::new(ImageDraw::default())),
+			})
+		};
 
 		{
 			let draw_image_ref = Rc::downgrade(&draw.image_draw);
@@ -253,28 +257,32 @@ impl ImageDraw {
 		}
 	}
 
-	pub fn drag_begin(&mut self, _allocation: &gtk::Allocation, _start: PointF64) -> bool {
+	pub fn drag_begin(&mut self, allocation: &gtk::Allocation, _start: PointF64) -> bool {
+		self.zoom.drag_offset = PointF64::default();
+
+		if let Some(render) = self.calc_render(allocation, true) {
+			self.zoom.position = render.position;
+		}
+
 		false
 	}
 
-	pub fn drag_update(&mut self, _allocation: &gtk::Allocation, offset: PointF64) -> bool {
+	pub fn drag_update(&mut self, allocation: &gtk::Allocation, offset: PointF64) -> bool {
 		self.zoom.drag_offset = offset;
+
+		self.calc_render(allocation, true);
 		self.image.is_some()
 	}
 
 	pub fn drag_end(&mut self, allocation: &gtk::Allocation, offset: PointF64) -> bool {
 		self.zoom.drag_offset = offset;
-		self.drag_finalise(allocation);
-		self.image.is_some()
-	}
 
-	fn drag_finalise(&mut self, allocation: &gtk::Allocation) {
-		if let Some(image) = &self.image {
-			let render = self.calc_render(allocation, image);
-
+		if let Some(render) = self.calc_render(allocation, true) {
 			self.zoom.position = render.position;
-			self.zoom.drag_offset = PointF64::default();
 		}
+
+		self.zoom.drag_offset = PointF64::default();
+		self.image.is_some()
 	}
 
 	pub fn zoom_actual(&mut self, allocation: &gtk::Allocation, pointer: PointI32) -> bool {
@@ -298,15 +306,16 @@ impl ImageDraw {
 	}
 
 	fn zoom(&mut self, allocation: &gtk::Allocation, pointer: PointI32, scale: Option<Sf64>) {
-		if let Some(image) = &self.image {
+		if let Some(render) = self.calc_render(allocation, true) {
 			let pointer: PointF64 = pointer.into();
-			let render = self.calc_render(allocation, image);
 			let scale = scale.map_or(Sf64::actual(), |value| render.scale * value);
 
 			self.zoom.scale = Some(scale);
 			self.zoom.position = pointer
 				- ((pointer - render.position) / render.scale * scale)
 				- self.zoom.drag_offset;
+
+			self.calc_render(allocation, false);
 		}
 	}
 
@@ -341,81 +350,97 @@ impl ImageDraw {
 	}
 
 	fn draw_image(&mut self, allocation: &gtk::Rectangle, context: &cairo::Context) {
-		if let Some(image) = &self.image {
-			self.orientation = image.orientation();
+		let Some(render) = self.calc_render(allocation, true) else {
+			return;
+		};
 
-			let render = self.calc_render(allocation, image);
+		let Some(image) = &self.image else {
+			return;
+		};
 
-			context.translate(render.position.x.into(), render.position.y.into());
-			context.scale(render.scale.into(), render.scale.into());
+		self.orientation = image.orientation();
 
-			image.with_surface(|surface, loaded| {
-				self.waiting = surface.is_none();
+		context.translate(render.position.x.into(), render.position.y.into());
+		context.scale(render.scale.into(), render.scale.into());
 
-				if let Some(surface) = surface {
-					match self.orientation.rotate {
-						Rotate::Rotate0 => {}
+		image.with_surface(|surface, loaded| {
+			self.waiting = surface.is_none();
 
-						Rotate::Rotate90 => {
-							context.translate(image.height().into(), 0.0);
-							context.rotate(std::f64::consts::PI * 0.5);
-						}
+			if let Some(surface) = surface {
+				match self.orientation.rotate {
+					Rotate::Rotate0 => {}
 
-						Rotate::Rotate180 => {
-							context.translate(image.width().into(), image.height().into());
-							context.rotate(std::f64::consts::PI);
-						}
-
-						Rotate::Rotate270 => {
-							context.translate(0.0, image.width().into());
-							context.rotate(std::f64::consts::PI * 1.5);
-						}
-					};
-
-					if self.orientation.horizontal_flip {
-						context.translate(image.width().into(), 0.0);
-						context.scale(-1.0, 1.0);
+					Rotate::Rotate90 => {
+						context.translate(image.height().into(), 0.0);
+						context.rotate(std::f64::consts::PI * 0.5);
 					}
 
-					let pattern = cairo::SurfacePattern::create(surface);
-					pattern.set_filter(cairo::Filter::Fast);
-					context.set_source(pattern).unwrap();
-					context.paint().unwrap();
-
-					// Release the `surface` after using it, before this closure
-					// returns otherwise `context` will still have a reference
-					// to it
-					context.set_source_rgb(0.0, 0.0, 0.0);
-				} else {
-					if loaded {
-						context.set_source_rgb(0.75, 0.5, 0.5);
-					} else {
-						context.set_source_rgb(0.5, 0.75, 0.5);
+					Rotate::Rotate180 => {
+						context.translate(image.width().into(), image.height().into());
+						context.rotate(std::f64::consts::PI);
 					}
-					context.rectangle(
-						0.0,
-						0.0,
-						render.dimensions.width.into(),
-						render.dimensions.height.into(),
-					);
-					context.clip();
-					context.paint().unwrap();
+
+					Rotate::Rotate270 => {
+						context.translate(0.0, image.width().into());
+						context.rotate(std::f64::consts::PI * 1.5);
+					}
+				};
+
+				if self.orientation.horizontal_flip {
+					context.translate(image.width().into(), 0.0);
+					context.scale(-1.0, 1.0);
 				}
-			});
-		}
+
+				let pattern = cairo::SurfacePattern::create(surface);
+				pattern.set_filter(cairo::Filter::Fast);
+				context.set_source(pattern).unwrap();
+				context.paint().unwrap();
+
+				// Release the `surface` after using it, before this closure
+				// returns otherwise `context` will still have a reference to it
+				context.set_source_rgb(0.0, 0.0, 0.0);
+			} else {
+				if loaded {
+					context.set_source_rgb(0.75, 0.5, 0.5);
+				} else {
+					context.set_source_rgb(0.5, 0.75, 0.5);
+				}
+				context.rectangle(
+					0.0,
+					0.0,
+					render.dimensions.width.into(),
+					render.dimensions.height.into(),
+				);
+				context.clip();
+				context.paint().unwrap();
+			}
+		});
 	}
 
-	fn calc_render(&self, allocation: &gtk::Rectangle, image: &Arc<Image>) -> Render {
+	fn calc_render(&mut self, allocation: &gtk::Rectangle, restricted: bool) -> Option<RenderAt> {
+		let Some(image) = &self.image else {
+			return None;
+		};
+
 		let output: DimensionsF64 = allocation.into();
 		let input: DimensionsF64 = match self.orientation.rotate {
 			Rotate::Rotate0 | Rotate::Rotate180 => image.metadata.dimensions.into(),
 			Rotate::Rotate90 | Rotate::Rotate270 => image.metadata.dimensions.rotate90().into(),
 		};
 
-		let (scale, position) = if let Some(scale) = self.zoom.scale {
-			fn constrain<T: XYf64<T>>(input_length: T, output_length: T, position: T) -> T {
-				if input_length < output_length {
-					// Image too small, centre
+		let (scale, position, target_position) = if let Some(scale) = self.zoom.scale {
+			/// Allow zooming in without changing position, but constrain drag
+			/// operations so that they can't move further away from the centre
+			fn constrain_value<T: XYf64<T>>(
+				input_length: T,
+				output_length: T,
+				position: T,
+				tolerance: T,
+				restricted: bool,
+				too_small: bool,
+			) -> (T, T) {
+				let target_position = if input_length <= output_length {
+					// Image too small, try to centre
 					(output_length - input_length) / 2.0
 				} else if position > T::zero() {
 					// Gap before the image, move to the start edge
@@ -425,19 +450,68 @@ impl ImageDraw {
 					output_length - input_length
 				} else {
 					position
-				}
+				};
+
+				let position = if too_small {
+					// Image too small in both directions, always centre
+					(output_length - input_length) / 2.0
+				} else if restricted {
+					let lower = if tolerance.into().lt(&0.0) {
+						target_position + tolerance
+					} else {
+						target_position
+					};
+					let upper = if tolerance.into().gt(&0.0) {
+						target_position + tolerance
+					} else {
+						target_position
+					};
+
+					position.clamp(lower, upper)
+				} else {
+					position
+				};
+
+				(position, target_position)
 			}
 
-			let input = input * scale;
-			let mut position = self.zoom.position + self.zoom.drag_offset;
+			fn constrain_point(
+				input: DimensionsF64,
+				output: DimensionsF64,
+				position: PointF64,
+				tolerance: PointF64,
+				restricted: bool,
+			) -> (PointF64, PointF64) {
+				let too_small = input <= output;
+				let x = constrain_value(
+					input.width,
+					output.width,
+					position.x,
+					tolerance.x,
+					restricted,
+					too_small,
+				);
+				let y = constrain_value(
+					input.height,
+					output.height,
+					position.y,
+					tolerance.y,
+					restricted,
+					too_small,
+				);
 
-			// TODO: Allow zooming in without changing position, but still
-			// constrain drag operations so that they can't move further away
-			// from the centre
-			position.x = constrain(input.width, output.width, position.x);
-			position.y = constrain(input.height, output.height, position.y);
+				(PointF64::new(x.0, y.0), PointF64::new(x.1, y.1))
+			}
 
-			(scale, position)
+			let (position, target_position) = constrain_point(
+				input * scale,
+				output,
+				self.zoom.position + self.zoom.drag_offset,
+				self.zoom.tolerance,
+				restricted,
+			);
+
+			(scale, position, target_position)
 		} else {
 			let width_ratio = Sf64::ratio(output.width, input.width);
 			let height_ratio = Sf64::ratio(output.height, input.height);
@@ -450,13 +524,15 @@ impl ImageDraw {
 				PointF64::new(Xf64::zero(), (output.height - input.height) / 2.0)
 			};
 
-			(scale, position)
+			(scale, position, position)
 		};
 
-		Render {
+		self.zoom.tolerance = position - target_position;
+
+		Some(RenderAt {
 			scale,
 			position,
 			dimensions: input,
-		}
+		})
 	}
 }
