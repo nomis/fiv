@@ -20,6 +20,7 @@ use super::Files;
 use super::draw::DrawingArea;
 use crate::fiv::{Mark, Navigate, Rotate};
 use gio::Menu;
+use gtk::gdk;
 use gtk::gio::SimpleAction;
 use gtk::glib::once_cell::unsync::OnceCell;
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
@@ -298,16 +299,23 @@ impl Application {
 
 	fn view_fullscreen(&self, _action: WinAction) {
 		let window = self.window.get().unwrap();
-		let mut state = self.state.lock().unwrap();
+		let state = self.state.lock().unwrap();
 
 		if state.full_screen {
-			window.set_show_menubar(true);
 			window.unfullscreen();
-			state.full_screen = false;
 		} else {
 			window.fullscreen();
-			window.set_show_menubar(false);
-			state.full_screen = true;
+		}
+	}
+
+	fn window_state_changed(&self, full_screen: bool) {
+		let mut state = self.state.lock().unwrap();
+
+		if state.full_screen != full_screen {
+			let window = self.window.get().unwrap();
+
+			state.full_screen = full_screen;
+			window.set_show_menubar(!state.full_screen);
 		}
 	}
 
@@ -339,6 +347,20 @@ impl ApplicationImpl for Application {
 		self.build_menu();
 
 		let window = self.window.get().unwrap();
+
+		let self_ref = self.downgrade();
+
+		window.connect_window_state_event(move |_, event| -> glib::Propagation {
+			if let Some(app) = self_ref.upgrade() {
+				let full_screen = event
+					.new_window_state()
+					.contains(gdk::WindowState::FULLSCREEN);
+
+				app.window_state_changed(full_screen);
+			}
+
+			glib::Propagation::Proceed
+		});
 
 		self.drawing_area
 			.set(DrawingArea::new(|widget| window.add(widget)))
