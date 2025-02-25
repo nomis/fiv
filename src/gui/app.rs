@@ -17,7 +17,7 @@
  */
 
 use super::Files;
-use super::draw::Draw;
+use super::draw::DrawingArea;
 use crate::fiv::{Mark, Navigate, Rotate};
 use gio::Menu;
 use gtk::gio::SimpleAction;
@@ -32,7 +32,7 @@ pub struct Application {
 	files: OnceCell<Arc<Files>>,
 	window: OnceCell<gtk::ApplicationWindow>,
 	state: Mutex<State>,
-	draw: OnceCell<Rc<Draw>>,
+	drawing_area: OnceCell<Rc<DrawingArea>>,
 }
 
 #[derive(Debug, Default)]
@@ -240,7 +240,7 @@ impl Application {
 
 	pub fn refresh(&self) {
 		let window = self.window.get().unwrap();
-		let draw = self.draw.get().unwrap();
+		let drawing_area = self.drawing_area.get().unwrap();
 		let files = self.files.get().unwrap();
 		let current = files.current();
 
@@ -263,7 +263,7 @@ impl Application {
 		));
 
 		if let Some(image) = current.image {
-			draw.refresh(image);
+			drawing_area.refresh(image);
 		}
 	}
 
@@ -287,11 +287,11 @@ impl Application {
 	}
 
 	fn zoom_action(&self, action: WinAction) {
-		let draw = self.draw.get().unwrap();
+		let drawing_area = self.drawing_area.get().unwrap();
 
 		match action {
-			WinAction::ViewZoomActual => draw.zoom_actual(),
-			WinAction::ViewZoomFit => draw.zoom_fit(),
+			WinAction::ViewZoomActual => drawing_area.zoom_actual(),
+			WinAction::ViewZoomFit => drawing_area.zoom_fit(),
 			_ => (),
 		}
 	}
@@ -340,7 +340,9 @@ impl ApplicationImpl for Application {
 
 		let window = self.window.get().unwrap();
 
-		self.draw.set(Draw::new(|area| window.add(area))).unwrap();
+		self.drawing_area
+			.set(DrawingArea::new(|widget| window.add(widget)))
+			.unwrap();
 	}
 
 	/// The command line is ignored here, see `CommandLineArgs::parse()`

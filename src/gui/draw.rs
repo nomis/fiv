@@ -34,10 +34,9 @@ use std::{
 nutype_const!(MIN_ZOOM, Sf64, 1.0 / u32::MAX as f64);
 nutype_const!(MAX_ZOOM, Sf64, u32::MAX as f64);
 
-#[expect(clippy::struct_field_names, reason = "Naming things is hard")]
 #[derive(Debug)]
-pub struct Draw {
-	area: gtk::DrawingArea,
+pub struct DrawingArea {
+	widget: gtk::DrawingArea,
 	drag_gesture: gtk::GestureDrag,
 	zoom_gesture: gtk::GestureZoom,
 	image_draw: Rc<Mutex<ImageDraw>>,
@@ -66,15 +65,15 @@ struct DrawAt {
 	scale: Sf64,
 }
 
-impl Draw {
+impl DrawingArea {
 	pub fn new<F: FnOnce(&gtk::DrawingArea)>(f: F) -> Rc<Self> {
-		let draw = {
-			let area = gtk::DrawingArea::default();
-			let drag_gesture = gtk::GestureDrag::new(&area);
-			let zoom_gesture = gtk::GestureZoom::new(&area);
+		let drawing_area = {
+			let widget = gtk::DrawingArea::default();
+			let drag_gesture = gtk::GestureDrag::new(&widget);
+			let zoom_gesture = gtk::GestureZoom::new(&widget);
 
 			Rc::new(Self {
-				area,
+				widget,
 				drag_gesture,
 				zoom_gesture,
 				image_draw: Rc::new(Mutex::new(ImageDraw::default())),
@@ -82,8 +81,9 @@ impl Draw {
 		};
 
 		{
-			let draw_image_ref = Rc::downgrade(&draw.image_draw);
-			draw.area
+			let draw_image_ref = Rc::downgrade(&drawing_area.image_draw);
+			drawing_area
+				.widget
 				.connect_draw(move |area, context| -> glib::Propagation {
 					if let Some(draw_image) = draw_image_ref.upgrade() {
 						draw_image.lock().unwrap().draw(&area.allocation(), context);
@@ -94,8 +94,9 @@ impl Draw {
 		}
 
 		{
-			let draw_ref = Rc::downgrade(&draw);
-			draw.area
+			let draw_ref = Rc::downgrade(&drawing_area);
+			drawing_area
+				.widget
 				.connect_scroll_event(move |_, event| -> glib::Propagation {
 					if let Some(draw_copy) = draw_ref.upgrade() {
 						draw_copy.scroll(event);
@@ -103,21 +104,24 @@ impl Draw {
 
 					glib::Propagation::Proceed
 				});
-			draw.area.add_events(gdk::EventMask::SCROLL_MASK);
+			drawing_area.widget.add_events(gdk::EventMask::SCROLL_MASK);
 		}
 
 		{
-			let draw_ref = Rc::downgrade(&draw);
-			draw.zoom_gesture.connect_scale_changed(move |_, scale| {
-				if let Some(draw_copy) = draw_ref.upgrade() {
-					draw_copy.zoom_adjust(Sf64::try_from(scale).unwrap());
-				}
-			});
+			let draw_ref = Rc::downgrade(&drawing_area);
+			drawing_area
+				.zoom_gesture
+				.connect_scale_changed(move |_, scale| {
+					if let Some(draw_copy) = draw_ref.upgrade() {
+						draw_copy.zoom_adjust(Sf64::try_from(scale).unwrap());
+					}
+				});
 		}
 
 		{
-			let draw_ref = Rc::downgrade(&draw);
-			draw.drag_gesture
+			let draw_ref = Rc::downgrade(&drawing_area);
+			drawing_area
+				.drag_gesture
 				.connect_drag_begin(move |_, start_x, start_y| {
 					if let Some(draw_copy) = draw_ref.upgrade() {
 						draw_copy.drag_begin((start_x, start_y).into());
@@ -126,8 +130,9 @@ impl Draw {
 		}
 
 		{
-			let draw_ref = Rc::downgrade(&draw);
-			draw.drag_gesture
+			let draw_ref = Rc::downgrade(&drawing_area);
+			drawing_area
+				.drag_gesture
 				.connect_drag_update(move |_, offset_x, offset_y| {
 					if let Some(draw_copy) = draw_ref.upgrade() {
 						draw_copy.drag_update((offset_x, offset_y).into());
@@ -136,8 +141,9 @@ impl Draw {
 		}
 
 		{
-			let draw_ref = Rc::downgrade(&draw);
-			draw.drag_gesture
+			let draw_ref = Rc::downgrade(&drawing_area);
+			drawing_area
+				.drag_gesture
 				.connect_drag_end(move |_, offset_x, offset_y| {
 					if let Some(draw_copy) = draw_ref.upgrade() {
 						draw_copy.drag_end((offset_x, offset_y).into());
@@ -145,8 +151,8 @@ impl Draw {
 				});
 		}
 
-		f(&draw.area);
-		draw
+		f(&drawing_area.widget);
+		drawing_area
 	}
 
 	pub fn refresh(&self, image: Arc<Image>) {
@@ -157,27 +163,27 @@ impl Draw {
 
 	pub fn drag_begin(&self, start: PointF64) {
 		let mut image_draw = self.image_draw.lock().unwrap();
-		let window = self.area.window().unwrap();
+		let window = self.widget.window().unwrap();
 		let display = window.display();
 
 		window.set_cursor(gdk::Cursor::for_display(&display, gdk::CursorType::Fleur).as_ref());
-		image_draw.drag_begin(&self.area.allocation(), start);
+		image_draw.drag_begin(&self.widget.allocation(), start);
 	}
 
 	pub fn drag_update(&self, offset: PointF64) {
 		let mut image_draw = self.image_draw.lock().unwrap();
 
-		if image_draw.drag_update(&self.area.allocation(), offset) {
+		if image_draw.drag_update(&self.widget.allocation(), offset) {
 			self.redraw();
 		}
 	}
 
 	pub fn drag_end(&self, offset: PointF64) {
 		let mut image_draw = self.image_draw.lock().unwrap();
-		let window = self.area.window().unwrap();
+		let window = self.widget.window().unwrap();
 
 		window.set_cursor(None);
-		if image_draw.drag_end(&self.area.allocation(), offset) {
+		if image_draw.drag_end(&self.widget.allocation(), offset) {
 			self.redraw();
 		}
 	}
@@ -201,7 +207,7 @@ impl Draw {
 	pub fn zoom_actual(&self) {
 		let mut image_draw = self.image_draw.lock().unwrap();
 
-		if image_draw.zoom_actual(&self.area.allocation(), self.pointer()) {
+		if image_draw.zoom_actual(&self.widget.allocation(), self.pointer()) {
 			self.redraw();
 		}
 	}
@@ -209,7 +215,7 @@ impl Draw {
 	pub fn zoom_adjust(&self, scale: Sf64) {
 		let mut image_draw = self.image_draw.lock().unwrap();
 
-		if image_draw.zoom_adjust(&self.area.allocation(), self.pointer(), scale) {
+		if image_draw.zoom_adjust(&self.widget.allocation(), self.pointer(), scale) {
 			self.redraw();
 		}
 	}
@@ -221,25 +227,25 @@ impl Draw {
 	}
 
 	fn redraw(&self) {
-		if self.area.is_visible() {
-			self.area.queue_draw();
+		if self.widget.is_visible() {
+			self.widget.queue_draw();
 		} else {
-			self.area.show();
+			self.widget.show();
 		}
 	}
 
 	fn pointer(&self) -> PointI32 {
-		let window = self.area.window().unwrap();
-		let seat = self.area.display().default_seat().unwrap();
+		let window = self.widget.window().unwrap();
+		let seat = self.widget.display().default_seat().unwrap();
 		let device_position = window.device_position(&seat.pointer().unwrap());
 		let device_position = PointI32::new(device_position.1.into(), device_position.2.into());
 		let window_position = device_position + window.position().into();
 
-		self.area
+		self.widget
 			.toplevel()
 			.unwrap()
 			.translate_coordinates(
-				&self.area,
+				&self.widget,
 				window_position.x.into(),
 				window_position.y.into(),
 			)
