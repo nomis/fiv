@@ -181,6 +181,9 @@ derive_numeric_ops_primitive!(Yi32, i32);
 derive_try_into!(Xi32, i32, Xu32, u32);
 derive_try_into!(Yi32, i32, Yu32, u32);
 
+const XI32_ZERO: Xi32 = Xi32::new(0);
+const YI32_ZERO: Yi32 = Yi32::new(0);
+
 #[nutype(
 	const_fn,
 	derive(
@@ -300,15 +303,19 @@ pub trait Zero {
 	fn zero() -> Self;
 }
 
+nutype_const!(XF64_ZERO, Xf64, 0.0);
+
 impl Zero for Xf64 {
 	fn zero() -> Self {
-		Xf64::try_from(0.0).unwrap()
+		XF64_ZERO
 	}
 }
 
+nutype_const!(YF64_ZERO, Yf64, 0.0);
+
 impl Zero for Yf64 {
 	fn zero() -> Self {
-		Yf64::try_from(0.0).unwrap()
+		YF64_ZERO
 	}
 }
 
@@ -325,9 +332,11 @@ derive_numeric_ops_primitive!(Sf64, f64);
 derive_numeric_ops_apply!(Xf64, f64, Sf64);
 derive_numeric_ops_apply!(Yf64, f64, Sf64);
 
+nutype_const!(SF64_ONE, Sf64, 1.0);
+
 impl Sf64 {
-	pub fn actual() -> Self {
-		Sf64::try_from(1.0).unwrap()
+	pub const fn actual() -> Self {
+		SF64_ONE
 	}
 
 	pub fn ratio<T: XYf64<T>>(num: T, denom: T) -> Self {
@@ -346,8 +355,8 @@ derive_numeric_ops_point!(PointI32);
 impl Default for PointI32 {
 	fn default() -> Self {
 		Self {
-			x: 0.into(),
-			y: 0.into(),
+			x: XI32_ZERO,
+			y: YI32_ZERO,
 		}
 	}
 }
@@ -376,8 +385,8 @@ derive_numeric_ops_xy_apply!(PointF64, x, y, Sf64);
 impl Default for PointF64 {
 	fn default() -> Self {
 		Self {
-			x: Xf64::zero(),
-			y: Yf64::zero(),
+			x: XF64_ZERO,
+			y: YF64_ZERO,
 		}
 	}
 }

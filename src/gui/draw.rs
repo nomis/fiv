@@ -29,6 +29,8 @@ use std::{
 	sync::{Arc, Mutex},
 };
 
+nutype_const!(SCROLL_ZOOM_FACTOR, Sf64, 1.10);
+
 // Don't allow zooming too far in/out, it'll cause errors in cairo, and
 // subnormal numbers are considered non-finite
 nutype_const!(MIN_ZOOM, Sf64, 1.0 / u32::MAX as f64);
@@ -189,15 +191,13 @@ impl DrawingArea {
 	}
 
 	fn scroll(&self, event: &gdk::EventScroll) {
-		let zoom_factor = Sf64::try_from(1.10).unwrap();
-
 		match event.direction() {
 			gdk::ScrollDirection::Up => {
-				self.zoom_adjust(zoom_factor);
+				self.zoom_adjust(SCROLL_ZOOM_FACTOR);
 			}
 
 			gdk::ScrollDirection::Down => {
-				self.zoom_adjust(1.0 / zoom_factor);
+				self.zoom_adjust(1.0 / SCROLL_ZOOM_FACTOR);
 			}
 
 			_ => (),
