@@ -106,6 +106,7 @@ impl DrawingArea {
 
 					glib::Propagation::Proceed
 				});
+
 			drawing_area.widget.add_events(gdk::EventMask::SCROLL_MASK);
 		}
 
@@ -324,6 +325,8 @@ impl ImageDraw {
 		if let Some(draw_at) = self.calc_draw_position(allocation, true) {
 			let pointer: PointF64 = pointer.into();
 			let scale = scale.map_or(Sf64::actual(), |value| {
+				let value = value.clamp(MIN_ZOOM, MAX_ZOOM);
+
 				(draw_at.scale * value).clamp(MIN_ZOOM, MAX_ZOOM)
 			});
 
