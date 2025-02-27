@@ -154,10 +154,10 @@ bool Image::loadPrimary() {
 		try {
 			lckPrimary.unlock();
 
-			//auto start = chrono::steady_clock::now();
+			auto start = chrono::steady_clock::now();
 			loadedPrimary = codec->getPrimary();
-			//auto stop = chrono::steady_clock::now();
-			//cout << "load " << name << " in " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
+			auto stop = chrono::steady_clock::now();
+			cout << "load " << name << " in " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
 
 			if (!loadedPrimary)
 				primaryFailed = true;

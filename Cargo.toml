@@ -14,6 +14,7 @@ derive_more = { version = "2.0.1", features = ["constructor", "debug"] }
 enum_dispatch = "0.3.13"
 gtk = "0.18.2"
 image = "0.25.5"
+itertools = "0.14.0"
 log = "0.4.25"
 nutype = "0.6.1"
 pariter = "0.5.1"

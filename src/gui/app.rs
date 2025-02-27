@@ -260,7 +260,7 @@ impl Application {
 			},
 			current.position,
 			current.total,
-			if files.is_loading() { "+" } else { "" }
+			if files.starting() { "+" } else { "" }
 		));
 
 		if let Some(image) = current.image {
@@ -363,7 +363,10 @@ impl ApplicationImpl for Application {
 		});
 
 		self.drawing_area
-			.set(DrawingArea::new(|widget| window.add(widget)))
+			.set(DrawingArea::new(
+				self.files.get().unwrap().begin(),
+				|widget| window.add(widget),
+			))
 			.unwrap();
 	}
 

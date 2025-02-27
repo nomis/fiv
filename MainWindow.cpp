@@ -25,6 +25,7 @@
 #include <gtkmm/gesturezoom.h>
 #include <sigc++/connection.h>
 #include <sigc++/functors/mem_fun.h>
+#include <chrono>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -37,6 +38,12 @@
 #include "ImageDrawable.hpp"
 
 using namespace std;
+
+using std::chrono::duration_cast;
+using std::chrono::nanoseconds;
+using std::chrono::steady_clock;
+
+extern std::chrono::steady_clock::time_point startup;
 
 MainWindow::MainWindow(shared_ptr<Fiv> fiv) : Gtk::ApplicationWindow() {
 	images = fiv;
@@ -83,6 +90,17 @@ void MainWindow::addImage() {
 
 void MainWindow::loadedImage(shared_ptr<Image> image) {
 	if (images->current() == image) {
+		static bool first_loaded = true;
+
+		if (first_loaded && image->getPrimary()) {
+			first_loaded = false;
+
+			auto end = steady_clock::now();
+			std::cout << "First image ready for display after "
+				<< duration_cast<nanoseconds>(end - startup).count() / 1000000.0
+				<< "ms" << endl;
+		}
+
 		Glib::signal_idle().connect_once([this, image]{
 			if (images->current() == image)
 				this->drawImage.loaded();

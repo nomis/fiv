@@ -24,9 +24,10 @@ mod gui;
 use crate::fiv::{CommandLineArgs, Files};
 use clap::Parser;
 use gtk::{glib, prelude::*};
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 fn main() -> glib::ExitCode {
+	let startup = Instant::now();
 	let args = Arc::new(CommandLineArgs::parse());
 
 	stderrlog::new()
@@ -35,7 +36,7 @@ fn main() -> glib::ExitCode {
 		.init()
 		.unwrap();
 
-	let files = Files::new(args);
+	let files = Files::new(&args, startup);
 
 	if files.start() {
 		gui::Application::new(files).run()

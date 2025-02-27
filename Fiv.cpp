@@ -58,6 +58,8 @@ using std::chrono::duration_cast;
 using std::chrono::nanoseconds;
 using std::chrono::steady_clock;
 
+extern std::chrono::steady_clock::time_point startup;
+
 const string Fiv::appName = "fiv";
 
 Fiv::Fiv() {
@@ -161,8 +163,6 @@ bool Fiv::processBackgroundInitImages(deque<future<shared_ptr<Image>>> &bgImages
 void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
 	deque<future<shared_ptr<Image>>> bgImages;
 
-	start_begin = std::chrono::steady_clock::now();
-
 	for (auto filename : *filenames) {
 		struct stat st;
 
@@ -197,8 +197,8 @@ void Fiv::initImagesThread(unique_ptr<list<string>> filenames) {
 
 stop:
 	auto end = steady_clock::now();
-	std::cout << "Files loaded from command line in "
-		<< duration_cast<nanoseconds>(end - start_begin).count() / 1000000.0
+	std::cout << "Files added from command line in "
+		<< duration_cast<nanoseconds>(end - startup).count() / 1000000.0
 		<< "ms" << endl;
 
 	unique_lock<mutex> lckImages(mtxImages);
@@ -271,8 +271,8 @@ bool Fiv::addImage(shared_ptr<Image> image) {
 		images.push_back(image);
 		if (images.size() == 1) {
 			auto end = steady_clock::now();
-			std::cout << "First image loaded after "
-				<< duration_cast<nanoseconds>(end - start_begin).count() / 1000000.0
+			std::cout << "First image added after "
+				<< duration_cast<nanoseconds>(end - startup).count() / 1000000.0
 				<< "ms" << endl;
 		}
 		preloadImages(true);
@@ -638,6 +638,16 @@ void Fiv::runLoader(weak_ptr<Fiv> wSelf) {
 
 		if (loaded) {
 			lock_guard<mutex> lckLoad(*mtxLoad);
+			static bool first_loaded = true;
+
+			if (first_loaded) {
+				first_loaded = false;
+
+				auto end = steady_clock::now();
+				std::cout << "First image loaded after "
+					<< duration_cast<nanoseconds>(end - startup).count() / 1000000.0
+					<< "ms" << endl;
+			}
 
 			self->loaded.insert(image);
 		}

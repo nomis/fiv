@@ -18,7 +18,6 @@
 #ifndef fiv__FIV_HPP_
 #define fiv__FIV_HPP_
 
-#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <future>
@@ -78,8 +77,6 @@ private:
 
 	int maxPreload;
 	std::string markDirectory;
-
-	std::chrono::steady_clock::time_point start_begin;
 
 	std::mutex mtxImages;
 	std::list<std::shared_ptr<Image>> images;

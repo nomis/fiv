@@ -17,6 +17,7 @@
 
 #include <glibmm/miscutils.h>
 #include <glibmmconfig.h>
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -27,7 +28,11 @@
 
 using namespace std;
 
+std::chrono::steady_clock::time_point startup;
+
 int main(int argc, char *argv[]) {
+	startup = std::chrono::steady_clock::now();
+
 	cout.rdbuf(&ThreadLocalOStream::instance);
 	cerr.rdbuf(&ThreadLocalEStream::instance);
 	clog.rdbuf(&ThreadLocalEStream::instance);

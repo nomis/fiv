@@ -32,6 +32,7 @@
 #include <glibmm/refptr.h>
 #include <gtkmm/widget.h>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <map>
 #include <memory>
@@ -43,6 +44,12 @@
 #include "Image.hpp"
 
 using namespace std;
+
+using std::chrono::duration_cast;
+using std::chrono::nanoseconds;
+using std::chrono::steady_clock;
+
+extern std::chrono::steady_clock::time_point startup;
 
 ImageDrawable::ImageDrawable() {
 	waiting = false;
@@ -233,6 +240,9 @@ static void copyCairoClip(const Cairo::RefPtr<Cairo::Context> &src, const Cairo:
 }
 
 bool ImageDrawable::on_draw(const Cairo::RefPtr<Cairo::Context> &cr) {
+	static bool first_draw = true;
+	auto started = steady_clock::now();
+
 	Gtk::Allocation allocation = get_allocation();
 
 	//cout << "draw " << awidth << "x" << aheight << endl;
@@ -247,6 +257,19 @@ bool ImageDrawable::on_draw(const Cairo::RefPtr<Cairo::Context> &cr) {
 	cr->paint();
 	//auto stop = chrono::steady_clock::now();
 	//cout << "copy " << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
+
+	if (first_draw && !waiting) {
+		first_draw = false;
+
+		std::cout << "First image draw started at "
+			<< duration_cast<nanoseconds>(started - startup).count() / 1000000.0
+			<< "ms" << endl;
+
+		auto end = steady_clock::now();
+		std::cout << "First image draw finished at "
+			<< duration_cast<nanoseconds>(end - startup).count() / 1000000.0
+			<< "ms" << endl;
+	}
 
 	return true;
 }

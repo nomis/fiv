@@ -25,16 +25,19 @@ use log::{error, trace};
 use pathdiff::diff_paths;
 use std::cell::RefCell;
 use std::fs::{read_link, remove_file};
+use std::hash::{Hash, Hasher};
 use std::io;
 use std::ops::AddAssign;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::Mutex;
+use std::sync::atomic::AtomicUsize;
+use std::sync::{Mutex, atomic};
 use std::time::Instant;
 
 #[derive(Debug)]
 pub struct Image {
+	id: usize,
 	pub filename: PathBuf,
 	pub metadata: CodecMetadata,
 	codec: Codecs,
@@ -42,6 +45,20 @@ pub struct Image {
 	marked: Mutex<Option<bool>>,
 	data: Mutex<Option<ImageData>>,
 	orientation: Mutex<Orientation>,
+}
+
+impl Eq for Image {}
+
+impl PartialEq for Image {
+	fn eq(&self, other: &Self) -> bool {
+		self.id == other.id
+	}
+}
+
+impl Hash for Image {
+	fn hash<H: Hasher>(&self, state: &mut H) {
+		self.id.hash(state);
+	}
 }
 
 type Pixel = u32;
@@ -100,12 +117,14 @@ impl Image {
 		canonical_mark_directory: Option<&PathBuf>,
 		filename: P,
 	) -> Result<super::Image, Error> {
+		static COUNTER: AtomicUsize = AtomicUsize::new(0);
 		let codec = Codecs::from(Generic::default());
 		let metadata = codec.metadata(filename.as_ref())?;
 		let orientation = metadata.orientation;
 		let path = filename.as_ref().to_path_buf();
 		let mark_link = mark_link(canonical_mark_directory, &path);
 		let image = Image {
+			id: COUNTER.fetch_add(1, atomic::Ordering::Relaxed),
 			filename: path,
 			metadata,
 			codec,
@@ -198,20 +217,23 @@ impl Image {
 	pub fn load(&self) {
 		let begin = Instant::now();
 
-		*self.data.lock().unwrap() =
-			Some(match self.codec.primary(&self.filename, &self.metadata) {
-				Ok(primary) => primary.image_data,
-				Err(err) => {
-					error!("{}: {err}", self.filename.display());
-					ImageData::failed()
-				}
-			});
+		let image_data = Some(match self.codec.primary(&self.filename, &self.metadata) {
+			Ok(primary) => primary.image_data,
+			Err(err) => {
+				error!("{}: {err}", self.filename.display());
+				ImageData::failed()
+			}
+		});
+
+		let mut data = self.data.lock().unwrap();
 
 		trace!(
 			"{}: Loaded in {:?}",
 			self.filename.display(),
 			begin.elapsed()
 		);
+
+		*data = image_data;
 	}
 
 	pub fn loaded(&self) -> bool {
@@ -219,7 +241,11 @@ impl Image {
 	}
 
 	pub fn unload(&self) {
-		*self.data.lock().unwrap() = None;
+		let mut data = self.data.lock().unwrap();
+
+		trace!("{}: Unloaded", self.filename.display());
+
+		*data = None;
 	}
 
 	pub fn orientation(&self) -> Orientation {

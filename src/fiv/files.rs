@@ -18,23 +18,36 @@
 
 use super::{CommandLineArgs, CommandLineFilenames, Image, Mark, Orientation, Rotate, Waitable};
 use async_notify::Notify;
-use log::{debug, error};
+use gtk::glib::clone::Downgrade;
+use itertools::interleave;
+use log::{debug, error, trace};
 use pariter::IteratorExt;
+use std::collections::{HashSet, VecDeque};
+use std::iter;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Instant;
 use threadpool::ThreadPool;
 
 #[derive(Debug)]
 pub struct Files {
 	args: Arc<CommandLineArgs>,
+	startup: Mutex<Startup>,
 	state: Mutex<State>,
 	notify: Notify,
 	seq_pool: ThreadPool,
+	preload: Arc<Preload>,
 
 	/// `start()` has finished or loaded at least one image
 	start_ready: Waitable<bool>,
 	start_finished: Waitable<bool>,
+}
+
+#[derive(Debug)]
+struct Startup {
+	begin: Instant,
+	image_loaded: bool,
+	image_ready: bool,
 }
 
 #[derive(Debug, Default)]
@@ -54,21 +67,42 @@ pub enum Navigate {
 	Last,
 }
 
+impl Startup {
+	pub fn new(begin: Instant) -> Self {
+		Self {
+			begin,
+			image_loaded: false,
+			image_ready: false,
+		}
+	}
+}
+
 impl Files {
-	pub fn new(args: Arc<CommandLineArgs>) -> Arc<Files> {
+	pub fn new(args: &Arc<CommandLineArgs>, startup: Instant) -> Arc<Files> {
+		let preload = Arc::new(Preload::new(args.preload as usize + 1));
+
 		Arc::new(Files {
-			args,
-			state: Mutex::new(State::default()),
+			args: args.clone(),
+			startup: Mutex::new(Startup::new(startup)),
+			state: Mutex::new(State::new(&preload)),
 			notify: Notify::new(),
 			seq_pool: ThreadPool::new(1),
+			preload,
 			start_ready: Waitable::new(false),
 			start_finished: Waitable::new(false),
 		})
 	}
 
+	pub fn mark_supported(&self) -> bool {
+		self.args.mark_directory.is_some()
+	}
+
+	pub fn begin(&self) -> Instant {
+		self.startup.lock().unwrap().begin
+	}
+
 	pub fn start(self: &Arc<Self>) -> bool {
 		let self_copy = self.clone();
-		self.state.lock().unwrap().start_begin = Instant::now();
 
 		std::thread::spawn(move || {
 			pariter::scope(|scope| {
@@ -91,11 +125,11 @@ impl Files {
 							.ok()
 					})
 					.flatten()
-					.for_each(|image| self_copy.load(image));
+					.for_each(|image| self_copy.add(image));
 
 				debug!(
-					"Files loaded from command line in {:?}",
-					self_copy.state.lock().unwrap().start_begin.elapsed()
+					"Files added from command line in {:?}",
+					self_copy.startup.lock().unwrap().begin.elapsed()
 				);
 
 				self_copy.start_ready.set(true);
@@ -106,26 +140,28 @@ impl Files {
 		});
 
 		self.start_ready.wait(&true);
+
 		let state = self.state.lock().unwrap();
+		state.preload(false);
+		self.preload.start(self);
 		!state.images.is_empty()
 	}
 
-	fn load(&self, image: Image) {
+	fn add(&self, image: Image) {
 		let mut state = self.state.lock().unwrap();
 		if state.add(image) {
-			debug!("First image loaded after {:?}", state.start_begin.elapsed());
+			debug!(
+				"First image added after {:?}",
+				self.startup.lock().unwrap().begin.elapsed()
+			);
 
 			self.start_ready.set(true);
 		}
 		self.update_ui();
 	}
 
-	pub fn is_loading(&self) -> bool {
+	pub fn starting(&self) -> bool {
 		!self.start_finished.get()
-	}
-
-	pub fn mark_supported(&self) -> bool {
-		self.args.mark_directory.is_some()
 	}
 
 	pub async fn ui_wait(&self) {
@@ -142,6 +178,36 @@ impl Files {
 
 	fn position(&self) -> usize {
 		self.state.lock().unwrap().position()
+	}
+
+	pub fn loaded(&self, image: &Arc<Image>) {
+		let state = self.state.lock().unwrap();
+		let current = state.current();
+
+		if let Ok(mut startup) = self.startup.lock() {
+			if !startup.image_loaded {
+				startup.image_loaded = true;
+
+				debug!("First image loaded after {:?}", startup.begin.elapsed());
+			}
+		}
+
+		if let Some(current_image) = current.image {
+			if current_image == *image {
+				if let Ok(mut startup) = self.startup.lock() {
+					if !startup.image_ready {
+						startup.image_ready = true;
+
+						debug!(
+							"First image ready for display after {:?}",
+							startup.begin.elapsed()
+						);
+					}
+				}
+
+				self.update_ui();
+			}
+		}
 	}
 
 	/// Run a long task sequentially in the background (for file I/O)
@@ -200,26 +266,30 @@ impl Files {
 
 #[derive(Debug)]
 struct State {
-	start_begin: Instant,
 	images: Vec<Arc<Image>>,
 	position: usize,
-}
-
-impl Default for State {
-	fn default() -> Self {
-		Self {
-			start_begin: Instant::now(),
-			images: Vec::new(),
-			position: 0,
-		}
-	}
+	preload: Arc<Preload>,
 }
 
 impl State {
+	fn new(preload: &Arc<Preload>) -> Self {
+		Self {
+			images: Vec::new(),
+			position: 0,
+			preload: preload.clone(),
+		}
+	}
+
 	/// Returns true if this is the first image
 	pub fn add(&mut self, image: Image) -> bool {
 		self.images.push(Arc::new(image));
+		self.preload(true);
 		self.images.len() == 1
+	}
+
+	fn preload(&self, only_if_starved: bool) {
+		self.preload
+			.update(&self.images, self.position, only_if_starved);
 	}
 
 	pub fn current(&self) -> Current {
@@ -266,11 +336,157 @@ impl State {
 				}
 			}
 		}
+
+		self.preload(false);
 	}
 
 	pub fn orientation(&mut self, add: Orientation) {
 		if let Some(image) = self.images.get(self.position) {
 			image.add_orientation(add);
+		}
+	}
+}
+
+#[derive(Debug)]
+struct Preload {
+	capacity: usize,
+	pool: ThreadPool,
+	state: Mutex<PreloadState>,
+	loading_required: Condvar,
+}
+
+#[derive(Debug)]
+struct PreloadState {
+	queue: VecDeque<Arc<Image>>,
+	load: HashSet<Arc<Image>>,
+	loading: HashSet<Arc<Image>>,
+	loaded: HashSet<Arc<Image>>,
+}
+
+impl PreloadState {
+	pub fn new(capacity: usize) -> Self {
+		Self {
+			queue: VecDeque::with_capacity(capacity),
+			load: HashSet::with_capacity(capacity),
+			loading: HashSet::with_capacity(capacity),
+			loaded: HashSet::with_capacity(capacity),
+		}
+	}
+}
+
+impl Preload {
+	pub fn new(capacity: usize) -> Self {
+		Self {
+			capacity,
+			pool: threadpool::Builder::new().build(),
+			state: Mutex::new(PreloadState::new(capacity)),
+			loading_required: Condvar::new(),
+		}
+	}
+
+	pub fn start(self: &Arc<Self>, files: &Arc<Files>) {
+		for _ in 0..self.pool.max_count() {
+			let self_ref = self.downgrade();
+			let files_ref = files.downgrade();
+
+			self.pool.execute(move || {
+				loop {
+					let Some(self_copy) = self_ref.upgrade() else {
+						return;
+					};
+
+					let Some(files_copy) = files_ref.upgrade() else {
+						return;
+					};
+
+					self_copy.load_one_or_wait(&files_copy);
+				}
+			});
+		}
+	}
+
+	pub fn update(&self, images: &[Arc<Image>], current: usize, only_if_starved: bool) {
+		if images.is_empty() {
+			return;
+		}
+
+		let mut state = self.state.lock().unwrap();
+
+		// Don't repeatedly update the queue on startup after preloading the
+		// maximum number of images
+		if only_if_starved && state.load.len() == self.capacity {
+			return;
+		}
+
+		state.queue.clear();
+
+		// Preload images forward and backward
+		let forward = images.iter().skip(current + 1);
+		let backward = images.iter().rev().skip(images.len() - current);
+		let mut images =
+			itertools::chain(iter::once(&images[current]), interleave(forward, backward));
+		#[expect(clippy::mutable_key_type, reason = "Key is immutable")]
+		let mut load = HashSet::<Arc<Image>>::with_capacity(self.capacity);
+
+		while load.len() < self.capacity {
+			if let Some(image) = images.next() {
+				load.insert(image.clone());
+				if !image.loaded() && !state.loading.contains(image) {
+					state.queue.push_back(image.clone());
+				}
+			} else {
+				break;
+			}
+		}
+
+		// Unload images that will not be preloaded
+		state.loaded.retain(|image| {
+			if load.contains(image) {
+				true
+			} else {
+				image.unload();
+				false
+			}
+		});
+		state.load = load;
+
+		// Start background loading for images that are not loaded
+		for _ in 0..state.queue.len() {
+			self.loading_required.notify_one();
+		}
+	}
+
+	fn load_one_or_wait(&self, files: &Arc<Files>) {
+		let mut state = self.state.lock().unwrap();
+
+		if let Some(image) = state.queue.pop_front() {
+			state.loading.insert(image.clone());
+			drop(state);
+
+			image.load();
+
+			state = self.state.lock().unwrap();
+			state.loading.remove(&image);
+
+			if state.loaded.is_empty() {
+				self.loading_required.notify_all();
+			}
+
+			if state.load.contains(&image) {
+				state.loaded.insert(image.clone());
+
+				trace!(
+					"Loaded {} image{}",
+					state.loaded.len(),
+					if state.loaded.len() == 1 { "" } else { "s" }
+				);
+
+				files.loaded(&image);
+			} else {
+				image.unload();
+			}
+		} else {
+			drop(self.loading_required.wait(state).unwrap());
 		}
 	}
 }

@@ -24,9 +24,11 @@ use crate::{
 	nutype_const,
 };
 use gtk::{cairo, gdk, glib, prelude::*};
+use log::trace;
 use std::{
 	rc::Rc,
 	sync::{Arc, Mutex},
+	time::Instant,
 };
 
 nutype_const!(SCROLL_ZOOM_FACTOR, Sf64, 1.10);
@@ -44,12 +46,19 @@ pub struct DrawingArea {
 	image_draw: Rc<Mutex<ImageDraw>>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct ImageDraw {
+	startup: Startup,
 	image: Option<Arc<Image>>,
 	waiting: bool,
 	zoom: Zoom,
 	orientation: Orientation,
+}
+
+#[derive(Debug)]
+struct Startup {
+	begin: Instant,
+	draw: bool,
 }
 
 #[derive(Debug, Default)]
@@ -67,8 +76,26 @@ struct DrawAt {
 	scale: Sf64,
 }
 
+impl ImageDraw {
+	pub fn new(startup: Instant) -> Self {
+		Self {
+			startup: Startup::new(startup),
+			image: None,
+			waiting: false,
+			zoom: Zoom::default(),
+			orientation: Orientation::default(),
+		}
+	}
+}
+
+impl Startup {
+	pub fn new(begin: Instant) -> Self {
+		Self { begin, draw: false }
+	}
+}
+
 impl DrawingArea {
-	pub fn new<F: FnOnce(&gtk::DrawingArea)>(f: F) -> Rc<Self> {
+	pub fn new<F: FnOnce(&gtk::DrawingArea)>(startup: Instant, f: F) -> Rc<Self> {
 		let drawing_area = {
 			let widget = gtk::DrawingArea::default();
 			let drag_gesture = gtk::GestureDrag::new(&widget);
@@ -78,7 +105,7 @@ impl DrawingArea {
 				widget,
 				drag_gesture,
 				zoom_gesture,
-				image_draw: Rc::new(Mutex::new(ImageDraw::default())),
+				image_draw: Rc::new(Mutex::new(ImageDraw::new(startup))),
 			})
 		};
 
@@ -340,6 +367,7 @@ impl ImageDraw {
 	}
 
 	pub fn draw(&mut self, allocation: &gtk::Rectangle, context: &cairo::Context) {
+		let started = self.startup.begin.elapsed();
 		let surface = cairo::ImageSurface::create(
 			cairo::Format::Rgb24,
 			allocation.width(),
@@ -355,6 +383,16 @@ impl ImageDraw {
 			.set_source_surface(surface.as_ref().unwrap(), 0.0, 0.0)
 			.unwrap();
 		context.paint().unwrap();
+
+		if !self.startup.draw && !self.waiting {
+			self.startup.draw = true;
+
+			trace!("First image draw started at {:?}", started);
+			trace!(
+				"First image draw finished at {:?}",
+				self.startup.begin.elapsed()
+			);
+		}
 	}
 
 	fn copy_cairo_clip(src: &cairo::Context, dst: &cairo::Context) {
