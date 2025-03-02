@@ -21,6 +21,8 @@ use log::error;
 use std::collections::VecDeque;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, atomic};
 
 #[derive(Debug, Default, Parser)]
 #[command(
@@ -46,16 +48,19 @@ pub struct Args {
 	pub verbose: u8,
 }
 
+#[expect(clippy::struct_field_names, reason = "Naming things is hard")]
 pub struct Filenames<'a> {
 	filenames: core::slice::Iter<'a, PathBuf>,
 	dir_filenames: Option<VecDeque<PathBuf>>,
+	shutdown: Arc<AtomicBool>,
 }
 
 impl Filenames<'_> {
-	pub fn new(args: &Args) -> Filenames<'_> {
+	pub fn new(args: &Args, shutdown: Arc<AtomicBool>) -> Filenames<'_> {
 		Filenames {
 			filenames: args.filenames.iter(),
 			dir_filenames: None,
+			shutdown,
 		}
 	}
 }
@@ -67,6 +72,10 @@ impl Iterator for Filenames<'_> {
 	/// within filenames that are accessible directories (without recursion)
 	fn next(&mut self) -> Option<Self::Item> {
 		loop {
+			if self.shutdown.load(atomic::Ordering::Acquire) {
+				return None;
+			}
+
 			let (filename, recurse) = match &mut self.dir_filenames {
 				None => match self.filenames.next() {
 					None => {

@@ -25,6 +25,7 @@ use pariter::IteratorExt;
 use std::collections::{HashSet, VecDeque};
 use std::iter;
 use std::path::PathBuf;
+use std::sync::atomic::{self, AtomicBool};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Instant;
 use threadpool::ThreadPool;
@@ -41,7 +42,7 @@ pub struct Files {
 	/// `start()` has finished or loaded at least one image
 	start_ready: Waitable<bool>,
 	start_finished: Waitable<bool>,
-	shutdown: Arc<Mutex<bool>>,
+	shutdown: Arc<AtomicBool>,
 }
 
 #[derive(Debug)]
@@ -80,7 +81,8 @@ impl Startup {
 
 impl Files {
 	pub fn new(args: CommandLineArgs, startup: Instant) -> Arc<Files> {
-		let preload = Arc::new(Preload::new(args.preload as usize + 1));
+		let shutdown = Arc::new(AtomicBool::new(false));
+		let preload = Arc::new(Preload::new(args.preload as usize + 1, shutdown.clone()));
 
 		Arc::new(Files {
 			args,
@@ -91,7 +93,7 @@ impl Files {
 			preload,
 			start_ready: Waitable::new(false),
 			start_finished: Waitable::new(false),
-			shutdown: Arc::new(Mutex::new(false)),
+			shutdown,
 		})
 	}
 
@@ -121,9 +123,9 @@ impl Files {
 								.ok()
 						});
 
-				CommandLineFilenames::new(&self_copy.args)
+				CommandLineFilenames::new(&self_copy.args, shutdown_copy.clone())
 					.parallel_map_scoped(scope, move |filename| {
-						if *shutdown_copy.lock().unwrap() {
+						if shutdown_copy.load(atomic::Ordering::Acquire) {
 							None
 						} else {
 							Image::new(canonical_mark_directory.as_ref(), &filename)
@@ -155,7 +157,8 @@ impl Files {
 	}
 
 	pub fn shutdown(&self) {
-		*self.shutdown.lock().unwrap() = true;
+		self.shutdown.store(true, atomic::Ordering::Release);
+		self.preload.shutdown();
 		self.update_ui();
 	}
 
@@ -169,7 +172,7 @@ impl Files {
 	}
 
 	fn add(&self, image: Arc<Image>) {
-		if *self.shutdown.lock().unwrap() {
+		if self.shutdown.load(atomic::Ordering::Acquire) {
 			return;
 		}
 
@@ -190,10 +193,10 @@ impl Files {
 	}
 
 	pub async fn ui_wait(&self) -> bool {
-		if !*self.shutdown.lock().unwrap() {
+		if !self.shutdown.load(atomic::Ordering::Acquire) {
 			self.notify.notified().await;
 		}
-		!*self.shutdown.lock().unwrap()
+		!self.shutdown.load(atomic::Ordering::Acquire)
 	}
 
 	pub fn update_ui(&self) {
@@ -248,11 +251,11 @@ impl Files {
 		let self_copy = self.clone();
 
 		self.seq_pool.execute(move || {
+			let shutdown = self_copy.shutdown.load(atomic::Ordering::Acquire);
+
 			// To avoid wasting resources doing something that is no longer
 			// needed, check that we're still on the same image, unless this
 			// task must always be run
-			let shutdown = *self_copy.shutdown.lock().unwrap();
-
 			if always || (!shutdown && current.position == self_copy.position()) {
 				if let Some(image) = current.image {
 					func(&image);
@@ -383,6 +386,7 @@ struct Preload {
 	pool: ThreadPool,
 	state: Mutex<PreloadState>,
 	loading_required: Condvar,
+	shutdown: Arc<AtomicBool>,
 }
 
 #[derive(Debug)]
@@ -405,12 +409,13 @@ impl PreloadState {
 }
 
 impl Preload {
-	pub fn new(capacity: usize) -> Self {
+	pub fn new(capacity: usize, shutdown: Arc<AtomicBool>) -> Self {
 		Self {
 			capacity,
 			pool: threadpool::Builder::new().build(),
 			state: Mutex::new(PreloadState::new(capacity)),
 			loading_required: Condvar::new(),
+			shutdown,
 		}
 	}
 
@@ -429,6 +434,10 @@ impl Preload {
 						return;
 					};
 
+					if self_copy.shutdown.load(atomic::Ordering::Acquire) {
+						return;
+					}
+
 					self_copy.load_one_or_wait(&files_copy);
 				}
 			});
@@ -436,7 +445,7 @@ impl Preload {
 	}
 
 	pub fn update(&self, images: &[Arc<Image>], current: usize, only_if_starved: bool) {
-		if images.is_empty() {
+		if images.is_empty() || self.shutdown.load(atomic::Ordering::Acquire) {
 			return;
 		}
 
@@ -514,5 +523,16 @@ impl Preload {
 		} else {
 			drop(self.loading_required.wait(state).unwrap());
 		}
+	}
+
+	pub fn shutdown(&self) {
+		let mut state = self.state.lock().unwrap();
+
+		state.queue.clear();
+		state.load.clear();
+		for image in &state.loaded {
+			image.unload();
+		}
+		state.loaded.clear();
 	}
 }
