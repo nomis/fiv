@@ -37,7 +37,6 @@ pub struct Files {
 	state: Mutex<State>,
 	notify: Notify,
 	seq_pool: ThreadPool,
-	preload: Arc<Preload>,
 
 	/// `start()` has finished or loaded at least one image
 	start_ready: Waitable<bool>,
@@ -81,20 +80,21 @@ impl Startup {
 
 impl Files {
 	pub fn new(args: CommandLineArgs, startup: Instant) -> Arc<Files> {
+		let preload = args.preload as usize;
 		let shutdown = Arc::new(AtomicBool::new(false));
-		let preload = Arc::new(Preload::new(args.preload as usize + 1, shutdown.clone()));
-
-		Arc::new(Files {
+		let files = Arc::new(Files {
 			args,
 			startup: Mutex::new(Startup::new(startup)),
-			state: Mutex::new(State::new(preload.clone())),
+			state: Mutex::new(State::new(preload, shutdown.clone())),
 			notify: Notify::new(),
 			seq_pool: ThreadPool::new(1),
-			preload,
 			start_ready: Waitable::new(false),
 			start_finished: Waitable::new(false),
 			shutdown,
-		})
+		});
+
+		files.state.lock().unwrap().start(&files);
+		files
 	}
 
 	pub fn mark_supported(&self) -> bool {
@@ -151,14 +151,12 @@ impl Files {
 		self.start_ready.wait(&true);
 
 		let state = self.state.lock().unwrap();
-		state.preload(false);
-		self.preload.start(self);
 		!state.images.is_empty()
 	}
 
 	pub fn shutdown(&self) {
 		self.shutdown.store(true, atomic::Ordering::Release);
-		self.preload.shutdown();
+		self.state.lock().unwrap().shutdown();
 		self.update_ui();
 	}
 
@@ -214,6 +212,12 @@ impl Files {
 	pub fn loaded(&self, image: &Image) {
 		let state = self.state.lock().unwrap();
 		let current = state.current();
+
+		// It's possible to have unloaded the image between releasing the
+		// preload mutex and acquiring the state mutex
+		if !image.loaded() {
+			return;
+		}
 
 		if let Ok(mut startup) = self.startup.lock() {
 			if !startup.image_loaded {
@@ -305,19 +309,25 @@ struct State {
 }
 
 impl State {
-	fn new(preload: Arc<Preload>) -> Self {
+	fn new(preload: usize, shutdown: Arc<AtomicBool>) -> Self {
 		Self {
 			images: Vec::new(),
 			position: 0,
-			preload,
+			preload: Arc::new(Preload::new(preload + 1, shutdown)),
 		}
+	}
+
+	pub fn start(&self, files: &Arc<Files>) {
+		self.preload.start(files);
 	}
 
 	/// Returns true if this is the first image
 	pub fn add(&mut self, image: Arc<Image>) -> bool {
 		self.images.push(image);
-		self.preload(true);
-		self.images.len() == 1
+
+		let first = self.images.len() == 1;
+		self.preload(!first);
+		first
 	}
 
 	fn preload(&self, only_if_starved: bool) {
@@ -377,6 +387,10 @@ impl State {
 		if let Some(image) = self.images.get(self.position) {
 			image.add_orientation(add);
 		}
+	}
+
+	pub fn shutdown(&self) {
+		self.preload.shutdown();
 	}
 }
 
@@ -516,6 +530,8 @@ impl Preload {
 					if state.loaded.len() == 1 { "" } else { "s" }
 				);
 
+				// Release preload mutex before acquiring the state mutex
+				drop(state);
 				files.loaded(&image);
 			} else {
 				image.unload();
