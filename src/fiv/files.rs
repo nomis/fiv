@@ -31,7 +31,7 @@ use threadpool::ThreadPool;
 
 #[derive(Debug)]
 pub struct Files {
-	args: Arc<CommandLineArgs>,
+	args: CommandLineArgs,
 	startup: Mutex<Startup>,
 	state: Mutex<State>,
 	notify: Notify,
@@ -79,13 +79,13 @@ impl Startup {
 }
 
 impl Files {
-	pub fn new(args: &Arc<CommandLineArgs>, startup: Instant) -> Arc<Files> {
+	pub fn new(args: CommandLineArgs, startup: Instant) -> Arc<Files> {
 		let preload = Arc::new(Preload::new(args.preload as usize + 1));
 
 		Arc::new(Files {
-			args: args.clone(),
+			args,
 			startup: Mutex::new(Startup::new(startup)),
-			state: Mutex::new(State::new(&preload)),
+			state: Mutex::new(State::new(preload.clone())),
 			notify: Notify::new(),
 			seq_pool: ThreadPool::new(1),
 			preload,
@@ -168,7 +168,7 @@ impl Files {
 		debug!("Background tasks complete in {:?}", begin.elapsed());
 	}
 
-	fn add(&self, image: Image) {
+	fn add(&self, image: Arc<Image>) {
 		if *self.shutdown.lock().unwrap() {
 			return;
 		}
@@ -208,7 +208,7 @@ impl Files {
 		self.state.lock().unwrap().position()
 	}
 
-	pub fn loaded(&self, image: &Arc<Image>) {
+	pub fn loaded(&self, image: &Image) {
 		let state = self.state.lock().unwrap();
 		let current = state.current();
 
@@ -221,7 +221,7 @@ impl Files {
 		}
 
 		if let Some(current_image) = current.image {
-			if current_image == *image {
+			if *current_image == *image {
 				if let Ok(mut startup) = self.startup.lock() {
 					if !startup.image_ready {
 						startup.image_ready = true;
@@ -302,17 +302,17 @@ struct State {
 }
 
 impl State {
-	fn new(preload: &Arc<Preload>) -> Self {
+	fn new(preload: Arc<Preload>) -> Self {
 		Self {
 			images: Vec::new(),
 			position: 0,
-			preload: preload.clone(),
+			preload,
 		}
 	}
 
 	/// Returns true if this is the first image
-	pub fn add(&mut self, image: Image) -> bool {
-		self.images.push(Arc::new(image));
+	pub fn add(&mut self, image: Arc<Image>) -> bool {
+		self.images.push(image);
 		self.preload(true);
 		self.images.len() == 1
 	}
@@ -486,7 +486,7 @@ impl Preload {
 		}
 	}
 
-	fn load_one_or_wait(&self, files: &Arc<Files>) {
+	fn load_one_or_wait(&self, files: &Files) {
 		let mut state = self.state.lock().unwrap();
 
 		if let Some(image) = state.queue.pop_front() {
@@ -497,10 +497,6 @@ impl Preload {
 
 			state = self.state.lock().unwrap();
 			state.loading.remove(&image);
-
-			if state.loaded.is_empty() {
-				self.loading_required.notify_all();
-			}
 
 			if state.load.contains(&image) {
 				state.loaded.insert(image.clone());

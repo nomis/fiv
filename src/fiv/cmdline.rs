@@ -21,7 +21,6 @@ use log::error;
 use std::collections::VecDeque;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 #[derive(Debug, Default, Parser)]
 #[command(
@@ -53,7 +52,7 @@ pub struct Filenames<'a> {
 }
 
 impl Filenames<'_> {
-	pub fn new(args: &Arc<Args>) -> Filenames<'_> {
+	pub fn new(args: &Args) -> Filenames<'_> {
 		Filenames {
 			filenames: args.filenames.iter(),
 			dir_filenames: None,

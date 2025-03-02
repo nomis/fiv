@@ -32,7 +32,7 @@ use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::atomic::AtomicUsize;
-use std::sync::{Mutex, atomic};
+use std::sync::{Arc, Mutex, atomic};
 use std::time::Instant;
 
 #[derive(Debug)]
@@ -116,14 +116,14 @@ impl Image {
 	pub fn new<P: AsRef<Path>>(
 		canonical_mark_directory: Option<&PathBuf>,
 		filename: P,
-	) -> Result<super::Image, Error> {
+	) -> Result<Arc<super::Image>, Error> {
 		static COUNTER: AtomicUsize = AtomicUsize::new(0);
 		let codec = Codecs::from(Generic::default());
 		let metadata = codec.metadata(filename.as_ref())?;
 		let orientation = metadata.orientation;
 		let path = filename.as_ref().to_path_buf();
 		let mark_link = mark_link(canonical_mark_directory, &path);
-		let image = Image {
+		let image = Arc::new(Image {
 			id: COUNTER.fetch_add(1, atomic::Ordering::Relaxed),
 			filename: path,
 			metadata,
@@ -132,7 +132,7 @@ impl Image {
 			marked: Mutex::new(None),
 			data: Mutex::new(None),
 			orientation: Mutex::new(orientation),
-		};
+		});
 
 		image.refresh_mark();
 		Ok(image)
