@@ -155,9 +155,19 @@ impl Files {
 	}
 
 	pub fn shutdown(&self) {
-		self.shutdown.store(true, atomic::Ordering::Release);
-		self.state.lock().unwrap().shutdown();
-		self.update_ui();
+		if self
+			.shutdown
+			.compare_exchange(
+				false,
+				true,
+				atomic::Ordering::Release,
+				atomic::Ordering::Acquire,
+			)
+			.is_ok()
+		{
+			self.state.lock().unwrap().shutdown();
+			self.update_ui();
+		}
 	}
 
 	pub fn join(&self) {
@@ -215,7 +225,7 @@ impl Files {
 
 		// It's possible to have unloaded the image between releasing the
 		// preload mutex and acquiring the state mutex
-		if !image.loaded() {
+		if !image.loaded() || self.shutdown.load(atomic::Ordering::Acquire) {
 			return;
 		}
 
@@ -541,14 +551,24 @@ impl Preload {
 		}
 	}
 
-	pub fn shutdown(&self) {
+	pub fn shutdown(self: &Arc<Self>) {
 		let mut state = self.state.lock().unwrap();
 
 		state.queue.clear();
 		state.load.clear();
-		for image in &state.loaded {
-			image.unload();
-		}
-		state.loaded.clear();
+		drop(state);
+
+		// Unload images to save memory, but do it in the background so that the
+		// process exit isn't delayed if there's nothing else to do
+		let self_copy = self.clone();
+
+		std::thread::spawn(move || {
+			let mut state = self_copy.state.lock().unwrap();
+
+			for image in &state.loaded {
+				image.unload();
+			}
+			state.loaded.clear();
+		});
 	}
 }
