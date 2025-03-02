@@ -238,7 +238,9 @@ impl Files {
 			// To avoid wasting resources doing something that is no longer
 			// needed, check that we're still on the same image, unless this
 			// task must always be run
-			if always || current.position == self_copy.position() {
+			let shutdown = *self_copy.shutdown.lock().unwrap();
+
+			if always || (!shutdown && current.position == self_copy.position()) {
 				if let Some(image) = current.image {
 					func(&image);
 
