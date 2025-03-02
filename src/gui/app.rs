@@ -161,8 +161,7 @@ impl Application {
 	async fn process_events(&self) {
 		let files = self.files.get().unwrap();
 
-		loop {
-			files.ui_wait().await;
+		while files.ui_wait().await {
 			self.refresh();
 		}
 	}
@@ -322,7 +321,10 @@ impl Application {
 	fn quit(&self, _action: AppAction) {
 		let obj = self.obj();
 		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
-		app.quit();
+		let window = self.window.get().unwrap();
+
+		window.hide();
+		app.remove_window(window);
 	}
 }
 

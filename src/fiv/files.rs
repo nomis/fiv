@@ -156,6 +156,16 @@ impl Files {
 
 	pub fn shutdown(&self) {
 		*self.shutdown.lock().unwrap() = true;
+		self.update_ui();
+	}
+
+	pub fn join(&self) {
+		self.shutdown();
+
+		let begin = Instant::now();
+		debug!("Waiting for background tasks to finish...");
+		self.seq_pool.join();
+		debug!("Background tasks complete in {:?}", begin.elapsed());
 	}
 
 	fn add(&self, image: Image) {
@@ -179,8 +189,11 @@ impl Files {
 		!self.start_finished.get()
 	}
 
-	pub async fn ui_wait(&self) {
-		self.notify.notified().await;
+	pub async fn ui_wait(&self) -> bool {
+		if !*self.shutdown.lock().unwrap() {
+			self.notify.notified().await;
+		}
+		!*self.shutdown.lock().unwrap()
 	}
 
 	pub fn update_ui(&self) {

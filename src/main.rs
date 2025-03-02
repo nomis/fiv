@@ -39,7 +39,9 @@ fn main() -> glib::ExitCode {
 	let files = Files::new(&args, startup);
 
 	if files.start() {
-		gui::Application::new(files).run()
+		let exit_code = gui::Application::new(files.clone()).run_with_args::<&str>(&[]);
+		files.join();
+		exit_code
 	} else {
 		glib::ExitCode::FAILURE
 	}
