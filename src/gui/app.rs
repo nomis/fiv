@@ -387,6 +387,11 @@ impl ApplicationImpl for Application {
 		window.show_all();
 		window.present();
 	}
+
+	fn shutdown(&self) {
+		self.parent_shutdown();
+		self.files.get().unwrap().shutdown();
+	}
 }
 
 impl GtkApplicationImpl for Application {}

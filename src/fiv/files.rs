@@ -41,6 +41,7 @@ pub struct Files {
 	/// `start()` has finished or loaded at least one image
 	start_ready: Waitable<bool>,
 	start_finished: Waitable<bool>,
+	shutdown: Arc<Mutex<bool>>,
 }
 
 #[derive(Debug)]
@@ -90,6 +91,7 @@ impl Files {
 			preload,
 			start_ready: Waitable::new(false),
 			start_finished: Waitable::new(false),
+			shutdown: Arc::new(Mutex::new(false)),
 		})
 	}
 
@@ -103,6 +105,7 @@ impl Files {
 
 	pub fn start(self: &Arc<Self>) -> bool {
 		let self_copy = self.clone();
+		let shutdown_copy = self.shutdown.clone();
 
 		std::thread::spawn(move || {
 			pariter::scope(|scope| {
@@ -120,9 +123,13 @@ impl Files {
 
 				CommandLineFilenames::new(&self_copy.args)
 					.parallel_map_scoped(scope, move |filename| {
-						Image::new(canonical_mark_directory.as_ref(), &filename)
-							.map_err(|err| error!("{}: {err}", filename.display()))
-							.ok()
+						if *shutdown_copy.lock().unwrap() {
+							None
+						} else {
+							Image::new(canonical_mark_directory.as_ref(), &filename)
+								.map_err(|err| error!("{}: {err}", filename.display()))
+								.ok()
+						}
 					})
 					.flatten()
 					.for_each(|image| self_copy.add(image));
@@ -147,7 +154,15 @@ impl Files {
 		!state.images.is_empty()
 	}
 
+	pub fn shutdown(&self) {
+		*self.shutdown.lock().unwrap() = true;
+	}
+
 	fn add(&self, image: Image) {
+		if *self.shutdown.lock().unwrap() {
+			return;
+		}
+
 		let mut state = self.state.lock().unwrap();
 		if state.add(image) {
 			debug!(
