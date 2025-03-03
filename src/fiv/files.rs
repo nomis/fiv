@@ -22,6 +22,7 @@ use gtk::glib::clone::Downgrade;
 use itertools::interleave;
 use log::{debug, error, trace};
 use pariter::IteratorExt;
+use std::cmp::min;
 use std::collections::{HashSet, VecDeque};
 use std::iter;
 use std::path::PathBuf;
@@ -415,6 +416,7 @@ struct Preload {
 
 #[derive(Debug)]
 struct PreloadState {
+	priority: Option<Arc<Image>>,
 	queue: VecDeque<Arc<Image>>,
 	load: HashSet<Arc<Image>>,
 	loading: HashSet<Arc<Image>>,
@@ -424,6 +426,7 @@ struct PreloadState {
 impl PreloadState {
 	pub fn new(capacity: usize) -> Self {
 		Self {
+			priority: None,
 			queue: VecDeque::with_capacity(capacity),
 			load: HashSet::with_capacity(capacity),
 			loading: HashSet::with_capacity(capacity),
@@ -468,6 +471,12 @@ impl Preload {
 		}
 	}
 
+	fn notify(&self, state: &PreloadState) {
+		for _ in 0..min(state.queue.len(), self.pool.max_count()) {
+			self.loading_required.notify_one();
+		}
+	}
+
 	pub fn update(&self, images: &[Arc<Image>], current: usize, only_if_starved: bool) {
 		if images.is_empty() || self.shutdown.load(atomic::Ordering::Acquire) {
 			return;
@@ -482,6 +491,12 @@ impl Preload {
 		}
 
 		state.queue.clear();
+
+		state.priority = if images[current].loaded() {
+			None
+		} else {
+			Some(images[current].clone())
+		};
 
 		// Preload images forward and backward
 		let forward = images.iter().skip(current + 1);
@@ -514,13 +529,19 @@ impl Preload {
 		state.load = load;
 
 		// Start background loading for images that are not loaded
-		for _ in 0..state.queue.len() {
-			self.loading_required.notify_one();
-		}
+		self.notify(&state);
 	}
 
 	fn load_one_or_wait(&self, files: &Files) {
 		let mut state = self.state.lock().unwrap();
+
+		if let Some(priority) = &state.priority {
+			if state.loading.contains(priority) {
+				// Wait until the priority image has been loaded
+				drop(self.loading_required.wait(state).unwrap());
+				return;
+			}
+		}
 
 		if let Some(image) = state.queue.pop_front() {
 			state.loading.insert(image.clone());
@@ -539,6 +560,16 @@ impl Preload {
 					state.loaded.len(),
 					if state.loaded.len() == 1 { "" } else { "s" }
 				);
+
+				if let Some(priority) = &state.priority {
+					if *priority == image {
+						state.priority = None;
+
+						// Wake up threads that are waiting for the priority
+						// load to finish
+						self.notify(&state);
+					}
+				}
 
 				// Release preload mutex before acquiring the state mutex
 				drop(state);
