@@ -36,7 +36,6 @@ pipeline {
 	}
 	environment {
 		TMPDIR = "${WORKSPACE_TMP}"
-		DESTDIR = "${WORKSPACE_TMP}/DESTDIR"
 	}
 	stages {
 		stage("Checkout") {
@@ -49,9 +48,6 @@ pipeline {
 			steps {
 				sh "cargo --version"
 				sh "rustc --version"
-				dir(DESTDIR) {
-					deleteDir()
-				}
 			}
 		}
 		stage("Build") {
@@ -68,7 +64,13 @@ pipeline {
 			}
 		}
 		stage("Install") {
+			environment {
+				DESTDIR = "${WORKSPACE_TMP}/DESTDIR"
+			}
 			steps {
+				dir(DESTDIR) {
+					deleteDir()
+				}
 				sh "make install"
 			}
 		}
