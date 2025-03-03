@@ -60,6 +60,11 @@ pipeline {
 				sh "make release"
 			}
 		}
+		stage("Check") {
+			steps {
+				sh "cargo clippy --release"
+			}
+		}
 		stage("Install") {
 			steps {
 				sh "make install"

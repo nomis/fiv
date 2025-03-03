@@ -552,11 +552,13 @@ impl Preload {
 	}
 
 	pub fn shutdown(self: &Arc<Self>) {
-		let mut state = self.state.lock().unwrap();
+		{
+			let mut state = self.state.lock().unwrap();
 
-		state.queue.clear();
-		state.load.clear();
-		drop(state);
+			state.queue.clear();
+			state.load.clear();
+			self.loading_required.notify_all();
+		}
 
 		// Unload images to save memory, but do it in the background so that the
 		// process exit isn't delayed if there's nothing else to do
