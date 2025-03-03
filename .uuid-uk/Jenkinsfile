@@ -37,7 +37,6 @@ pipeline {
 	environment {
 		TMPDIR = "${WORKSPACE_TMP}"
 		DESTDIR = "${WORKSPACE_TMP}/DESTDIR"
-		RUSTFLAGS = "-Dwarnings"
 	}
 	stages {
 		stage("Checkout") {
@@ -61,6 +60,9 @@ pipeline {
 			}
 		}
 		stage("Check") {
+			environment {
+				RUSTFLAGS = "-Dwarnings"
+			}
 			steps {
 				sh "cargo clippy --release"
 			}
