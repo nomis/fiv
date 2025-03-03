@@ -27,4 +27,6 @@ clean:
 	cargo clean
 
 install: release
-	cargo install --path . --no-track --root $(DESTDIR)$(PREFIX)
+	# This rebuilds everything again...
+	#DESTDIR= cargo install --path . --no-track --root $(DESTDIR)$(PREFIX)
+	install -D target/release/fiv $(DESTDIR)$(PREFIX)/bin/fiv
