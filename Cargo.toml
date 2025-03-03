@@ -26,4 +26,4 @@ strum = { version = "0.27.1", features = ["derive"] }
 strum_macros = "0.27.1"
 threadpool = "1.8.1"
 tree_magic = "0.2.3"
-turbojpeg = "1.2.2"
+turbojpeg = { version = "1.2.2", features = ["require-simd"] }
