@@ -9,7 +9,7 @@ RUN \
 	--mount=type=cache,sharing=locked,target=/var/cache/apt,id=debian-sid-var-cache-apt \
 	--mount=type=cache,sharing=locked,target=/var/lib/apt,id=debian-sid-var-lib-apt \
 	apt-get update && apt-get install -y \
-		build-essential rustc cargo git \
+		build-essential rustc cargo rust-clippy git \
 		libcairomm-1.0-dev \
 		libexiv2-dev \
 		libgtkmm-3.0-dev \
