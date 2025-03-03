@@ -16,15 +16,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use super::codecs::{Codec, CodecMetadata, Codecs, Generic};
+use super::codecs::{Codec, CodecMetadata, Codecs};
 use super::numeric::{DimensionsU32, Xi32, Xu32, Yi32, Yu32};
 use anyhow::{Error, ensure};
 use bytemuck::{cast_slice, cast_slice_mut};
+use core::slice::IterMut;
 use gtk::cairo;
 use log::{error, trace};
+use memmap2::{Advice, Mmap, UncheckedAdvice};
 use pathdiff::diff_paths;
 use std::cell::RefCell;
-use std::fs::{read_link, remove_file};
+use std::fs::{File, read_link, remove_file};
 use std::hash::{Hash, Hasher};
 use std::io;
 use std::ops::AddAssign;
@@ -39,8 +41,9 @@ use std::time::Instant;
 pub struct Image {
 	id: usize,
 	pub filename: PathBuf,
-	pub metadata: CodecMetadata,
+	map: Mmap,
 	codec: Codecs,
+	pub metadata: CodecMetadata,
 	mark_link: Option<Link>,
 	marked: Mutex<Option<bool>>,
 	data: Mutex<Option<ImageData>>,
@@ -76,11 +79,11 @@ pub struct ImageData {
 #[derive(derive_more::Debug)]
 pub struct ImageDataBuilder {
 	#[debug("{}", buffer.len())]
-	pub buffer: Box<[Pixel]>,
-	format: cairo::Format,
-	width: Xi32,
-	height: Yi32,
-	stride: i32,
+	buffer: Box<[Pixel]>,
+	pub format: cairo::Format,
+	pub width: Xi32,
+	pub height: Yi32,
+	pub stride: i32,
 }
 
 #[derive(Debug)]
@@ -118,16 +121,19 @@ impl Image {
 		filename: P,
 	) -> Result<Arc<super::Image>, Error> {
 		static COUNTER: AtomicUsize = AtomicUsize::new(0);
-		let codec = Codecs::from(Generic::default());
-		let metadata = codec.metadata(filename.as_ref())?;
+		let map = unsafe { Mmap::map(&File::open(filename.as_ref())?)? };
+		map.advise(Advice::DontDump)?;
+		let codec = Codecs::new(&map)?;
+		let metadata = codec.metadata(&map)?;
 		let orientation = metadata.orientation;
 		let path = filename.as_ref().to_path_buf();
 		let mark_link = mark_link(canonical_mark_directory, &path);
 		let image = Arc::new(Image {
 			id: COUNTER.fetch_add(1, atomic::Ordering::Relaxed),
 			filename: path,
-			metadata,
+			map,
 			codec,
+			metadata,
 			mark_link,
 			marked: Mutex::new(None),
 			data: Mutex::new(None),
@@ -217,13 +223,21 @@ impl Image {
 	pub fn load(&self) {
 		let begin = Instant::now();
 
-		let image_data = Some(match self.codec.primary(&self.filename, &self.metadata) {
+		self.map.advise(Advice::WillNeed).unwrap();
+
+		let image_data = Some(match self.codec.primary(&self.map, &self.metadata) {
 			Ok(primary) => primary.image_data,
 			Err(err) => {
 				error!("{}: {err}", self.filename.display());
 				ImageData::failed()
 			}
 		});
+
+		unsafe {
+			self.map
+				.unchecked_advise(UncheckedAdvice::DontNeed)
+				.unwrap();
+		}
 
 		let mut data = self.data.lock().unwrap();
 
@@ -344,6 +358,59 @@ impl From<image::metadata::Orientation> for Orientation {
 				Orientation::new(Rotate::Rotate270, true)
 			}
 		}
+	}
+}
+
+impl From<Option<exif::Exif>> for Orientation {
+	fn from(exif: Option<exif::Exif>) -> Self {
+		match exif {
+			Some(exif) => exif
+				.get_field(exif::Tag::Orientation, exif::In::PRIMARY)
+				.and_then(|orientation| orientation.value.get_uint(0))
+				.and_then(|value| match value {
+					1 => Some(Orientation::new(Rotate::Rotate0, false)),
+					2 => Some(Orientation::new(Rotate::Rotate0, true)),
+					3 => Some(Orientation::new(Rotate::Rotate180, false)),
+					4 => Some(Orientation::new(Rotate::Rotate180, true)),
+					5 => Some(Orientation::new(Rotate::Rotate270, true)),
+					6 => Some(Orientation::new(Rotate::Rotate90, false)),
+					7 => Some(Orientation::new(Rotate::Rotate90, true)),
+					8 => Some(Orientation::new(Rotate::Rotate270, false)),
+					_ => None,
+				}),
+			None => None,
+		}
+		.unwrap_or_default()
+	}
+}
+
+impl ImageDataBuilder {
+	pub fn iter_mut(&mut self) -> IterMut<'_, Pixel> {
+		self.buffer.iter_mut()
+	}
+}
+
+impl AsRef<[u8]> for ImageDataBuilder {
+	fn as_ref(&self) -> &[u8] {
+		cast_slice::<Pixel, u8>(self.buffer.as_ref())
+	}
+}
+
+impl AsMut<[u8]> for ImageDataBuilder {
+	fn as_mut(&mut self) -> &mut [u8] {
+		cast_slice_mut::<Pixel, u8>(self.buffer.as_mut())
+	}
+}
+
+impl AsRef<[Pixel]> for ImageDataBuilder {
+	fn as_ref(&self) -> &[Pixel] {
+		self.buffer.as_ref()
+	}
+}
+
+impl AsMut<[Pixel]> for ImageDataBuilder {
+	fn as_mut(&mut self) -> &mut [Pixel] {
+		self.buffer.as_mut()
 	}
 }
 

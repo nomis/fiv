@@ -17,16 +17,17 @@
  */
 
 mod generic;
+mod jpeg;
 
 use super::{Orientation, image::ImageData, numeric::DimensionsU32};
-use anyhow::Error;
+use anyhow::{Error, anyhow};
 use enum_dispatch::enum_dispatch;
-use std::path::Path;
+use std::fmt;
 
 #[enum_dispatch]
 pub trait Codec {
-	fn metadata(&self, filename: &Path) -> Result<CodecMetadata, Error>;
-	fn primary(&self, filename: &Path, metadata: &CodecMetadata) -> Result<CodecPrimary, Error>;
+	fn metadata(&self, file: &[u8]) -> Result<CodecMetadata, Error>;
+	fn primary(&self, file: &[u8], metadata: &CodecMetadata) -> Result<CodecPrimary, Error>;
 }
 
 #[derive(Debug)]
@@ -40,11 +41,38 @@ pub struct CodecPrimary {
 	pub image_data: ImageData,
 }
 
-#[derive(Debug)]
 #[enum_dispatch(Codec)]
+#[derive(strum::AsRefStr)]
 pub enum Codecs {
 	Generic,
+	Jpeg,
+}
+
+impl Codecs {
+	pub fn new(file: &[u8]) -> Result<Self, Error> {
+		let mime_type = tree_magic::from_u8(file);
+
+		if let Some(codec) = match mime_type.as_str() {
+			"image/jpeg" => Some(Codecs::from(Jpeg::default())),
+			_ => None,
+		} {
+			Ok(codec)
+		} else if mime_type.starts_with("image/") {
+			Ok(Codecs::from(Generic::default()))
+		} else {
+			Err(anyhow!("Unsupported type {}", mime_type))
+		}
+	}
+}
+
+impl fmt::Debug for Codecs {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.write_str(self.as_ref())
+	}
 }
 
 #[derive(Debug, Default)]
 pub struct Generic {}
+
+#[derive(Debug, Default)]
+pub struct Jpeg {}
