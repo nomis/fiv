@@ -1,6 +1,6 @@
 .PHONY: default debug release dev format clippy clean install
 
-PREFIX ?= /usr/bin/local
+PREFIX ?= /usr/local
 
 default: debug
 
@@ -27,4 +27,4 @@ clean:
 	cargo clean
 
 install: release
-	install -D target/release/fiv $(DESTDIR)$(PREFIX)/fiv
+	cargo install --path . --no-track --root $(DESTDIR)$(PREFIX)
