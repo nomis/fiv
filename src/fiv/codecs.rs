@@ -50,9 +50,9 @@ pub enum Codecs {
 
 impl Codecs {
 	pub fn new(file: &[u8]) -> Result<Self, Error> {
-		let mime_type = tree_magic::from_u8(file);
+		let mime_type = tree_magic_mini::from_u8(file);
 
-		if let Some(codec) = match mime_type.as_str() {
+		if let Some(codec) = match mime_type {
 			"image/jpeg" => Some(Codecs::from(Jpeg::default())),
 			_ => None,
 		} {
