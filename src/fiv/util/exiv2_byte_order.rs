@@ -400,7 +400,6 @@ fn test_image(bo: ByteOrder) -> Vec<u8> {
 
 	// MakerNote SubIFD
 	// ----------------
-
 	let makernote_data = buffer.begin_data();
 	let mut makernote_count = buffer.begin_ifd_count(bo); // Number of directory entries
 
