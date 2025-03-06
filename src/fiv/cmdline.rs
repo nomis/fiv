@@ -16,7 +16,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use clap::Parser;
 use log::error;
 use std::collections::VecDeque;
 use std::fs;
@@ -24,11 +23,12 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, atomic};
 
-#[derive(Debug, Default, Parser)]
+#[derive(Debug, Default, clap::Parser)]
 #[command(
 	version,
-	display_name = "Fast Image Viewer",
-	about = "Display image files"
+	display_name = clap::crate_description!(),
+	about = "Display image files",
+	author = clap::crate_authors!()
 )]
 pub struct Args {
 	/// Number of images to preload
