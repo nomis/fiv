@@ -11,11 +11,9 @@ RUN \
 	apt-get update && apt-get install -y \
 		build-essential rustc cargo rust-clippy git \
 		cmake nasm \
-		libcairomm-1.0-dev \
+		libgtk-3-dev \
 		libexiv2-dev \
 		libgexiv2-dev \
-		libgtkmm-3.0-dev \
-		libmagic-dev \
 		libturbojpeg0-dev
 
 # Jenkins always runs commands in the container as its own UID/GID, which has no
