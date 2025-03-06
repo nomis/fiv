@@ -25,7 +25,7 @@ pipeline {
 			label "Linux && Docker"
 			dir ".uuid-uk"
 			filename "Dockerfile"
-			args "--cap-drop=ALL --security-opt=no-new-privileges=true"
+			args "--mount source=user-cache-debian-trixie-cargo,target=/home/user/.cargo"
 		}
 	}
 	triggers {
@@ -36,7 +36,6 @@ pipeline {
 	}
 	environment {
 		TMPDIR = "${WORKSPACE_TMP}"
-		DESTDIR = "${WORKSPACE_TMP}/DESTDIR"
 	}
 	stages {
 		stage("Checkout") {
@@ -47,18 +46,31 @@ pipeline {
 		}
 		stage("Prepare") {
 			steps {
-				dir(DESTDIR) {
-					deleteDir()
-				}
+				sh "cargo --version"
+				sh "rustc --version"
 			}
 		}
 		stage("Build") {
 			steps {
-				sh "make"
+				sh "make release"
+			}
+		}
+		stage("Check") {
+			environment {
+				RUSTFLAGS = "-Dwarnings"
+			}
+			steps {
+				sh "cargo clippy --release"
 			}
 		}
 		stage("Install") {
+			environment {
+				DESTDIR = "${WORKSPACE_TMP}/DESTDIR"
+			}
 			steps {
+				dir(DESTDIR) {
+					deleteDir()
+				}
 				sh "make install"
 			}
 		}

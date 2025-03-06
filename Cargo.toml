@@ -1,0 +1,30 @@
+[package]
+name = "fiv"
+version = "2.0.0"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.95"
+async-notify = "0.3.0"
+bitfield = "0.19.0"
+bytemuck = "1.21.0"
+clap = { version = "4.5.27", features = ["derive", "wrap_help"] }
+derive_more = { version = "2.0.1", features = ["constructor", "debug"] }
+enum_dispatch = "0.3.13"
+gtk = "0.18.2"
+image = "0.25.5"
+itertools = "0.14.0"
+log = "0.4.25"
+memmap2 = "0.9.5"
+nutype = "0.6.1"
+pariter = "0.5.1"
+pathdiff = "0.2.3"
+rexiv2 = { version = "0.10.0", features = ["raw-tag-access"] }
+stderrlog = "0.6.0"
+strum = { version = "0.27.1", features = ["derive"] }
+strum_macros = "0.27.1"
+threadpool = "1.8.1"
+tree_magic_mini = "3.1.6"
+turbojpeg = { version = "1.2.2", features = ["require-simd"] }

@@ -1,5 +1,11 @@
+# Now
+Menu items for full screen/af points should be check boxes
+Preload by memory limit
+Full resolution on scaled displays
+
+# Later
+Find a better exif library
 Canon rating indicator
-Canon focus points
 Photo properties:
 	Date/Time
 	ISO speed
@@ -9,3 +15,6 @@ Photo properties:
 	Exposure bias
 	Flash
 	Flash bias
+Navigation with thumbnails
+Reload modified image
+Refresh directory to show latest images
