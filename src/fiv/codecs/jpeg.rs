@@ -173,7 +173,16 @@ impl CanonAFVec {
 		bit: usize,
 		err: F,
 	) -> Result<bool, Error> {
-		Ok(self.get_u16(index + bit / 16, err)?.bit(bit % 16))
+		let index = 2 * index
+			+ match self.bo {
+				// [0-7, 8-15, 16-23, 24-31, ...]
+				ByteOrder::LE => bit / 8,
+
+				// [8-15, 0-7, 24-31, 16-23, ...]
+				ByteOrder::BE => 2 * (bit / 16) + (((bit / 8) & 1) ^ 1),
+			};
+
+		Ok(self.data.get(index).ok_or_else(err)?.bit(bit % 8))
 	}
 }
 

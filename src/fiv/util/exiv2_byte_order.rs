@@ -475,8 +475,8 @@ pub fn byte_order_of(exiv: &rexiv2::Metadata) -> Result<ByteOrder, Error> {
 		.map_err(|_| anyhow!("Missing image ByteOrder"))?
 		.as_str()
 	{
-		"II" => LE_TEST_IMAGE_BYTE_ORDER.ok_or(anyhow!("Little-endian test image failed")),
-		"MM" => BE_TEST_IMAGE_BYTE_ORDER.ok_or(anyhow!("Big-endian test image failed")),
+		"II" => LE_TEST_IMAGE_BYTE_ORDER.ok_or_else(|| anyhow!("Little-endian test image failed")),
+		"MM" => BE_TEST_IMAGE_BYTE_ORDER.ok_or_else(|| anyhow!("Big-endian test image failed")),
 		value => Err(anyhow!("Invalid image ByteOrder: {value:?}")),
 	}
 }
