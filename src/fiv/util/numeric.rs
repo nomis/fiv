@@ -406,6 +406,17 @@ impl From<PointI32> for PointF64 {
 	}
 }
 
+impl ops::Mul<(Xf64, Yf64)> for PointF64 {
+	type Output = PointF64;
+
+	fn mul(self, rhs: (Xf64, Yf64)) -> Self::Output {
+		Self::Output {
+			x: self.x * rhs.0,
+			y: self.y * rhs.1,
+		}
+	}
+}
+
 impl fmt::Display for PointF64 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(f, "{:.2},{:.2}", self.x.into_inner(), self.y.into_inner())
@@ -419,6 +430,10 @@ pub struct DimensionsU32 {
 }
 
 impl DimensionsU32 {
+	pub fn non_zero(self) -> bool {
+		u32::from(self.width) > 0 && u32::from(self.height) > 0
+	}
+
 	pub fn rotate90(self) -> Self {
 		Self::new(u32::from(self.height).into(), u32::from(self.width).into())
 	}
@@ -473,6 +488,17 @@ impl From<DimensionsU32> for DimensionsF64 {
 impl From<&gtk::Allocation> for DimensionsF64 {
 	fn from(allocation: &gtk::Allocation) -> Self {
 		DimensionsU32::from(allocation).into()
+	}
+}
+
+impl ops::Mul<(Xf64, Yf64)> for DimensionsF64 {
+	type Output = DimensionsF64;
+
+	fn mul(self, rhs: (Xf64, Yf64)) -> Self::Output {
+		Self::Output {
+			width: self.width * rhs.0,
+			height: self.height * rhs.1,
+		}
 	}
 }
 

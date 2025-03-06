@@ -20,7 +20,7 @@ use std::io::{BufReader, Cursor};
 
 use super::{Codec, CodecMetadata, CodecPrimary, Generic, ImageData};
 use crate::fiv::numeric::DimensionsU32;
-use anyhow::{Error, anyhow};
+use anyhow::{Error, ensure};
 use image::{DynamicImage, ImageDecoder, ImageReader};
 
 impl Codec for Generic {
@@ -32,6 +32,7 @@ impl Codec for Generic {
 		Ok(CodecMetadata {
 			dimensions: decoder.dimensions().into(),
 			orientation: decoder.orientation().unwrap().into(),
+			af_points: None,
 		})
 	}
 
@@ -42,13 +43,12 @@ impl Codec for Generic {
 
 		let dimensions: DimensionsU32 = decoder.dimensions().into();
 
-		if dimensions != metadata.dimensions {
-			Err(anyhow!(
-				"Image dimensions have changed: {} != {}",
-				dimensions,
-				metadata.dimensions,
-			))?;
-		}
+		ensure!(
+			dimensions == metadata.dimensions,
+			"Image dimensions have changed: {} != {}",
+			dimensions,
+			metadata.dimensions,
+		);
 
 		let image = DynamicImage::from_decoder(decoder)?.into_rgb8();
 		let samples = image.as_flat_samples().samples;

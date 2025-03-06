@@ -17,7 +17,7 @@
  */
 
 use super::codecs::{Codec, CodecMetadata, Codecs};
-use super::numeric::{DimensionsU32, Xi32, Xu32, Yi32, Yu32};
+use super::numeric::{DimensionsF64, DimensionsU32, PointF64, Xi32, Xu32, Yi32, Yu32};
 use anyhow::{Error, ensure};
 use bytemuck::{cast_slice, cast_slice_mut};
 use core::slice::IterMut;
@@ -114,6 +114,14 @@ pub enum Rotate {
 	Rotate270,
 }
 
+#[derive(Debug)]
+pub struct AFPoint {
+	pub position: PointF64,
+	pub dimensions: DimensionsF64,
+	pub selected: bool,
+	pub active: bool,
+}
+
 impl Image {
 	/// Blocking on CPU, I/O
 	pub fn new<P: AsRef<Path>>(
@@ -128,6 +136,13 @@ impl Image {
 		let orientation = metadata.orientation;
 		let path = filename.as_ref().to_path_buf();
 		let mark_link = mark_link(canonical_mark_directory, &path);
+
+		ensure!(
+			metadata.dimensions.non_zero(),
+			"Image dimensions are zero: {}",
+			metadata.dimensions
+		);
+
 		let image = Arc::new(Image {
 			id: COUNTER.fetch_add(1, atomic::Ordering::Relaxed),
 			filename: path,
@@ -361,25 +376,23 @@ impl From<image::metadata::Orientation> for Orientation {
 	}
 }
 
-impl From<Option<exif::Exif>> for Orientation {
-	fn from(exif: Option<exif::Exif>) -> Self {
-		match exif {
-			Some(exif) => exif
-				.get_field(exif::Tag::Orientation, exif::In::PRIMARY)
-				.and_then(|orientation| orientation.value.get_uint(0))
-				.and_then(|value| match value {
-					1 => Some(Orientation::new(Rotate::Rotate0, false)),
-					2 => Some(Orientation::new(Rotate::Rotate0, true)),
-					3 => Some(Orientation::new(Rotate::Rotate180, false)),
-					4 => Some(Orientation::new(Rotate::Rotate180, true)),
-					5 => Some(Orientation::new(Rotate::Rotate270, true)),
-					6 => Some(Orientation::new(Rotate::Rotate90, false)),
-					7 => Some(Orientation::new(Rotate::Rotate90, true)),
-					8 => Some(Orientation::new(Rotate::Rotate270, false)),
-					_ => None,
-				}),
-			None => None,
-		}
+impl From<Option<&rexiv2::Metadata>> for Orientation {
+	fn from(exiv: Option<&rexiv2::Metadata>) -> Self {
+		exiv.and_then(|exiv| match exiv.get_orientation() {
+			rexiv2::Orientation::Normal => Some(Orientation::new(Rotate::Rotate0, false)),
+			rexiv2::Orientation::HorizontalFlip => Some(Orientation::new(Rotate::Rotate0, true)),
+			rexiv2::Orientation::Rotate180 => Some(Orientation::new(Rotate::Rotate180, false)),
+			rexiv2::Orientation::VerticalFlip => Some(Orientation::new(Rotate::Rotate180, true)),
+			rexiv2::Orientation::Rotate90HorizontalFlip => {
+				Some(Orientation::new(Rotate::Rotate270, true))
+			}
+			rexiv2::Orientation::Rotate90 => Some(Orientation::new(Rotate::Rotate90, false)),
+			rexiv2::Orientation::Rotate90VerticalFlip => {
+				Some(Orientation::new(Rotate::Rotate90, true))
+			}
+			rexiv2::Orientation::Rotate270 => Some(Orientation::new(Rotate::Rotate270, false)),
+			rexiv2::Orientation::Unspecified => None,
+		})
 		.unwrap_or_default()
 	}
 }

@@ -25,6 +25,7 @@ mod util;
 pub use cmdline::Args as CommandLineArgs;
 pub use cmdline::Filenames as CommandLineFilenames;
 pub use files::{Files, Navigate};
-pub use image::{Image, Mark, Orientation, Rotate};
+pub use image::{AFPoint, Image, Mark, Orientation, Rotate};
 pub use util::Waitable;
+pub use util::exiv2_byte_order::{ByteOrder, byte_order_of};
 pub use util::numeric;

@@ -19,7 +19,7 @@
 mod generic;
 mod jpeg;
 
-use super::{Orientation, image::ImageData, numeric::DimensionsU32};
+use super::{Orientation, image::AFPoint, image::ImageData, numeric::DimensionsU32};
 use anyhow::{Error, anyhow};
 use enum_dispatch::enum_dispatch;
 use std::fmt;
@@ -34,6 +34,7 @@ pub trait Codec {
 pub struct CodecMetadata {
 	pub dimensions: DimensionsU32,
 	pub orientation: Orientation,
+	pub af_points: Option<Vec<AFPoint>>,
 }
 
 #[derive(Debug)]

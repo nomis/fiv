@@ -39,6 +39,7 @@ pub struct Application {
 #[derive(Debug, Default)]
 struct State {
 	full_screen: bool,
+	af_points: bool,
 }
 
 #[glib::object_subclass]
@@ -73,6 +74,7 @@ enum WinAction {
 	ViewZoomActual,
 	ViewZoomFit,
 	ViewFullScreen,
+	ViewAFPoints,
 }
 
 trait MenuExtActionEnum<T> {
@@ -181,6 +183,7 @@ impl Application {
 		let view_menu_zoom = Menu::new();
 		let view_menu_nav = Menu::new();
 		let view_menu_win = Menu::new();
+		let view_menu_overlay = Menu::new();
 
 		image_menu_rotate.append_ext("Rotate _Left", WinAction::ImageRotateLeft);
 		self.add_action(WinAction::ImageRotateLeft, Self::files_action, &["l"]);
@@ -233,6 +236,10 @@ impl Application {
 		view_menu_win.append_ext("F_ull Screen", WinAction::ViewFullScreen);
 		self.add_action(WinAction::ViewFullScreen, Self::view_fullscreen, &["F11"]);
 		view_menu.append_section(None, &view_menu_win);
+
+		view_menu_overlay.append_ext("AF P_oints", WinAction::ViewAFPoints);
+		self.add_action(WinAction::ViewAFPoints, Self::view_af_points, &["p"]);
+		view_menu.append_section(None, &view_menu_overlay);
 		menu_bar.append_submenu(Some("_View"), &view_menu);
 
 		app.set_menubar(Some(&menu_bar));
@@ -305,6 +312,14 @@ impl Application {
 		} else {
 			window.fullscreen();
 		}
+	}
+
+	fn view_af_points(&self, _action: WinAction) {
+		let drawing_area = self.drawing_area.get().unwrap();
+		let mut state = self.state.lock().unwrap();
+
+		state.af_points = !state.af_points;
+		drawing_area.af_points(state.af_points);
 	}
 
 	fn window_state_changed(&self, full_screen: bool) {

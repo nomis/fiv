@@ -13,6 +13,7 @@ RUN \
 		cmake nasm \
 		libcairomm-1.0-dev \
 		libexiv2-dev \
+		libgexiv2-dev \
 		libgtkmm-3.0-dev \
 		libmagic-dev \
 		libturbojpeg0-dev

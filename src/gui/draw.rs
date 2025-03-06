@@ -53,6 +53,7 @@ struct ImageDraw {
 	waiting: bool,
 	zoom: Zoom,
 	orientation: Orientation,
+	af_points: bool,
 }
 
 #[derive(Debug)]
@@ -84,6 +85,7 @@ impl ImageDraw {
 			waiting: false,
 			zoom: Zoom::default(),
 			orientation: Orientation::default(),
+			af_points: false,
 		}
 	}
 }
@@ -254,6 +256,12 @@ impl DrawingArea {
 		}
 	}
 
+	pub fn af_points(&self, enable: bool) {
+		if self.image_draw.lock().unwrap().af_points(enable) {
+			self.redraw();
+		}
+	}
+
 	fn redraw(&self) {
 		if self.widget.is_visible() {
 			self.widget.queue_draw();
@@ -366,6 +374,13 @@ impl ImageDraw {
 		}
 	}
 
+	pub fn af_points(&mut self, enable: bool) -> bool {
+		self.af_points = enable;
+		self.image
+			.as_ref()
+			.is_some_and(|image| image.metadata.af_points.is_some())
+	}
+
 	pub fn draw(&mut self, allocation: &gtk::Rectangle, context: &cairo::Context) {
 		let started = self.startup.begin.elapsed();
 		let surface = cairo::ImageSurface::create(
@@ -457,6 +472,41 @@ impl ImageDraw {
 				// Release the `surface` after using it, before this closure
 				// returns otherwise `context` will still have a reference to it
 				context.set_source_rgb(0.0, 0.0, 0.0);
+
+				if self.af_points {
+					if let Some(af_points) = &image.metadata.af_points {
+						let dashes = [(5.0 / draw_at.scale).into(); 2];
+						let dots = [(2.0 / draw_at.scale).into(); 2];
+
+						context.save().unwrap();
+						context.set_operator(cairo::Operator::Difference);
+
+						for af_point in af_points {
+							if af_point.active {
+								context.set_source_rgb(1.0, 0.0, 1.0);
+								context.set_line_width((4.0 / draw_at.scale).into());
+								context.set_dash(&[], 0.0);
+							} else if af_point.selected {
+								context.set_source_rgb(1.0, 0.0, 0.0);
+								context.set_line_width((2.0 / draw_at.scale).into());
+								context.set_dash(&dots, 0.0);
+							} else {
+								context.set_source_rgb(1.0, 1.0, 1.0);
+								context.set_line_width((1.0 / draw_at.scale).into());
+								context.set_dash(&dashes, 0.0);
+							}
+							context.rectangle(
+								af_point.position.x.into(),
+								af_point.position.y.into(),
+								af_point.dimensions.width.into(),
+								af_point.dimensions.height.into(),
+							);
+							context.stroke().unwrap();
+						}
+
+						context.restore().unwrap();
+					}
+				}
 			} else {
 				if loaded {
 					context.set_source_rgb(0.75, 0.5, 0.5);
