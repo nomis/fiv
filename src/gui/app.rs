@@ -19,11 +19,10 @@
 use super::Files;
 use super::draw::DrawingArea;
 use crate::fiv::{Mark, Navigate, Rotate};
-use gio::Menu;
-use gtk::gdk;
-use gtk::gio::SimpleAction;
+use gtk::gio::{Menu, SimpleAction};
+use gtk::glib::Variant;
 use gtk::glib::once_cell::unsync::OnceCell;
-use gtk::{gio, glib, prelude::*, subclass::prelude::*};
+use gtk::{gdk, gio, glib, prelude::*, subclass::prelude::*};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -34,6 +33,7 @@ pub struct Application {
 	window: OnceCell<gtk::ApplicationWindow>,
 	state: Mutex<State>,
 	drawing_area: OnceCell<Rc<DrawingArea>>,
+	view_full_screen_action: OnceCell<SimpleAction>,
 }
 
 #[derive(Debug, Default)]
@@ -95,20 +95,20 @@ impl MenuExtActionEnum<WinAction> for Menu {
 
 trait ApplicationAction<T> {
 	fn add_action(&self, name: T, func: fn(&Self, T), accels: &[&str]);
+
+	fn add_stateful_action(
+		&self,
+		name: T,
+		func: fn(&Self, &SimpleAction, Option<&Variant>),
+		accels: &[&str],
+		state: bool,
+	) -> SimpleAction;
 }
 
 impl ApplicationAction<AppAction> for Application {
 	fn add_action(&self, name: AppAction, func: fn(&Self, AppAction), accels: &[&str]) {
-		let action = SimpleAction::new(
-			name.as_ref()
-				.split_once('.')
-				.expect("Enum str values are prefixed with \"app.\"")
-				.1,
-			None,
-		);
-
 		let self_ref = self.downgrade();
-		action.connect_activate(move |_, _| {
+		let action = self.new_action(name.as_ref(), accels, None, move |_, _| {
 			if let Some(app) = self_ref.upgrade() {
 				func(&app, name);
 			}
@@ -116,34 +116,62 @@ impl ApplicationAction<AppAction> for Application {
 
 		let obj = self.obj();
 		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
-		app.set_accels_for_action(name.as_ref(), accels);
 		app.add_action(&action);
+	}
+
+	fn add_stateful_action(
+		&self,
+		name: AppAction,
+		func: fn(&Self, &SimpleAction, Option<&Variant>),
+		accels: &[&str],
+		state: bool,
+	) -> SimpleAction {
+		let self_ref = self.downgrade();
+		let action = self.new_action(name.as_ref(), accels, Some(state), move |action, value| {
+			if let Some(app) = self_ref.upgrade() {
+				func(&app, action, value);
+			}
+		});
+
+		let obj = self.obj();
+		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
+		app.add_action(&action);
+
+		action
 	}
 }
 
 impl ApplicationAction<WinAction> for Application {
 	fn add_action(&self, name: WinAction, func: fn(&Self, WinAction), accels: &[&str]) {
-		let action = SimpleAction::new(
-			name.as_ref()
-				.split_once('.')
-				.expect("Enum str values are prefixed with \"win.\"")
-				.1,
-			None,
-		);
-
 		let self_ref = self.downgrade();
-		action.connect_activate(move |_, _| {
+		let action = self.new_action(name.as_ref(), accels, None, move |_, _| {
 			if let Some(app) = self_ref.upgrade() {
 				func(&app, name);
 			}
 		});
 
-		let obj = self.obj();
-		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
-		app.set_accels_for_action(name.as_ref(), accels);
+		let window = self.window.get().unwrap();
+		window.add_action(&action);
+	}
+
+	fn add_stateful_action(
+		&self,
+		name: WinAction,
+		func: fn(&Self, &SimpleAction, Option<&Variant>),
+		accels: &[&str],
+		state: bool,
+	) -> SimpleAction {
+		let self_ref = self.downgrade();
+		let action = self.new_action(name.as_ref(), accels, Some(state), move |action, value| {
+			if let Some(app) = self_ref.upgrade() {
+				func(&app, action, value);
+			}
+		});
 
 		let window = self.window.get().unwrap();
 		window.add_action(&action);
+
+		action
 	}
 }
 
@@ -168,81 +196,132 @@ impl Application {
 		}
 	}
 
-	fn build_menu(&self) {
+	fn new_action<F: Fn(&SimpleAction, Option<&glib::Variant>) + 'static>(
+		&self,
+		name: &str,
+		accels: &[&str],
+		state: Option<bool>,
+		func: F,
+	) -> SimpleAction {
+		let short_name = name
+			.split_once('.')
+			.expect("Enum str values are prefixed with \"app.\" or \"win.\"")
+			.1;
+		let action = match state {
+			Some(value) => SimpleAction::new_stateful(short_name, None, &value.to_variant()),
+			None => SimpleAction::new(short_name, None),
+		};
+
+		match state {
+			Some(_) => action.connect_change_state(func),
+			None => action.connect_activate(func),
+		};
+
+		let obj = self.obj();
+		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
+		app.set_accels_for_action(name, accels);
+
+		action
+	}
+
+	fn build_menu_bar(&self) {
 		let obj = self.obj();
 		let app = obj.dynamic_cast_ref::<gtk::Application>().unwrap();
 		let files = self.files.get().unwrap();
 		let menu_bar = Menu::new();
-		let image_menu = Menu::new();
-		let image_menu_rotate = Menu::new();
-		let image_menu_flip = Menu::new();
-		let image_menu_app = Menu::new();
-		let edit_menu = Menu::new();
-		let edit_menu_mark = Menu::new();
-		let view_menu = Menu::new();
-		let view_menu_zoom = Menu::new();
-		let view_menu_nav = Menu::new();
-		let view_menu_win = Menu::new();
-		let view_menu_overlay = Menu::new();
 
-		image_menu_rotate.append_ext("Rotate _Left", WinAction::ImageRotateLeft);
-		self.add_action(WinAction::ImageRotateLeft, Self::files_action, &["l"]);
-		image_menu_rotate.append_ext("Rotate _Right", WinAction::ImageRotateRight);
-		self.add_action(WinAction::ImageRotateRight, Self::files_action, &["r"]);
-		image_menu.append_section(None, &image_menu_rotate);
-
-		image_menu_flip.append_ext("Flip _Horizontal", WinAction::ImageFlipHorizontal);
-		self.add_action(WinAction::ImageFlipHorizontal, Self::files_action, &["h"]);
-		image_menu_flip.append_ext("Flip _Vertical", WinAction::ImageFlipVertical);
-		self.add_action(WinAction::ImageFlipVertical, Self::files_action, &["v"]);
-		image_menu.append_section(None, &image_menu_flip);
-
-		image_menu_app.append_ext("_Quit", AppAction::Quit);
-		self.add_action(AppAction::Quit, Self::quit, &["<Primary>q", "q", "<Alt>F4"]);
-		image_menu.append_section(None, &image_menu_app);
-		menu_bar.append_submenu(Some("_Image"), &image_menu);
-
+		menu_bar.append_submenu(Some("_Image"), &self.build_image_menu());
 		if files.mark_supported() {
-			edit_menu_mark.append_ext("_Mark", WinAction::EditMark);
-			self.add_action(WinAction::EditMark, Self::files_action, &["Insert"]);
-			edit_menu_mark.append_ext("_Toggle mark", WinAction::EditToggleMark);
-			self.add_action(WinAction::EditToggleMark, Self::files_action, &["Tab"]);
-			edit_menu_mark.append_ext("_Unmark", WinAction::EditUnmark);
-			self.add_action(WinAction::EditUnmark, Self::files_action, &["Delete"]);
-			edit_menu.append_section(None, &edit_menu_mark);
-			menu_bar.append_submenu(Some("_Edit"), &edit_menu);
+			menu_bar.append_submenu(Some("_Edit"), &self.build_edit_menu());
 		}
+		menu_bar.append_submenu(Some("_View"), &self.build_view_menu());
 
-		view_menu_nav.append_ext("_Previous", WinAction::ViewPrevious);
+		app.set_menubar(Some(&menu_bar));
+	}
+
+	fn build_image_menu(&self) -> Menu {
+		let menu = Menu::new();
+		let rotate_section = Menu::new();
+		let flip_section = Menu::new();
+		let app_section = Menu::new();
+
+		rotate_section.append_ext("Rotate _Left", WinAction::ImageRotateLeft);
+		self.add_action(WinAction::ImageRotateLeft, Self::files_action, &["l"]);
+		rotate_section.append_ext("Rotate _Right", WinAction::ImageRotateRight);
+		self.add_action(WinAction::ImageRotateRight, Self::files_action, &["r"]);
+		menu.append_section(None, &rotate_section);
+
+		flip_section.append_ext("Flip _Horizontal", WinAction::ImageFlipHorizontal);
+		self.add_action(WinAction::ImageFlipHorizontal, Self::files_action, &["h"]);
+		flip_section.append_ext("Flip _Vertical", WinAction::ImageFlipVertical);
+		self.add_action(WinAction::ImageFlipVertical, Self::files_action, &["v"]);
+		menu.append_section(None, &flip_section);
+
+		app_section.append_ext("_Quit", AppAction::Quit);
+		self.add_action(AppAction::Quit, Self::quit, &["<Primary>q", "q", "<Alt>F4"]);
+		menu.append_section(None, &app_section);
+
+		menu
+	}
+
+	fn build_edit_menu(&self) -> Menu {
+		let menu = Menu::new();
+		let mark_section = Menu::new();
+
+		mark_section.append_ext("_Mark", WinAction::EditMark);
+		self.add_action(WinAction::EditMark, Self::files_action, &["Insert"]);
+		mark_section.append_ext("_Toggle mark", WinAction::EditToggleMark);
+		self.add_action(WinAction::EditToggleMark, Self::files_action, &["Tab"]);
+		mark_section.append_ext("_Unmark", WinAction::EditUnmark);
+		self.add_action(WinAction::EditUnmark, Self::files_action, &["Delete"]);
+		menu.append_section(None, &mark_section);
+
+		menu
+	}
+
+	fn build_view_menu(&self) -> Menu {
+		let menu = Menu::new();
+		let zoom_section = Menu::new();
+		let nav_section = Menu::new();
+		let win_section = Menu::new();
+		let overlay_section = Menu::new();
+
+		nav_section.append_ext("_Previous", WinAction::ViewPrevious);
 		self.add_action(WinAction::ViewPrevious, Self::files_action, &["Left"]);
-		view_menu_nav.append_ext("_Next", WinAction::ViewNext);
+		nav_section.append_ext("_Next", WinAction::ViewNext);
 		self.add_action(
 			WinAction::ViewNext,
 			Self::files_action,
 			&["Right", "Return"],
 		);
-		view_menu_nav.append_ext("_First", WinAction::ViewFirst);
+		nav_section.append_ext("_First", WinAction::ViewFirst);
 		self.add_action(WinAction::ViewFirst, Self::files_action, &["Home"]);
-		view_menu_nav.append_ext("_Last", WinAction::ViewLast);
+		nav_section.append_ext("_Last", WinAction::ViewLast);
 		self.add_action(WinAction::ViewLast, Self::files_action, &["End"]);
-		view_menu.append_section(None, &view_menu_nav);
+		menu.append_section(None, &nav_section);
 
-		view_menu_zoom.append_ext("Norm_al Size", WinAction::ViewZoomActual);
+		zoom_section.append_ext("Norm_al Size", WinAction::ViewZoomActual);
 		self.add_action(WinAction::ViewZoomActual, Self::zoom_action, &["a", "1"]);
-		view_menu_zoom.append_ext("Best _Fit", WinAction::ViewZoomFit);
+		zoom_section.append_ext("Best _Fit", WinAction::ViewZoomFit);
 		self.add_action(WinAction::ViewZoomFit, Self::zoom_action, &["f"]);
-		view_menu.append_section(None, &view_menu_zoom);
+		menu.append_section(None, &zoom_section);
 
-		view_menu_win.append_ext("F_ull Screen", WinAction::ViewFullScreen);
-		self.add_action(WinAction::ViewFullScreen, Self::view_fullscreen, &["F11"]);
-		view_menu.append_section(None, &view_menu_win);
+		win_section.append_ext("F_ull Screen", WinAction::ViewFullScreen);
+		self.view_full_screen_action
+			.set(self.add_stateful_action(
+				WinAction::ViewFullScreen,
+				Self::view_fullscreen,
+				&["F11"],
+				false,
+			))
+			.unwrap();
+		menu.append_section(None, &win_section);
 
-		view_menu_overlay.append_ext("AF P_oints", WinAction::ViewAFPoints);
-		self.add_action(WinAction::ViewAFPoints, Self::view_af_points, &["p"]);
-		view_menu.append_section(None, &view_menu_overlay);
-		menu_bar.append_submenu(Some("_View"), &view_menu);
+		overlay_section.append_ext("AF P_oints", WinAction::ViewAFPoints);
+		self.add_stateful_action(WinAction::ViewAFPoints, Self::view_af_points, &["p"], false);
+		menu.append_section(None, &overlay_section);
 
-		app.set_menubar(Some(&menu_bar));
+		menu
 	}
 
 	pub fn refresh(&self) {
@@ -303,23 +382,27 @@ impl Application {
 		}
 	}
 
-	fn view_fullscreen(&self, _action: WinAction) {
+	fn view_fullscreen(&self, _action: &SimpleAction, value: Option<&Variant>) {
 		let window = self.window.get().unwrap();
-		let state = self.state.lock().unwrap();
 
-		if state.full_screen {
-			window.unfullscreen();
-		} else {
-			window.fullscreen();
+		if let Some(value) = value {
+			if value.get().unwrap() {
+				window.fullscreen();
+			} else {
+				window.unfullscreen();
+			}
 		}
 	}
 
-	fn view_af_points(&self, _action: WinAction) {
+	fn view_af_points(&self, action: &SimpleAction, value: Option<&Variant>) {
 		let drawing_area = self.drawing_area.get().unwrap();
 		let mut state = self.state.lock().unwrap();
 
-		state.af_points = !state.af_points;
-		drawing_area.af_points(state.af_points);
+		if let Some(value) = value {
+			state.af_points = value.get().unwrap();
+			action.set_state(value);
+			drawing_area.af_points(state.af_points);
+		}
 	}
 
 	fn window_state_changed(&self, full_screen: bool) {
@@ -329,6 +412,10 @@ impl Application {
 			let window = self.window.get().unwrap();
 
 			state.full_screen = full_screen;
+			self.view_full_screen_action
+				.get()
+				.unwrap()
+				.set_state(&state.full_screen.to_variant());
 			window.set_show_menubar(!state.full_screen);
 		}
 	}
@@ -361,7 +448,7 @@ impl ApplicationImpl for Application {
 			)
 			.unwrap();
 
-		self.build_menu();
+		self.build_menu_bar();
 
 		let window = self.window.get().unwrap();
 
