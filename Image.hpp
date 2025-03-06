@@ -39,7 +39,23 @@ class Codec;
 
 struct RectCompare {
 	bool operator() (const Cairo::Rectangle &a, const Cairo::Rectangle &b) const {
-		return (a.x < b.x) || (a.y < b.y) || (a.width < b.width) || (a.height < b.height);
+		if (a.x == b.x) {
+			if (a.y == b.y) {
+				if (a.width == b.width) {
+					if (a.height == b.height) {
+						return false;
+					} else {
+						return a.height < b.height;
+					}
+				} else {
+					return a.width < b.width;
+				}
+			} else {
+				return a.y < b.y;
+			}
+		} else {
+			return a.x < b.x;
+		}
 	}
 };
 
