@@ -17,6 +17,7 @@
  */
 
 use log::error;
+use parse_size::parse_size;
 use std::collections::VecDeque;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -32,8 +33,15 @@ use std::sync::{Arc, atomic};
 )]
 pub struct Args {
 	/// Number of images to preload
-	#[arg(short, long, value_names = ["COUNT"], default_value_t = 100)]
-	pub preload: u32,
+	#[arg(short, long = "preload", value_names = ["COUNT"],
+		default_value_t = 100, env("FIV_PRELOAD_COUNT"))]
+	pub preload_count: u32,
+
+	/// Limit preload memory use
+	#[arg(short = 'L', long = "preload-memory", value_names = ["BYTES"],
+		value_parser = |s: &str| parse_size(s), default_value = "20GiB",
+		env("FIV_PRELOAD_MEMORY"))]
+	pub preload_memory: u64,
 
 	/// Location to use to mark images using symlinks
 	#[arg(short, long, value_names = ["PATH"])]

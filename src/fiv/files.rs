@@ -81,12 +81,13 @@ impl Startup {
 
 impl Files {
 	pub fn new(args: CommandLineArgs, startup: Instant) -> Arc<Files> {
-		let preload = args.preload as usize;
+		let preload_count = usize::try_from(args.preload_count).unwrap_or(usize::MAX);
+		let preload_memory = args.preload_memory;
 		let shutdown = Arc::new(AtomicBool::new(false));
 		let files = Arc::new(Files {
 			args,
 			startup: Mutex::new(Startup::new(startup)),
-			state: Mutex::new(State::new(preload, shutdown.clone())),
+			state: Mutex::new(State::new(preload_count, preload_memory, shutdown.clone())),
 			notify: Notify::new(),
 			seq_pool: ThreadPool::new(1),
 			start_ready: Waitable::new(false),
@@ -320,11 +321,15 @@ struct State {
 }
 
 impl State {
-	fn new(preload: usize, shutdown: Arc<AtomicBool>) -> Self {
+	fn new(preload_count: usize, preload_memory: u64, shutdown: Arc<AtomicBool>) -> Self {
 		Self {
 			images: Vec::new(),
 			position: 0,
-			preload: Arc::new(Preload::new(preload + 1, shutdown)),
+			preload: Arc::new(Preload::new(
+				preload_count.checked_add(1).unwrap_or(usize::MAX),
+				preload_memory,
+				shutdown,
+			)),
 		}
 	}
 
@@ -408,6 +413,7 @@ impl State {
 #[derive(Debug)]
 struct Preload {
 	capacity: usize,
+	memory_limit: u64,
 	pool: ThreadPool,
 	state: Mutex<PreloadState>,
 	loading_required: Condvar,
@@ -436,9 +442,10 @@ impl PreloadState {
 }
 
 impl Preload {
-	pub fn new(capacity: usize, shutdown: Arc<AtomicBool>) -> Self {
+	pub fn new(capacity: usize, memory_limit: u64, shutdown: Arc<AtomicBool>) -> Self {
 		Self {
 			capacity,
+			memory_limit,
 			pool: threadpool::Builder::new().build(),
 			state: Mutex::new(PreloadState::new(capacity)),
 			loading_required: Condvar::new(),
@@ -505,9 +512,19 @@ impl Preload {
 			itertools::chain(iter::once(&images[current]), interleave(forward, backward));
 		#[expect(clippy::mutable_key_type, reason = "Key is immutable")]
 		let mut load = HashSet::<Arc<Image>>::with_capacity(self.capacity);
+		let mut memory_usage: u64 = 0;
 
 		while load.len() < self.capacity {
 			if let Some(image) = images.next() {
+				if let Some(new_memory_usage) = memory_usage.checked_add(image.memory_required()) {
+					if new_memory_usage > self.memory_limit && !load.is_empty() {
+						break;
+					}
+					memory_usage = new_memory_usage;
+				} else {
+					break;
+				}
+
 				load.insert(image.clone());
 				if !image.loaded() && !state.loading.contains(image) {
 					state.queue.push_back(image.clone());

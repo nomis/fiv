@@ -18,7 +18,7 @@
 
 use super::codecs::{Codec, CodecMetadata, Codecs};
 use super::numeric::{DimensionsF64, DimensionsU32, PointF64, Xi32, Xu32, Yi32, Yu32};
-use anyhow::{Error, ensure};
+use anyhow::{Error, anyhow, ensure};
 use bytemuck::{cast_slice, cast_slice_mut};
 use core::slice::IterMut;
 use gtk::cairo;
@@ -232,6 +232,10 @@ impl Image {
 				});
 			}
 		}
+	}
+
+	pub fn memory_required(&self) -> u64 {
+		ImageData::memory_required(self.metadata.dimensions)
 	}
 
 	/// Blocking on CPU, I/O
@@ -463,44 +467,68 @@ impl From<ImageDataBuilder> for ImageData {
 	}
 }
 
-impl ImageData {
-	pub fn builder(dimensions: DimensionsU32) -> Result<ImageDataBuilder, Error> {
-		let width = dimensions.width;
-		let height = dimensions.height;
+struct ImageAllocation {
+	format: cairo::Format,
+	stride: u32,
+	elements: usize,
+	memory: u64,
+}
 
-		ensure!(
-			i32::try_from(u32::from(width)).is_ok(),
-			"Image is too wide: {dimensions}"
-		);
-		ensure!(
-			i32::try_from(u32::from(height)).is_ok(),
-			"Image is too tall: {dimensions}"
-		);
-		ensure!(
-			(u32::from(width) as usize) <= (usize::MAX / size_of::<Pixel>()),
-			"Image is too wide: {dimensions}"
-		);
+impl ImageData {
+	fn calculate_allocation(dimensions: DimensionsU32) -> Result<ImageAllocation, Error> {
+		let width = i32::try_from(u32::from(dimensions.width))
+			.map_err(|_| anyhow!("Image is too wide: {dimensions}"))?;
+		let height = i32::try_from(u32::from(dimensions.height))
+			.map_err(|_| anyhow!("Image is too tall: {dimensions}"))?;
+
+		let width =
+			usize::try_from(width).map_err(|_| anyhow!("Image is too wide: {dimensions}"))?;
+		let height =
+			usize::try_from(height).map_err(|_| anyhow!("Image is too tall: {dimensions}"))?;
+		let pixel_stride = width
+			.checked_mul(size_of::<Pixel>())
+			.ok_or_else(|| anyhow!("Image is too wide: {dimensions}"))?;
 
 		let format = cairo::Format::Rgb24;
-		let stride = u32::try_from(format.stride_for_width(width.into()).unwrap()).unwrap();
+		let cairo_stride = u32::try_from(format.stride_for_width(dimensions.width.into()).unwrap())
+			.map_err(|_| anyhow!("Image is too large: {dimensions}"))?;
 
 		ensure!(
-			(u32::from(height) as usize) <= (usize::MAX / stride as usize),
-			"Image is too large: {dimensions}"
-		);
-		ensure!(
-			stride as usize == (u32::from(width) as usize * size_of::<Pixel>()),
-			"Unexpected cairo stride {stride} for {dimensions} image"
+			usize::try_from(cairo_stride)
+				.map_err(|_| anyhow!("Image is too large: {dimensions}"))?
+				== pixel_stride,
+			"Unexpected cairo stride {cairo_stride} != {pixel_stride} for {dimensions} image"
 		);
 
-		let elements = stride as usize / size_of::<Pixel>() * u32::from(height) as usize;
+		let elements = (pixel_stride / size_of::<Pixel>())
+			.checked_mul(height)
+			.ok_or_else(|| anyhow!("Image is too large: {dimensions}"))?;
+		let memory = pixel_stride
+			.checked_mul(height)
+			.and_then(|memory| u64::try_from(memory).ok())
+			.ok_or_else(|| anyhow!("Image is too large: {dimensions}"))?;
+
+		Ok(ImageAllocation {
+			format,
+			stride: cairo_stride,
+			elements,
+			memory,
+		})
+	}
+
+	pub fn memory_required(dimensions: DimensionsU32) -> u64 {
+		Self::calculate_allocation(dimensions).map_or(0, |allocation| allocation.memory)
+	}
+
+	pub fn builder(dimensions: DimensionsU32) -> Result<ImageDataBuilder, Error> {
+		let allocation = Self::calculate_allocation(dimensions)?;
 
 		Ok(ImageDataBuilder {
-			buffer: vec![0; elements].into(),
-			format,
-			width: width.try_into().unwrap(),
-			height: height.try_into().unwrap(),
-			stride: stride.try_into().unwrap(),
+			buffer: vec![0; allocation.elements].into(),
+			format: allocation.format,
+			width: dimensions.width.try_into().unwrap(),
+			height: dimensions.height.try_into().unwrap(),
+			stride: allocation.stride.try_into().unwrap(),
 		})
 	}
 

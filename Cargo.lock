@@ -570,7 +570,7 @@ dependencies = [
 
 [[package]]
 name = "fiv"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "anyhow",
  "async-notify",
@@ -586,6 +586,7 @@ dependencies = [
  "memmap2",
  "nutype",
  "pariter",
+ "parse-size",
  "pathdiff",
  "rexiv2",
  "stderrlog",
@@ -1373,6 +1374,12 @@ name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f38d5652c16fde515bb1ecef450ab0f6a219d619a7274976324d5e377f7dceba"
+
+[[package]]
+name = "parse-size"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "487f2ccd1e17ce8c1bfab3a65c89525af41cfad4c8659021a1e9a2aacd73b89b"
 
 [[package]]
 name = "paste"
