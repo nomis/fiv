@@ -117,7 +117,11 @@ impl DrawingArea {
 				.widget
 				.connect_draw(move |area, context| -> glib::Propagation {
 					if let Some(draw_image) = draw_image_ref.upgrade() {
-						draw_image.lock().unwrap().draw(&area.allocation(), context);
+						draw_image.lock().unwrap().draw(
+							&area.allocation(),
+							area.scale_factor(),
+							context,
+						);
 					}
 
 					glib::Propagation::Proceed
@@ -381,22 +385,28 @@ impl ImageDraw {
 			.is_some_and(|image| image.metadata.af_points.is_some())
 	}
 
-	pub fn draw(&mut self, allocation: &gtk::Rectangle, context: &cairo::Context) {
+	pub fn draw(
+		&mut self,
+		allocation: &gtk::Rectangle,
+		scale_factor: i32,
+		context: &cairo::Context,
+	) {
 		let started = self.startup.begin.elapsed();
 		let surface = cairo::ImageSurface::create(
 			cairo::Format::Rgb24,
-			allocation.width(),
-			allocation.height(),
-		);
-		let context2 = cairo::Context::new(surface.as_ref().unwrap()).unwrap();
+			allocation.width() * scale_factor,
+			allocation.height() * scale_factor,
+		)
+		.unwrap();
+		let scale_factor = f64::from(scale_factor);
+		surface.set_device_scale(scale_factor, scale_factor);
+		let context2 = cairo::Context::new(&surface).unwrap();
 
 		Self::copy_cairo_clip(context, &context2);
 
 		self.draw_image(allocation, &context2);
 
-		context
-			.set_source_surface(surface.as_ref().unwrap(), 0.0, 0.0)
-			.unwrap();
+		context.set_source_surface(&surface, 0.0, 0.0).unwrap();
 		context.paint().unwrap();
 
 		if !self.startup.draw && !self.waiting {
