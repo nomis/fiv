@@ -39,7 +39,10 @@ pub struct Args {
 
 	/// Limit preload memory use
 	#[arg(short = 'L', long = "preload-memory", value_names = ["BYTES"],
-		value_parser = |s: &str| parse_size(s), default_value = "20GiB",
+		value_parser = |s: &str| parse_size(s), default_value = match size_of::<usize>() {
+			0..=4 => "1GiB",
+			5.. => "20GiB",
+		},
 		env("FIV_PRELOAD_MEMORY"))]
 	pub preload_memory: u64,
 
