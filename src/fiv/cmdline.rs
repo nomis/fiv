@@ -26,10 +26,11 @@ use std::sync::{Arc, atomic};
 
 #[derive(Debug, Default, clap::Parser)]
 #[command(
-	version,
-	display_name = clap::crate_description!(),
 	about = "Display image files",
-	author = clap::crate_authors!()
+	author = clap::crate_authors!(),
+	display_name = clap::crate_description!(),
+	help_template = "{before-help}{usage-heading} {usage}\n{about-section}\n{all-args}{after-help}",
+	version = env!("VERGEN_GIT_DESCRIBE"),
 )]
 pub struct Args {
 	/// Number of images to preload
