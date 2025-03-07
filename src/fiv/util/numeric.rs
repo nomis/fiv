@@ -321,7 +321,7 @@ impl Zero for Yf64 {
 
 #[nutype(
 	const_fn,
-	validate(finite),
+	validate(finite, greater = 0.0),
 	derive(
 		Debug, Copy, Clone, Display, TryFrom, Into, PartialEq, Eq, PartialOrd, Ord
 	)
