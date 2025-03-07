@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [package]
 name = "fiv"
 version = "2.1.0"
@@ -23,10 +25,12 @@ license = "GPL-3.0-or-later"
 edition = "2024"
 build = "build.rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[package.metadata]
+copyright-years = "2015-2025"
 
 [build-dependencies]
 anyhow = "1.0.95"
+cargo_metadata = "0.19.2"
 vergen-git2 = "1.0.5"
 
 [dependencies]

@@ -19,6 +19,20 @@
 use vergen_git2::{Emitter, Git2Builder};
 
 fn main() -> anyhow::Result<()> {
+	let path = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+	let metadata = cargo_metadata::MetadataCommand::new()
+		.manifest_path("./Cargo.toml")
+		.current_dir(&path)
+		.exec()
+		.unwrap();
+	let root = metadata.root_package().unwrap();
+
+	println!("cargo::rerun-if-changed=Cargo.toml");
+	println!(
+		"cargo::rustc-env=COPYRIGHT_YEARS={}",
+		root.metadata["copyright-years"].as_str().unwrap()
+	);
+
 	let git2 = Git2Builder::default().describe(false, true, None).build()?;
 
 	Emitter::default().add_instructions(&git2)?.emit()

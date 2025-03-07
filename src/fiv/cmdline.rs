@@ -30,8 +30,11 @@ use std::sync::{Arc, atomic};
 	author = clap::crate_authors!(", "),
 	display_name = clap::crate_description!(),
 	help_template = "{before-help}{usage-heading} {usage}\n{about-section}\n{all-args}{after-help}",
-	version = env!("VERGEN_GIT_DESCRIBE").to_owned()
-	+ "\n" + "Copyright 2015-2025  " + clap::crate_authors!(", ") + "\n"
+	version = match env!("VERGEN_GIT_DESCRIBE") {
+		"" | "VERGEN_IDEMPOTENT_OUTPUT" => clap::crate_version!(),
+		value => env!("VERGEN_GIT_DESCRIBE"),
+	}.to_owned() + "\n"
+	+ "Copyright " + env!("COPYRIGHT_YEARS") + "  " + clap::crate_authors!(", ") + "\n"
 	+ "Licence GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.\n"
 	+ "This program comes with ABSOLUTELY NO WARRANTY, to the extent permitted by law.\n"
 	+ "This is free software: you are free to change and redistribute it.",
