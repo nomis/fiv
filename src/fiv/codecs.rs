@@ -17,12 +17,16 @@
  */
 
 mod generic;
+mod heif;
 mod jpeg;
 
 use super::{Orientation, image::AFPoint, image::ImageData, numeric::DimensionsU32};
 use anyhow::{Error, anyhow};
 use enum_dispatch::enum_dispatch;
-use std::fmt;
+use std::{fmt, sync::LazyLock};
+
+/// Exiv2 initialisation is not thread-safe
+static EXIV2_INIT: LazyLock<()> = LazyLock::new(|| rexiv2::initialize().unwrap());
 
 #[enum_dispatch]
 pub trait Codec {
@@ -46,6 +50,7 @@ pub struct CodecPrimary {
 #[derive(strum::AsRefStr)]
 pub enum Codecs {
 	Generic,
+	Heif,
 	Jpeg,
 }
 
@@ -54,6 +59,7 @@ impl Codecs {
 		let mime_type = tree_magic_mini::from_u8(file);
 
 		if let Some(codec) = match mime_type {
+			"image/avif" | "image/heic" | "image/heif" => Some(Codecs::from(Heif::default())),
 			"image/jpeg" => Some(Codecs::from(Jpeg::default())),
 			_ => None,
 		} {
@@ -74,6 +80,9 @@ impl fmt::Debug for Codecs {
 
 #[derive(Debug, Default)]
 pub struct Generic {}
+
+#[derive(Debug, Default)]
+pub struct Heif {}
 
 #[derive(Debug, Default)]
 pub struct Jpeg {}

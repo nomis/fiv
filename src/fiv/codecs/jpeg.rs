@@ -23,11 +23,12 @@ use crate::fiv::{
 };
 use anyhow::{Error, anyhow, ensure};
 use bitfield::Bit;
+use std::sync::LazyLock;
 
-impl TryFrom<turbojpeg::DecompressHeader> for DimensionsU32 {
+impl TryFrom<&turbojpeg::DecompressHeader> for DimensionsU32 {
 	type Error = Error;
 
-	fn try_from(header: turbojpeg::DecompressHeader) -> Result<Self, Error> {
+	fn try_from(header: &turbojpeg::DecompressHeader) -> Result<Self, Error> {
 		Ok(DimensionsU32::new(
 			u32::try_from(header.width)?.into(),
 			u32::try_from(header.height)?.into(),
@@ -37,9 +38,10 @@ impl TryFrom<turbojpeg::DecompressHeader> for DimensionsU32 {
 
 impl Codec for Jpeg {
 	fn metadata(&self, file: &[u8]) -> Result<CodecMetadata, Error> {
+		LazyLock::force(&super::EXIV2_INIT);
 		let header = turbojpeg::read_header(file)?;
 		let exiv = rexiv2::Metadata::new_from_buffer(file).ok();
-		let dimensions = DimensionsU32::try_from(header)?;
+		let dimensions = DimensionsU32::try_from(&header)?;
 		let orientation = Orientation::from(exiv.as_ref());
 		let af_points = exiv.and_then(|exiv| read_canon_af_points(dimensions, &exiv).ok());
 
@@ -53,7 +55,7 @@ impl Codec for Jpeg {
 	fn primary(&self, file: &[u8], metadata: &CodecMetadata) -> Result<CodecPrimary, Error> {
 		let mut decompressor = turbojpeg::Decompressor::new()?;
 		let header = decompressor.read_header(file)?;
-		let dimensions = DimensionsU32::try_from(header)?;
+		let dimensions = DimensionsU32::try_from(&header)?;
 
 		ensure!(
 			dimensions == metadata.dimensions,

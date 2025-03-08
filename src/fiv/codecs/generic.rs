@@ -16,12 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use std::io::{BufReader, Cursor};
-
 use super::{Codec, CodecMetadata, CodecPrimary, Generic, ImageData};
 use crate::fiv::numeric::DimensionsU32;
 use anyhow::{Error, ensure};
 use image::{DynamicImage, ImageDecoder, ImageReader};
+use std::io::{BufReader, Cursor};
 
 impl Codec for Generic {
 	fn metadata(&self, file: &[u8]) -> Result<CodecMetadata, Error> {
@@ -53,6 +52,8 @@ impl Codec for Generic {
 		let image = DynamicImage::from_decoder(decoder)?.into_rgb8();
 		let samples = image.as_flat_samples().samples;
 		let mut image_data = ImageData::builder(dimensions)?;
+
+		ensure!(AsRef::<[u8]>::as_ref(&image_data).len() == samples.len());
 
 		// Decoding images as RGB and then converting them to XBGR adds 33% to
 		// the total time compared to decoding to XBGR directly ☹️

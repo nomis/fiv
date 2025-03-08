@@ -36,9 +36,6 @@ fn main() -> glib::ExitCode {
 		.init()
 		.unwrap();
 
-	// Exiv2 initialisation is not thread-safe
-	rexiv2::initialize().unwrap();
-
 	let files = Files::new(args, startup);
 
 	if files.start() {
