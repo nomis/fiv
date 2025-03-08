@@ -55,5 +55,5 @@ stderrlog = "0.6.0"
 strum = { version = "0.27.1", features = ["derive"] }
 strum_macros = "0.27.1"
 threadpool = "1.8.1"
-tree_magic_mini = "3.1.6"
+tree_magic_mini = { version = "3.1.6", features = ["with-gpl-data"] }
 turbojpeg = { version = "1.2.2", features = ["require-simd"] }
