@@ -18,7 +18,7 @@
 
 [package]
 name = "fiv"
-version = "2.3.0"
+version = "2.3.1"
 description = "Fast Image Viewer"
 authors = ["Simon Arlott"]
 license = "GPL-3.0-or-later"

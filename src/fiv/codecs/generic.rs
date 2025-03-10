@@ -17,7 +17,7 @@
  */
 
 use super::{Codec, CodecMetadata, CodecPrimary, Generic, ImageData};
-use crate::fiv::numeric::DimensionsU32;
+use crate::fiv::{image::Pixel, numeric::DimensionsU32};
 use anyhow::{Error, ensure};
 use image::{DynamicImage, ImageDecoder, ImageReader};
 use std::io::{BufReader, Cursor};
@@ -53,7 +53,7 @@ impl Codec for Generic {
 		let samples = image.as_flat_samples().samples;
 		let mut image_data = ImageData::builder(dimensions)?;
 
-		ensure!(AsRef::<[u8]>::as_ref(&image_data).len() == samples.len());
+		ensure!(AsRef::<[Pixel]>::as_ref(&image_data).len() * 3 == samples.len());
 
 		// Decoding images as RGB and then converting them to XBGR adds 33% to
 		// the total time compared to decoding to XBGR directly ☹️

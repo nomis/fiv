@@ -64,7 +64,7 @@ impl Hash for Image {
 	}
 }
 
-type Pixel = u32;
+pub type Pixel = u32;
 
 #[derive(derive_more::Debug)]
 pub struct ImageData {
