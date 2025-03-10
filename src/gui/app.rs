@@ -19,6 +19,7 @@
 use super::Files;
 use super::draw::DrawingArea;
 use crate::fiv::{Mark, Navigate, Rotate};
+use gtk::gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::gio::{Menu, SimpleAction};
 use gtk::glib::Variant;
 use gtk::glib::once_cell::unsync::OnceCell;
@@ -453,6 +454,22 @@ impl ApplicationImpl for Application {
 		let window = self.window.get().unwrap();
 
 		let self_ref = self.downgrade();
+
+		let icon = include_bytes!("icon32.pnm");
+		let icon_size: i32 = 32;
+		let icon_stride: i32 = icon_size * 3;
+		let icon_len: usize = usize::try_from(icon_stride * icon_size).unwrap();
+		let icon = glib::Bytes::from(&icon[include_bytes!("icon32.pnm").len() - icon_len..]);
+
+		window.set_icon(Some(&Pixbuf::from_bytes(
+			&icon,
+			Colorspace::Rgb,
+			false,
+			8,
+			icon_size,
+			icon_size,
+			icon_size * 3,
+		)));
 
 		window.connect_window_state_event(move |_, event| -> glib::Propagation {
 			if let Some(app) = self_ref.upgrade() {
