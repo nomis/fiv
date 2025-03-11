@@ -433,6 +433,8 @@ impl Application {
 
 impl ApplicationImpl for Application {
 	fn startup(&self) {
+		const ICON: &[u8] = include_bytes!("icon32.pnm");
+
 		self.parent_startup();
 
 		self.app_name
@@ -455,11 +457,10 @@ impl ApplicationImpl for Application {
 
 		let self_ref = self.downgrade();
 
-		let icon = include_bytes!("icon32.pnm");
 		let icon_size: i32 = 32;
 		let icon_stride: i32 = icon_size * 3;
 		let icon_len: usize = usize::try_from(icon_stride * icon_size).unwrap();
-		let icon = glib::Bytes::from(&icon[include_bytes!("icon32.pnm").len() - icon_len..]);
+		let icon = glib::Bytes::from(&ICON[ICON.len() - icon_len..]);
 
 		window.set_icon(Some(&Pixbuf::from_bytes(
 			&icon,
