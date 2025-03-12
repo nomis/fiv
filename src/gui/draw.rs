@@ -297,7 +297,7 @@ impl DrawingArea {
 impl ImageDraw {
 	pub fn refresh(&mut self, image: Arc<Image>) -> bool {
 		let changed = match &self.image {
-			Some(other) => !Arc::ptr_eq(&image, other),
+			Some(other) => !Arc::ptr_eq(&image, other) || self.orientation != image.orientation(),
 			None => true,
 		};
 
@@ -308,7 +308,7 @@ impl ImageDraw {
 
 			true
 		} else {
-			self.waiting && image.loaded() || self.orientation != image.orientation()
+			self.waiting && image.loaded()
 		}
 	}
 
