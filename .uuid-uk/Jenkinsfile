@@ -25,7 +25,7 @@ pipeline {
 			label "Linux && Docker"
 			dir ".uuid-uk"
 			filename "Dockerfile"
-			args "--mount source=user-cache-debian-trixie-cargo,target=/home/user/.cargo"
+			args "--mount source=user-cache-debian-sid-cargo,target=/home/user/.cargo"
 		}
 	}
 	triggers {
