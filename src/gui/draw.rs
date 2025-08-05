@@ -412,7 +412,7 @@ impl ImageDraw {
 		if !self.startup.draw && !self.waiting {
 			self.startup.draw = true;
 
-			trace!("First image draw started at {:?}", started);
+			trace!("First image draw started at {started:?}");
 			trace!(
 				"First image draw finished at {:?}",
 				self.startup.begin.elapsed()
