@@ -222,7 +222,7 @@ impl TestVecExt for Vec<u8> {
 		match format {
 			NumberFormat::U16 => self.push_u16(bo, 0),
 			NumberFormat::U32 => self.push_u32(bo, 0),
-		};
+		}
 
 		position
 	}
@@ -249,7 +249,7 @@ impl TestVecExt for Vec<u8> {
 					},
 				);
 			}
-		};
+		}
 	}
 
 	fn push_tiff_header(&mut self, bo: ByteOrder) {

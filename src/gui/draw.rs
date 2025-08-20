@@ -467,7 +467,7 @@ impl ImageDraw {
 						context.translate(0.0, image.width().into());
 						context.rotate(std::f64::consts::PI * 1.5);
 					}
-				};
+				}
 
 				if self.orientation.horizontal_flip {
 					context.translate(image.width().into(), 0.0);

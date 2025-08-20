@@ -208,7 +208,7 @@ fn read_canon_af_points(
 
 	let _af_area_mode = af_info.get_u16(1, || anyhow!("Missing AFAreaMode"))?;
 	let num_af_points = af_info.get_usize(2, || anyhow!("Missing NumAFPoints"))?;
-	let num_af_bitfields = (num_af_points + 15) / 16;
+	let num_af_bitfields = num_af_points.div_ceil(16);
 	let valid_af_points = af_info.get_usize(3, || anyhow!("Missing ValidAFPoints"))?;
 	let img_dimensions = af_info.get_dimensions_u32(
 		4,

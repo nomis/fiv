@@ -120,7 +120,6 @@ impl Iterator for Filenames<'_> {
 			match fs::metadata(filename) {
 				Err(err) => {
 					error!("{}: {err}", filename.display());
-					continue;
 				}
 
 				Ok(metadata) => {

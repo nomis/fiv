@@ -326,7 +326,7 @@ impl State {
 			images: Vec::new(),
 			position: 0,
 			preload: Arc::new(Preload::new(
-				preload_count.checked_add(1).unwrap_or(usize::MAX),
+				preload_count.saturating_add(1),
 				preload_memory,
 				shutdown,
 			)),
