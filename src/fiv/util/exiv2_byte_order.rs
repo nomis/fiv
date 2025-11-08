@@ -170,7 +170,7 @@ impl TestVecExt for Vec<u8> {
 			SizeFormat::One => 1,
 			SizeFormat::U8 => data.length,
 			SizeFormat::U16 => {
-				assert!(data.length % 2 == 0);
+				assert!(data.length.is_multiple_of(2));
 				data.length / 2
 			}
 		};
