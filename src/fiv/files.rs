@@ -231,29 +231,29 @@ impl Files {
 			return;
 		}
 
-		if let Ok(mut startup) = self.startup.lock() {
-			if !startup.image_loaded {
-				startup.image_loaded = true;
+		if let Ok(mut startup) = self.startup.lock()
+			&& !startup.image_loaded
+		{
+			startup.image_loaded = true;
 
-				debug!("First image loaded after {:?}", startup.begin.elapsed());
-			}
+			debug!("First image loaded after {:?}", startup.begin.elapsed());
 		}
 
-		if let Some(current_image) = current.image {
-			if *current_image == *image {
-				if let Ok(mut startup) = self.startup.lock() {
-					if !startup.image_ready {
-						startup.image_ready = true;
+		if let Some(current_image) = current.image
+			&& *current_image == *image
+		{
+			if let Ok(mut startup) = self.startup.lock()
+				&& !startup.image_ready
+			{
+				startup.image_ready = true;
 
-						debug!(
-							"First image ready for display after {:?}",
-							startup.begin.elapsed()
-						);
-					}
-				}
-
-				self.update_ui();
+				debug!(
+					"First image ready for display after {:?}",
+					startup.begin.elapsed()
+				);
 			}
+
+			self.update_ui();
 		}
 	}
 
@@ -272,15 +272,15 @@ impl Files {
 			// To avoid wasting resources doing something that is no longer
 			// needed, check that we're still on the same image, unless this
 			// task must always be run
-			if always || (!shutdown && current.position == self_copy.position()) {
-				if let Some(image) = current.image {
-					func(&image);
+			if (always || (!shutdown && current.position == self_copy.position()))
+				&& let Some(image) = current.image
+			{
+				func(&image);
 
-					// After running the task, if we're still on the same image
-					// then the UI for it needs to be updated
-					if current.position == self_copy.position() {
-						self_copy.update_ui();
-					}
+				// After running the task, if we're still on the same image
+				// then the UI for it needs to be updated
+				if current.position == self_copy.position() {
+					self_copy.update_ui();
 				}
 			}
 		});
@@ -552,12 +552,12 @@ impl Preload {
 	fn load_one_or_wait(&self, files: &Files) {
 		let mut state = self.state.lock().unwrap();
 
-		if let Some(priority) = &state.priority {
-			if state.loading.contains(priority) {
-				// Wait until the priority image has been loaded
-				drop(self.loading_required.wait(state).unwrap());
-				return;
-			}
+		if let Some(priority) = &state.priority
+			&& state.loading.contains(priority)
+		{
+			// Wait until the priority image has been loaded
+			drop(self.loading_required.wait(state).unwrap());
+			return;
 		}
 
 		if let Some(image) = state.queue.pop_front() {
@@ -578,14 +578,14 @@ impl Preload {
 					if state.loaded.len() == 1 { "" } else { "s" }
 				);
 
-				if let Some(priority) = &state.priority {
-					if *priority == image {
-						state.priority = None;
+				if let Some(priority) = &state.priority
+					&& *priority == image
+				{
+					state.priority = None;
 
-						// Wake up threads that are waiting for the priority
-						// load to finish
-						self.notify(&state);
-					}
+					// Wake up threads that are waiting for the priority
+					// load to finish
+					self.notify(&state);
 				}
 
 				// Release preload mutex before acquiring the state mutex

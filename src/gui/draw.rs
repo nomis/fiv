@@ -483,39 +483,39 @@ impl ImageDraw {
 				// returns otherwise `context` will still have a reference to it
 				context.set_source_rgb(0.0, 0.0, 0.0);
 
-				if self.af_points {
-					if let Some(af_points) = &image.metadata.af_points {
-						let dashes = [(5.0 / draw_at.scale).into(); 2];
-						let dots = [(2.0 / draw_at.scale).into(); 2];
+				if self.af_points
+					&& let Some(af_points) = &image.metadata.af_points
+				{
+					let dashes = [(5.0 / draw_at.scale).into(); 2];
+					let dots = [(2.0 / draw_at.scale).into(); 2];
 
-						context.save().unwrap();
-						context.set_operator(cairo::Operator::Difference);
+					context.save().unwrap();
+					context.set_operator(cairo::Operator::Difference);
 
-						for af_point in af_points {
-							if af_point.active {
-								context.set_source_rgb(1.0, 0.0, 1.0);
-								context.set_line_width((4.0 / draw_at.scale).into());
-								context.set_dash(&[], 0.0);
-							} else if af_point.selected {
-								context.set_source_rgb(1.0, 0.0, 0.0);
-								context.set_line_width((2.0 / draw_at.scale).into());
-								context.set_dash(&dots, 0.0);
-							} else {
-								context.set_source_rgb(1.0, 1.0, 1.0);
-								context.set_line_width((1.0 / draw_at.scale).into());
-								context.set_dash(&dashes, 0.0);
-							}
-							context.rectangle(
-								af_point.position.x.into(),
-								af_point.position.y.into(),
-								af_point.dimensions.width.into(),
-								af_point.dimensions.height.into(),
-							);
-							context.stroke().unwrap();
+					for af_point in af_points {
+						if af_point.active {
+							context.set_source_rgb(1.0, 0.0, 1.0);
+							context.set_line_width((4.0 / draw_at.scale).into());
+							context.set_dash(&[], 0.0);
+						} else if af_point.selected {
+							context.set_source_rgb(1.0, 0.0, 0.0);
+							context.set_line_width((2.0 / draw_at.scale).into());
+							context.set_dash(&dots, 0.0);
+						} else {
+							context.set_source_rgb(1.0, 1.0, 1.0);
+							context.set_line_width((1.0 / draw_at.scale).into());
+							context.set_dash(&dashes, 0.0);
 						}
-
-						context.restore().unwrap();
+						context.rectangle(
+							af_point.position.x.into(),
+							af_point.position.y.into(),
+							af_point.dimensions.width.into(),
+							af_point.dimensions.height.into(),
+						);
+						context.stroke().unwrap();
 					}
+
+					context.restore().unwrap();
 				}
 			} else {
 				if loaded {
