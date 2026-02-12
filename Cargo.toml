@@ -1,5 +1,5 @@
 # fiv - Fast Image Viewer
-# Copyright 2025  Simon Arlott
+# Copyright 2025-2026  Simon Arlott
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ copyright-years = "2015-2025"
 [build-dependencies]
 anyhow = "1.0.95"
 cargo_metadata = "0.19.2"
-vergen-git2 = "1.0.5"
+vergen-git2 = "9.1.0"
 
 [dependencies]
 anyhow = "1.0.95"
@@ -48,7 +48,7 @@ libheif-rs = { version = "1.1.0", features = ["compile-libheif", "embedded-libhe
 log = "0.4.25"
 memmap2 = "0.9.5"
 nutype = "0.6.1"
-pariter = "0.5.1"
+pariter = "0.6.0"
 parse-size = "1.1.0"
 pathdiff = "0.2.3"
 rexiv2 = { version = "0.10.0", features = ["raw-tag-access"] }

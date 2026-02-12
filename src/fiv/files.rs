@@ -112,7 +112,7 @@ impl Files {
 		let shutdown_copy = self.shutdown.clone();
 
 		std::thread::spawn(move || {
-			pariter::scope(|scope| {
+			std::thread::scope(|scope| {
 				let canonical_mark_directory =
 					self_copy
 						.args
@@ -146,8 +146,7 @@ impl Files {
 				self_copy.start_ready.set(true);
 				self_copy.start_finished.set(true);
 				self_copy.update_ui();
-			})
-			.unwrap();
+			});
 		});
 
 		self.start_ready.wait(&true);
