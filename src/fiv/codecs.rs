@@ -1,6 +1,6 @@
 /*
  * fiv - Fast Image Viewer
- * Copyright 2015,2025  Simon Arlott
+ * Copyright 2015,2025-2026  Simon Arlott
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ impl Codecs {
 		} else if mime_type.starts_with("image/") {
 			Ok(Codecs::from(Generic::default()))
 		} else {
-			Err(anyhow!("Unsupported type {}", mime_type))
+			Err(anyhow!("Unsupported type {mime_type}"))
 		}
 	}
 }
