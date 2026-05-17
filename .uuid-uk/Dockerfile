@@ -12,7 +12,7 @@ RUN \
 		build-essential rustc cargo rust-clippy git \
 		cmake nasm \
 		libexiv2-dev \
-		libgexiv2-dev \
+		libgexiv2-0.14-dev \
 		libgtk-3-dev \
 		libheif-dev \
 		libturbojpeg0-dev
