@@ -59,13 +59,13 @@ impl Codecs {
 		let mime_type = tree_magic_mini::from_u8(file);
 
 		if let Some(codec) = match mime_type {
-			"image/avif" | "image/heic" | "image/heif" => Some(Codecs::from(Heif::default())),
-			"image/jpeg" => Some(Codecs::from(Jpeg::default())),
+			"image/avif" | "image/heic" | "image/heif" => Some(Codecs::from(Heif)),
+			"image/jpeg" => Some(Codecs::from(Jpeg)),
 			_ => None,
 		} {
 			Ok(codec)
 		} else if mime_type.starts_with("image/") {
-			Ok(Codecs::from(Generic::default()))
+			Ok(Codecs::from(Generic))
 		} else {
 			Err(anyhow!("Unsupported type {mime_type}"))
 		}
@@ -78,11 +78,6 @@ impl fmt::Debug for Codecs {
 	}
 }
 
-#[derive(Debug, Default)]
 pub struct Generic;
-
-#[derive(Debug, Default)]
 pub struct Heif;
-
-#[derive(Debug, Default)]
 pub struct Jpeg;
