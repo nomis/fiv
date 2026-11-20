@@ -1,6 +1,6 @@
 /*
  * fiv - Fast Image Viewer
- * Copyright 2025  Simon Arlott
+ * Copyright 2025-2026  Simon Arlott
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ impl Codec for Generic {
 
 		// Decoding images as RGB and then converting them to XBGR adds 33% to
 		// the total time compared to decoding to XBGR directly ☹️
-		for (src, dst) in samples.chunks_exact(3).zip(image_data.iter_mut()) {
+		for (src, dst) in samples.as_chunks::<3>().0.iter().zip(image_data.iter_mut()) {
 			*dst = (u32::from(src[0]) << 16) | (u32::from(src[1]) << 8) | u32::from(src[2]);
 		}
 
