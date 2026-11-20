@@ -79,10 +79,10 @@ impl fmt::Debug for Codecs {
 }
 
 #[derive(Debug, Default)]
-pub struct Generic {}
+pub struct Generic;
 
 #[derive(Debug, Default)]
-pub struct Heif {}
+pub struct Heif;
 
 #[derive(Debug, Default)]
-pub struct Jpeg {}
+pub struct Jpeg;
